@@ -1,0 +1,173 @@
+
+> odisea-cloud@0.1.0 dev C:\Users\via\Downloads\nexhost
+> turbo run dev --parallel
+
+
+   • Packages in scope: @odisea/api, @odisea/odin-panel, @odisea/types, @odisea/ui, @odisea/whm
+   • Running dev in 5 packages
+   • Remote caching disabled
+
+@odisea/whm:dev: cache bypass, force executing de4329ba1b94a718
+@odisea/odin-panel:dev: cache bypass, force executing 1e962b22c3a77ee0
+@odisea/api:dev: cache bypass, force executing 3e2278e81841f81b
+@odisea/odin-panel:dev: 
+@odisea/odin-panel:dev: > @odisea/odin-panel@0.1.0 dev C:\Users\via\Downloads\nexhost\apps\odin-panel
+@odisea/odin-panel:dev: > next dev -p 3003
+@odisea/odin-panel:dev: 
+@odisea/whm:dev: 
+@odisea/whm:dev: > @odisea/whm@0.1.0 dev C:\Users\via\Downloads\nexhost\apps\whm
+@odisea/whm:dev: > next dev -p 3002
+@odisea/whm:dev: 
+@odisea/api:dev: 
+@odisea/api:dev: > @odisea/api@0.1.0 dev C:\Users\via\Downloads\nexhost\apps\api
+@odisea/api:dev: > tsx watch src/server.ts
+@odisea/api:dev: 
+@odisea/odin-panel:dev:   ▲ Next.js 14.2.15
+@odisea/odin-panel:dev:   - Local:        http://localhost:3003
+@odisea/odin-panel:dev: 
+@odisea/odin-panel:dev:  ✓ Starting...
+@odisea/whm:dev:   ▲ Next.js 14.2.15
+@odisea/whm:dev:   - Local:        http://localhost:3002
+@odisea/whm:dev:   - Environments: .env.local
+@odisea/whm:dev: 
+@odisea/whm:dev:  ✓ Starting...
+@odisea/api:dev: [odisea-api] listening on :3001
+@odisea/odin-panel:dev:  ✓ Ready in 13.7s
+@odisea/whm:dev:  ✓ Ready in 13.7s
+@odisea/whm:dev:  ○ Compiling /whm/accounts/create ...
+@odisea/whm:dev:  ✓ Compiled /whm/accounts/create in 15.6s (586 modules)
+@odisea/whm:dev:  GET /whm/accounts/create 200 in 16863ms
+@odisea/whm:dev:  ○ Compiling /whm/accounts ...
+@odisea/whm:dev:  ✓ Compiled /whm/accounts in 2s (632 modules)
+@odisea/whm:dev:  ⚠ Fast Refresh had to perform a full reload. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+@odisea/whm:dev:  GET /whm/accounts 200 in 2357ms
+@odisea/api:dev: 15:42:42 [tsx] change in ./src\controllers\whm\account.controller.ts Restarting...
+@odisea/api:dev: c[odisea-api] listening on :3001
+@odisea/api:dev: [whm:impersonate:error] error: column "resource_id" of relation "activity_logs" does not exist
+@odisea/api:dev:     at C:\Users\via\Downloads\nexhost\node_modules\.pnpm\pg-pool@3.13.0_pg@8.20.0\node_modules\pg-pool\index.js:45:11
+@odisea/api:dev:     at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+@odisea/api:dev:     at async impersonateWhmAccount (C:\Users\via\Downloads\nexhost\apps\api\src\services\whm\account.service.ts:210:3)
+@odisea/api:dev:     at async impersonateWhmAccountHandler (C:\Users\via\Downloads\nexhost\apps\api\src\controllers\whm\account.controller.ts:154:18) {
+@odisea/api:dev:   length: 137,
+@odisea/api:dev:   severity: 'ERROR',
+@odisea/api:dev:   code: '42703',
+@odisea/api:dev:   detail: undefined,
+@odisea/api:dev:   hint: undefined,
+@odisea/api:dev:   position: '55',
+@odisea/api:dev:   internalPosition: undefined,
+@odisea/api:dev:   internalQuery: undefined,
+@odisea/api:dev:   where: undefined,
+@odisea/api:dev:   schema: undefined,
+@odisea/api:dev:   table: undefined,
+@odisea/api:dev:   column: undefined,
+@odisea/api:dev:   dataType: undefined,
+@odisea/api:dev:   constraint: undefined,
+@odisea/api:dev:   file: 'parse_target.c',
+@odisea/api:dev:   line: '1066',
+@odisea/api:dev:   routine: 'checkInsertTargets'
+@odisea/api:dev: }
+@odisea/api:dev: [whm:impersonate:error] error: column "resource_id" of relation "activity_logs" does not exist
+@odisea/api:dev:     at C:\Users\via\Downloads\nexhost\node_modules\.pnpm\pg-pool@3.13.0_pg@8.20.0\node_modules\pg-pool\index.js:45:11
+@odisea/api:dev:     at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+@odisea/api:dev:     at async impersonateWhmAccount (C:\Users\via\Downloads\nexhost\apps\api\src\services\whm\account.service.ts:210:3)
+@odisea/api:dev:     at async impersonateWhmAccountHandler (C:\Users\via\Downloads\nexhost\apps\api\src\controllers\whm\account.controller.ts:154:18) {
+@odisea/api:dev:   length: 137,
+@odisea/api:dev:   severity: 'ERROR',
+@odisea/api:dev:   code: '42703',
+@odisea/api:dev:   detail: undefined,
+@odisea/api:dev:   hint: undefined,
+@odisea/api:dev:   position: '55',
+@odisea/api:dev:   internalPosition: undefined,
+@odisea/api:dev:   internalQuery: undefined,
+@odisea/api:dev:   where: undefined,
+@odisea/api:dev:   schema: undefined,
+@odisea/api:dev:   table: undefined,
+@odisea/api:dev:   column: undefined,
+@odisea/api:dev:   dataType: undefined,
+@odisea/api:dev:   constraint: undefined,
+@odisea/api:dev:   file: 'parse_target.c',
+@odisea/api:dev:   line: '1066',
+@odisea/api:dev:   routine: 'checkInsertTargets'
+@odisea/api:dev: }
+@odisea/api:dev: 15:43:57 [tsx] change in ./src\services\whm\account.service.ts Restarting...
+@odisea/api:dev: c[odisea-api] listening on :3001
+@odisea/whm:dev:  GET /whm/accounts 200 in 528ms
+@odisea/odin-panel:dev:  ○ Compiling /auth/impersonate ...
+@odisea/odin-panel:dev:  ✓ Compiled /auth/impersonate in 8.6s (465 modules)
+@odisea/odin-panel:dev:  GET /auth/impersonate?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2NmQxM2RjOC1kNTcxLTRlNWQtYWQ5Yy05YzhkZjczZGJhNDUiLCJ1c2VybmFtZSI6ImFkbWluIiwicm9sZSI6InVzZXIiLCJhY2NvdW50SWQiOiIzNDQ4NzgwNy0wOGIxLTQxNTMtYTlhNS0wYWQ0OGQzOWQ2NWQiLCJpbXBlcnNvbmF0ZWRCeSI6IndobS1hZG1pbiIsInRva2VuVHlwZSI6ImltcGVyc29uYXRpb24iLCJpYXQiOjE3NzU4NTM4NzQsImV4cCI6MTc3NTg2MTA3NH0.-0CFrk1_3N-lxYpAFBRefYBQFNckmELB3oxTBJ8v_4c 200 in 9199ms
+@odisea/odin-panel:dev:  ✓ Compiled in 11.6s (491 modules)
+@odisea/whm:dev:  ✓ Compiled in 15.6s (632 modules)
+@odisea/odin-panel:dev:  ✓ Compiled in 800ms (505 modules)
+@odisea/whm:dev:  ✓ Compiled in 1004ms (632 modules)
+@odisea/whm:dev:  ✓ Compiled in 322ms (323 modules)
+@odisea/whm:dev:  ✓ Compiled in 1021ms (632 modules)
+@odisea/whm:dev:  ✓ Compiled in 748ms (632 modules)
+@odisea/odin-panel:dev:  ✓ Compiled in 270ms (261 modules)
+@odisea/odin-panel:dev:  ✓ Compiled in 550ms (505 modules)
+@odisea/whm:dev:  ○ Compiling / ...
+@odisea/whm:dev:  ✓ Compiled / in 1925ms (627 modules)
+@odisea/whm:dev:  GET / 200 in 2523ms
+@odisea/whm:dev:  ✓ Compiled in 1889ms (645 modules)
+@odisea/odin-panel:dev:  ✓ Compiled in 6.6s (503 modules)
+@odisea/whm:dev:  ✓ Compiled in 379ms (659 modules)
+@odisea/whm:dev:  ✓ Compiled in 619ms (659 modules)
+@odisea/whm:dev:  ✓ Compiled in 639ms (659 modules)
+@odisea/whm:dev:  ✓ Compiled in 1334ms (645 modules)
+@odisea/odin-panel:dev:  ✓ Compiled in 1611ms (463 modules)
+@odisea/odin-panel:dev:  ✓ Compiled in 2.6s (463 modules)
+@odisea/whm:dev:  ✓ Compiled in 3.6s (645 modules)
+@odisea/odin-panel:dev:  ✓ Compiled in 538ms (463 modules)
+@odisea/whm:dev:  ✓ Compiled in 878ms (645 modules)
+@odisea/odin-panel:dev:  ✓ Compiled in 372ms (463 modules)
+@odisea/whm:dev:  ✓ Compiled in 438ms (645 modules)
+@odisea/odin-panel:dev:  ✓ Compiled in 432ms (463 modules)
+@odisea/whm:dev:  ✓ Compiled in 486ms (645 modules)
+@odisea/whm:dev:  ✓ Compiled in 538ms (645 modules)
+@odisea/odin-panel:dev:  ✓ Compiled in 1202ms (463 modules)
+@odisea/odin-panel:dev:  ✓ Compiled in 326ms (463 modules)
+@odisea/whm:dev:  ✓ Compiled in 379ms (645 modules)
+@odisea/whm:dev:  ✓ Compiled in 2.7s (659 modules)
+@odisea/whm:dev:  GET / 200 in 718ms
+@odisea/odin-panel:dev:  ✓ Compiled in 4.5s (247 modules)
+@odisea/odin-panel:dev:  ✓ Compiled in 153ms (247 modules)
+@odisea/odin-panel:dev:  ✓ Compiled in 1348ms (477 modules)
+@odisea/odin-panel:dev:  ✓ Compiled in 444ms (477 modules)
+@odisea/odin-panel:dev:  ✓ Compiled in 524ms (247 modules)
+@odisea/odin-panel:dev:  ✓ Compiled in 2s (247 modules)
+@odisea/odin-panel:dev:  ✓ Compiled in 1348ms (477 modules)
+@odisea/odin-panel:dev:  ✓ Compiled in 340ms (247 modules)
+@odisea/whm:dev:  ○ Compiling /_not-found ...
+@odisea/whm:dev:  ✓ Compiled /_not-found in 9.7s (648 modules)
+@odisea/whm:dev:  GET /admin 404 in 10103ms
+@odisea/whm:dev:  GET / 200 in 101ms
+@odisea/whm:dev:  GET / 200 in 137ms
+@odisea/whm:dev:  ✓ Compiled in 6.9s (330 modules)
+@odisea/whm:dev:  ✓ Compiled in 1367ms (659 modules)
+@odisea/whm:dev:  ✓ Compiled in 1750ms (656 modules)
+@odisea/whm:dev:  ✓ Compiled in 3.9s (633 modules)
+@odisea/whm:dev:  GET / 200 in 248ms
+@odisea/whm:dev:  ○ Compiling /_not-found ...
+@odisea/whm:dev:  ✓ Compiled /_not-found in 634ms (636 modules)
+@odisea/whm:dev:  GET /logo.png 404 in 765ms
+@odisea/whm:dev:  GET / 200 in 319ms
+@odisea/whm:dev:  GET /logo.png 404 in 77ms
+@odisea/whm:dev:  ✓ Compiled in 10.9s (647 modules)
+@odisea/whm:dev:  ✓ Compiled /_not-found in 346ms (636 modules)
+@odisea/whm:dev:  GET /logo.png 404 in 560ms
+@odisea/whm:dev:  GET / 200 in 184ms
+@odisea/whm:dev:  GET /logo.png 404 in 76ms
+@odisea/whm:dev:  GET / 200 in 103ms
+@odisea/whm:dev:  GET /logo.png 404 in 63ms
+@odisea/whm:dev:  GET / 200 in 240ms
+@odisea/whm:dev:  GET /logo.png 404 in 64ms
+@odisea/whm:dev:  GET /logo.png 404 in 31ms
+@odisea/whm:dev:  GET / 200 in 266ms
+@odisea/whm:dev: �Desea terminar el trabajo por lotes (S/N)? 
+@odisea/api:dev: �Desea terminar el trabajo por lotes (S/N)? 
+@odisea/odin-panel:dev: �Desea terminar el trabajo por lotes (S/N)? 
+@odisea/api:dev:  ELIFECYCLE  Command failed with exit code 3221225786.
+@odisea/odin-panel:dev:  ELIFECYCLE  Command failed with exit code 3221225786.
+@odisea/whm:dev:  ELIFECYCLE  Command failed with exit code 3221225786.
+@odisea/whm:dev: ^C^C
+@odisea/odin-panel:dev: ^C^C
+ ELIFECYCLE  Command failed with exit code 3221225786.

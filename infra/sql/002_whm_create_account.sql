@@ -1,0 +1,28 @@
+ALTER TABLE hosting_accounts
+  ADD COLUMN IF NOT EXISTS php_version VARCHAR(10) NOT NULL DEFAULT '8.2',
+  ADD COLUMN IF NOT EXISTS shell_access BOOLEAN NOT NULL DEFAULT false,
+  ADD COLUMN IF NOT EXISTS nodejs_enabled BOOLEAN NOT NULL DEFAULT false,
+  ADD COLUMN IF NOT EXISTS docker_enabled BOOLEAN NOT NULL DEFAULT false;
+
+CREATE TABLE IF NOT EXISTS nameserver_config (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  inherit_root BOOLEAN NOT NULL DEFAULT true,
+  ns1 VARCHAR(255),
+  ns2 VARCHAR(255),
+  ns3 VARCHAR(255),
+  ns4 VARCHAR(255),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS account_nameservers (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  account_id UUID NOT NULL UNIQUE REFERENCES hosting_accounts(id) ON DELETE CASCADE,
+  inherit_root BOOLEAN NOT NULL DEFAULT true,
+  ns1 VARCHAR(255),
+  ns2 VARCHAR(255),
+  ns3 VARCHAR(255),
+  ns4 VARCHAR(255),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
