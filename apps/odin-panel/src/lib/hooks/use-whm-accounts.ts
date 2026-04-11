@@ -5,20 +5,12 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   createAccount,
   fetchAccounts,
-  fetchDashboard,
   fetchPlans,
   impersonateAccount,
   resumeAccount,
   suspendAccount
 } from "../api";
 import { whmCreateAccountSchema, type WhmCreateAccountInput } from "../schemas/whm-create-account";
-
-export const useWhmDashboard = () => {
-  return useQuery({
-    queryKey: ["whm-dashboard"],
-    queryFn: fetchDashboard
-  });
-};
 
 export const useWhmPlans = () => {
   return useQuery({

@@ -40,16 +40,6 @@ export const fetchPlans = async (): Promise<Plan[]> => {
   return parsePayload<Plan[]>(response);
 };
 
-export interface DashboardStats {
-  server: { cpu: number; ram: number; disk: number };
-  accounts: { active: number; suspended: number; terminated: number };
-}
-
-export const fetchDashboard = async (): Promise<DashboardStats> => {
-  const response = await fetch(`${API_BASE}/whm/dashboard`, { cache: "no-store" });
-  return parsePayload<DashboardStats>(response);
-};
-
 export const fetchAccounts = async (): Promise<WhmAccount[]> => {
   const response = await fetch(`${API_BASE}/whm/accounts`, { cache: "no-store" });
   return parsePayload<WhmAccount[]>(response);
@@ -78,4 +68,18 @@ export const resumeAccount = async (accountId: string): Promise<void> => {
 export const impersonateAccount = async (accountId: string): Promise<WhmImpersonation> => {
   const response = await fetch(`${API_BASE}/whm/accounts/${accountId}/impersonate`, { method: "POST" });
   return parsePayload<WhmImpersonation>(response);
+};
+
+export const fetchWpSites = async (): Promise<any[]> => {
+  const response = await fetch(`${API_BASE}/odin-panel/wordpress`, { cache: "no-store" });
+  return parsePayload<any[]>(response);
+};
+
+export const installWordPress = async (input: any): Promise<any> => {
+  const response = await fetch(`${API_BASE}/odin-panel/wordpress/install`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input)
+  });
+  return parsePayload<any>(response);
 };

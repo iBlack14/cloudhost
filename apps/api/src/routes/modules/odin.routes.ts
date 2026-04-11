@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { installWpHandler, listWpSitesHandler } from "../../controllers/odin/wordpress.controller.js";
 
 export const odinRouter = Router();
 
@@ -11,3 +12,7 @@ odinRouter.get("/dashboard", (_req, res) => {
     }
   });
 });
+
+odinRouter.get("/wordpress", listWpSitesHandler);
+odinRouter.post("/wordpress/install", installWpHandler);
+

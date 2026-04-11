@@ -1,9 +1,7 @@
 "use client";
 
-import { useMemo, useState, type ChangeEvent, type FormEvent } from "react";
-
-import { AppShell, UIButton, UIInput, UINotice, UISelect } from "@odisea/ui";
-
+import React, { useMemo, useState, type ChangeEvent, type FormEvent } from "react";
+import Link from "next/link";
 import { useCreateWhmAccount, useWhmPlans } from "../../../../lib/hooks/use-whm-accounts";
 import type { WhmCreateAccountInput } from "../../../../lib/schemas/whm-create-account";
 
@@ -41,8 +39,9 @@ export default function CreateWhmAccountPage() {
     return Boolean(form.domain && form.username && form.password && form.email) && !isSaving;
   }, [form, isSaving]);
 
-  const onInputChange = (event: ChangeEvent<HTMLInputElement>) => {
-    const { name, value, type, checked } = event.target;
+  const onInputChange = (event: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const target = event.target as HTMLInputElement;
+    const { name, value, type, checked } = target;
 
     if (name.startsWith("settings.")) {
       const key = name.replace("settings.", "") as keyof WhmCreateAccountInput["settings"];
@@ -81,92 +80,194 @@ export default function CreateWhmAccountPage() {
         planId: form.planId || undefined
       });
 
-      setFeedback(`Cuenta creada. userId=${data.userId} accountId=${data.accountId}`);
+      setFeedback(`Node successfully provisioned. ID: ${data.accountId}`);
       setForm(defaultForm);
     } catch (error) {
-      setFeedback(error instanceof Error ? error.message : "No se pudo crear la cuenta");
+      setFeedback(error instanceof Error ? error.message : "Provisioning failed");
     }
   };
 
   return (
-    <AppShell title="ODISEA CLOUD · WHM · Crear Cuenta" accent="violet" subtitle="Provisiona cuentas de hosting con configuración inicial.">
-      <form onSubmit={onSubmit} className="grid gap-5 rounded-2xl border border-white/10 bg-gradient-to-b from-white/[0.06] to-white/[0.02] p-6">
-        <section className="grid gap-4 md:grid-cols-2">
-          <UIInput label="Dominio" name="domain" value={form.domain} onChange={onInputChange} placeholder="cliente.com" />
-          <UIInput label="Username" name="username" value={form.username} onChange={onInputChange} placeholder="cliente01" />
-          <UIInput label="Email" name="email" type="email" value={form.email} onChange={onInputChange} placeholder="admin@cliente.com" />
-          <UIInput label="Password" name="password" type="password" value={form.password} onChange={onInputChange} placeholder="********" />
-        </section>
+    <div className="max-w-4xl mx-auto space-y-8">
+      <header className="space-y-1">
+        <div className="flex items-center gap-3 mb-1">
+           <span className="px-2 py-0.5 bg-primary/10 text-primary text-[9px] font-black uppercase rounded border border-primary/20 tracking-widest">
+              Deployment Wizard
+           </span>
+        </div>
+        <h1 className="text-5xl font-headline font-black text-white tracking-tighter uppercase italic">
+          Provision New Node
+        </h1>
+        <p className="text-zinc-500 text-sm font-mono tracking-widest mt-1">
+          Specify core parameters for the new administrative instance.
+        </p>
+      </header>
 
-        <section className="grid gap-4 md:grid-cols-2">
-          <UISelect
-            label="Plan"
-            value={form.planId ?? ""}
-            onChange={(event: ChangeEvent<HTMLSelectElement>) =>
-              setForm((prev) => ({ ...prev, planId: event.target.value || undefined }))
-            }
-          >
-              <option value="">Sin plan</option>
-              {(plansQuery.data ?? []).map((plan) => (
-                <option key={plan.id} value={plan.id}>
-                  {plan.name} · {plan.disk_quota_mb}MB / {plan.bandwidth_mb}MB
-                </option>
-              ))}
-          </UISelect>
+      <form onSubmit={onSubmit} className="space-y-6">
+        <div className="glass-card p-10 space-y-10">
+          <section className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <ProField label="Domain / FQDN">
+               <input 
+                name="domain"
+                type="text" 
+                placeholder="example.com"
+                value={form.domain}
+                onChange={onInputChange}
+                required
+                className="pro-input"
+              />
+            </ProField>
+            <ProField label="Administrative User">
+              <input 
+                name="username"
+                type="text" 
+                placeholder="root_admin"
+                value={form.username}
+                onChange={onInputChange}
+                required
+                className="pro-input"
+              />
+            </ProField>
+            <ProField label="Primary Contact Email">
+              <input 
+                name="email"
+                type="email" 
+                placeholder="sysops@nexhost.cloud"
+                value={form.email}
+                onChange={onInputChange}
+                required
+                className="pro-input"
+              />
+            </ProField>
+            <ProField label="Access Credentials">
+              <input 
+                name="password"
+                type="password" 
+                placeholder="••••••••••••"
+                value={form.password}
+                onChange={onInputChange}
+                required
+                className="pro-input"
+              />
+            </ProField>
+          </section>
 
-          <UISelect
-            label="PHP Version"
-            value={form.settings.phpVersion}
-            onChange={(event: ChangeEvent<HTMLSelectElement>) =>
-              setForm((prev) => ({
-                ...prev,
-                settings: { ...prev.settings, phpVersion: event.target.value as WhmCreateAccountInput["settings"]["phpVersion"] }
-              }))
-            }
-          >
-              <option value="7.4">7.4</option>
-              <option value="8.0">8.0</option>
-              <option value="8.1">8.1</option>
-              <option value="8.2">8.2</option>
-              <option value="8.3">8.3</option>
-          </UISelect>
-        </section>
+          <section className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-8 border-t border-white/5">
+            <ProField label="Resource Allocation Plan">
+              <select 
+                name="planId"
+                value={form.planId ?? ""}
+                onChange={onInputChange}
+                className="pro-input appearance-none bg-[#0A1221]"
+              >
+                <option value="">Select Cluster Tier</option>
+                {(plansQuery.data ?? []).map(plan => (
+                  <option key={plan.id} value={plan.id}>
+                    {plan.name} ({plan.disk_quota_mb}MB NVMe)
+                  </option>
+                ))}
+              </select>
+            </ProField>
+            <ProField label="Compute Engine (PHP)">
+              <select 
+                name="settings.phpVersion"
+                value={form.settings.phpVersion}
+                onChange={onInputChange}
+                className="pro-input appearance-none bg-[#0A1221]"
+              >
+                {["7.4", "8.0", "8.1", "8.2", "8.3"].map(v => (
+                  <option key={v} value={v}>v{v} High-Performance</option>
+                ))}
+              </select>
+            </ProField>
+          </section>
 
-        <section className="grid gap-3 rounded-xl border border-white/10 bg-black/20 p-4 text-sm text-zinc-300">
-          <label className="inline-flex items-center gap-2">
-            <input type="checkbox" name="nameservers.inheritRoot" checked={form.nameservers.inheritRoot} onChange={onInputChange} />
-            Heredar nameservers del root
-          </label>
+          <section className="pt-8 border-t border-white/5 space-y-6">
+             <div className="flex items-center justify-between">
+                <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-500">Infrastructure Modules</h3>
+                <label className="flex items-center gap-3 cursor-pointer group">
+                   <input 
+                    type="checkbox" 
+                    name="nameservers.inheritRoot" 
+                    checked={form.nameservers.inheritRoot} 
+                    onChange={onInputChange}
+                    className="hidden"
+                   />
+                   <div className={`w-4 h-4 rounded border transition-all ${form.nameservers.inheritRoot ? 'bg-primary border-primary shadow-[0_0_10px_rgba(0,163,255,0.4)]' : 'border-zinc-700'}`}></div>
+                   <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400 group-hover:text-white transition-colors">Inherit Root Nameservers</span>
+                </label>
+             </div>
 
-          {!form.nameservers.inheritRoot && (
-            <div className="grid gap-3 md:grid-cols-2">
-              <input name="nameservers.ns1" value={form.nameservers.ns1} onChange={onInputChange} className="rounded-xl border border-white/15 bg-black/30 px-3 py-2 text-zinc-100 outline-none ring-violet-400/50 transition focus:ring-2" placeholder="ns1.cliente.com" />
-              <input name="nameservers.ns2" value={form.nameservers.ns2} onChange={onInputChange} className="rounded-xl border border-white/15 bg-black/30 px-3 py-2 text-zinc-100 outline-none ring-violet-400/50 transition focus:ring-2" placeholder="ns2.cliente.com" />
-              <input name="nameservers.ns3" value={form.nameservers.ns3} onChange={onInputChange} className="rounded-xl border border-white/15 bg-black/30 px-3 py-2 text-zinc-100 outline-none ring-violet-400/50 transition focus:ring-2" placeholder="ns3 (opcional)" />
-              <input name="nameservers.ns4" value={form.nameservers.ns4} onChange={onInputChange} className="rounded-xl border border-white/15 bg-black/30 px-3 py-2 text-zinc-100 outline-none ring-violet-400/50 transition focus:ring-2" placeholder="ns4 (opcional)" />
-            </div>
-          )}
-        </section>
-
-        <section className="grid gap-2 text-sm text-zinc-300 md:grid-cols-3">
-          <label className="inline-flex items-center gap-2"><input type="checkbox" name="settings.shellAccess" checked={form.settings.shellAccess} onChange={onInputChange} /> Shell Access</label>
-          <label className="inline-flex items-center gap-2"><input type="checkbox" name="settings.nodejsEnabled" checked={form.settings.nodejsEnabled} onChange={onInputChange} /> Node.js</label>
-          <label className="inline-flex items-center gap-2"><input type="checkbox" name="settings.dockerEnabled" checked={form.settings.dockerEnabled} onChange={onInputChange} /> Docker</label>
-        </section>
-
-        <div className="flex items-center gap-3">
-          <UIButton
-            variant="primary"
-            type="submit"
-            disabled={!canSubmit}
-          >
-            {isSaving ? "Creando..." : "Crear cuenta"}
-          </UIButton>
-          {plansQuery.isLoading && <span className="text-xs text-zinc-400">Cargando planes...</span>}
+             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <ModuleToggle 
+                  label="SSH Shell" 
+                  active={form.settings.shellAccess} 
+                  onClick={() => setForm(prev => ({ ...prev, settings: { ...prev.settings, shellAccess: !prev.settings.shellAccess } }))} 
+                />
+                <ModuleToggle 
+                  label="Node.js Cluster" 
+                  active={form.settings.nodejsEnabled} 
+                  onClick={() => setForm(prev => ({ ...prev, settings: { ...prev.settings, nodejsEnabled: !prev.settings.nodejsEnabled } }))} 
+                />
+                <ModuleToggle 
+                  label="Docker Engine" 
+                  active={form.settings.dockerEnabled} 
+                  onClick={() => setForm(prev => ({ ...prev, settings: { ...prev.settings, dockerEnabled: !prev.settings.dockerEnabled } }))} 
+                />
+             </div>
+          </section>
         </div>
 
-        {feedback && <UINotice tone={feedback.startsWith("Cuenta creada") ? "success" : "info"}>{feedback}</UINotice>}
+        <div className="flex items-center justify-between pt-4">
+           <Link href="/whm/accounts">
+              <button type="button" className="text-zinc-500 hover:text-white transition-colors text-[10px] uppercase font-black tracking-[0.2em]">
+                Abort Mission
+              </button>
+           </Link>
+           <button 
+             type="submit" 
+             disabled={!canSubmit || isSaving}
+             className="kinetic-gradient px-12 py-4 rounded-2xl text-white font-black font-headline tracking-widest active:scale-95 transition-all shadow-2xl shadow-primary/40 uppercase text-xs disabled:opacity-50 disabled:grayscale"
+           >
+             {isSaving ? "Syncing..." : "Authorize Provisioning"}
+           </button>
+        </div>
+
+        {feedback && (
+          <div className={`p-6 rounded-2xl text-center text-[10px] font-black uppercase tracking-[0.2em] border animate-in fade-in slide-in-from-bottom-2 ${
+            feedback.includes("successfully") ? 'border-primary/40 text-primary bg-primary/5' : 'border-red-500/40 text-red-400 bg-red-400/5'
+          }`}>
+             {feedback}
+          </div>
+        )}
       </form>
-    </AppShell>
+    </div>
+  );
+}
+
+function ProField({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="space-y-3">
+      <label className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-600 block ml-1">{label}</label>
+      {children}
+    </div>
+  );
+}
+
+function ModuleToggle({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
+  return (
+    <div 
+      onClick={onClick}
+      className={`p-5 rounded-2xl border cursor-pointer transition-all flex items-center justify-between group ${
+        active 
+          ? 'bg-primary/10 border-primary/50 text-white shadow-[0_0_20px_rgba(0,163,255,0.05)]' 
+          : 'bg-white/5 border-white/5 text-zinc-500 hover:border-white/10 hover:text-zinc-300'
+      }`}
+    >
+      <span className="text-[11px] font-black uppercase tracking-tight italic">{label}</span>
+      <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${active ? 'bg-primary border-primary shadow-[0_0_10px_rgba(0,163,255,0.5)]' : 'border-zinc-800'}`}>
+         {active && <span className="material-symbols-outlined text-[12px] text-black font-bold">check</span>}
+      </div>
+    </div>
   );
 }

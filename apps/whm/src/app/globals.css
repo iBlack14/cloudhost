@@ -5,20 +5,46 @@
 @layer base {
   body {
     @apply bg-background text-zinc-100 font-body antialiased;
+    /* Deep Space Gradient inspired by logo */
     background: 
-      radial-gradient(circle at 0% 0%, rgba(0, 163, 255, 0.08) 0%, transparent 40%),
-      radial-gradient(circle at 100% 100%, rgba(0, 229, 255, 0.04) 0%, transparent 40%),
-      #050B14;
+      radial-gradient(circle at 0% 0%, rgba(0, 163, 255, 0.1) 0%, transparent 40%),
+      radial-gradient(circle at 100% 100%, rgba(0, 229, 255, 0.05) 0%, transparent 40%),
+      linear-gradient(180deg, #050B14 0%, #02060C 100%);
+  }
+
+  body::before {
+    content: "";
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    /* Starfield effect similar to logo cloud interior */
+    background-image: 
+      radial-gradient(1px 1px at 20px 30px, #eee, rgba(0,0,0,0)),
+      radial-gradient(1px 1px at 40px 70px, #fff, rgba(0,0,0,0)),
+      radial-gradient(2px 2px at 50px 160px, #ddd, rgba(0,0,0,0)),
+      radial-gradient(2px 2px at 90px 40px, #fff, rgba(0,0,0,0)),
+      radial-gradient(1px 1px at 130px 80px, #fff, rgba(0,0,0,0));
+    background-repeat: repeat;
+    background-size: 200px 200px;
+    opacity: 0.15;
+    pointer-events: none;
+    z-index: -1;
   }
 }
 
 @layer components {
   .glass-sidebar {
-    @apply bg-[#0A1221]/80 backdrop-blur-3xl border-r border-white/5;
+    @apply bg-[#0A1221]/60 backdrop-blur-3xl border-r border-[#00A3FF]/10;
   }
   
   .glass-card {
-    @apply bg-[#111B2F]/40 backdrop-blur-md border border-white/10 rounded-2xl;
+    @apply bg-[#111B2F]/40 backdrop-blur-md border border-[#00A3FF]/10 rounded-2xl;
+  }
+
+  .pro-input {
+    @apply w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-primary/50 transition-all font-body text-sm;
   }
 
   .neon-text {
@@ -26,7 +52,12 @@
   }
 
   .kinetic-gradient {
+    /* Blue-to-Azure-to-Cyan gradient matching the logo's cloud and ring */
     background: linear-gradient(135deg, #00A3FF 0%, #00E5FF 100%);
+  }
+
+  .italic-header thead th {
+    @apply italic;
   }
 
   .pulse-glow {
