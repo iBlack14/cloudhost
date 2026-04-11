@@ -17,7 +17,7 @@ export function WhmSidebar() {
           </div>
           <div>
             <h2 className="text-xl font-black tracking-tighter text-white font-headline">
-              NEXHOST <span className="text-primary italic font-black">WHM</span>
+              ODISEA <span className="text-primary italic font-black">CLOUD</span>
             </h2>
             <div className="flex items-center gap-2">
               <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse shadow-[0_0_8px_#00A3FF]"></span>

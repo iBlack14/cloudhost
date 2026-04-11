@@ -23,11 +23,10 @@ services:
       MYSQL_ROOT_PASSWORD: root
       MYSQL_DATABASE: odin_user_data
     ports:
-      - "3306:3306"
+      - "3307:3306" # Port 3307 to avoid conflicts with Easypanel/Plesk
     volumes:
       - mysql_data:/var/lib/mysql
 
 volumes:
   postgres_data:
   mysql_data:
-

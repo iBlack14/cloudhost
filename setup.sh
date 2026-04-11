@@ -1,11 +1,11 @@
 #!/bin/bash
 
-# NexHost One-Click Installer
+# Odisea Cloud One-Click Installer
 # Designed for Ubuntu 22.04+
 
 set -e
 
-echo "🚀 Starting NexHost Infrastructure Installation..."
+echo "🚀 Starting Odisea Cloud Infrastructure Installation..."
 
 # 1. Check Root
 if [ "$EUID" -ne 0 ]; then 
@@ -14,14 +14,14 @@ if [ "$EUID" -ne 0 ]; then
 fi
 
 # 2. Ask for Configuration
-read -p "Enter API Port [Default: 3001]: " API_PORT
-API_PORT=${API_PORT:-3001}
+read -p "Enter API Port [Default: 3212]: " API_PORT
+API_PORT=${API_PORT:-3212}
 
-read -p "Enter WHM Port [Default: 3002]: " WHM_PORT
-WHM_PORT=${WHM_PORT:-3002}
+read -p "Enter WHM Port [Default: 3213]: " WHM_PORT
+WHM_PORT=${WHM_PORT:-3213}
 
-read -p "Enter ODIN Panel Port [Default: 3003]: " ODIN_PORT
-ODIN_PORT=${ODIN_PORT:-3003}
+read -p "Enter ODIN Panel Port [Default: 3214]: " ODIN_PORT
+ODIN_PORT=${ODIN_PORT:-3214}
 
 read -p "Enter VPS Public IP: " VPS_IP
 
@@ -65,6 +65,7 @@ cat <<EOT > apps/api/.env
 PORT=$API_PORT
 DB_URL=postgresql://postgres:postgres@localhost:5434/odisea_cloud
 MYSQL_HOST=localhost
+MYSQL_PORT=3307
 MYSQL_USER=root
 MYSQL_PASS=root
 EOT
@@ -82,19 +83,20 @@ PORT=$ODIN_PORT
 EOT
 
 # 7. Build and Launch
-echo "🏗️  Building NexHost Ecosystem..."
+echo "🏗️  Building Odisea Cloud Ecosystem..."
 pnpm install
 pnpm build
 
 # 8. Launching Services with PM2
 echo "🛰️  Launching Services with PM2..."
-pm2 start apps/api/dist/index.js --name nexhost-api
-pm2 start "pnpm --filter whm start -- -p $WHM_PORT" --name nexhost-whm
-pm2 start "pnpm --filter odin-panel start -- -p $ODIN_PORT" --name nexhost-odin
+pm2 delete nexhost-api nexhost-whm nexhost-odin || true
+pm2 start apps/api/dist/index.js --name odisea-api
+pm2 start "pnpm --filter whm start -- -p $WHM_PORT" --name odisea-whm
+pm2 start "pnpm --filter odin-panel start -- -p $ODIN_PORT" --name odisea-odin
 
 pm2 save
 
-echo "✅ Installation Complete!"
+echo "✅ Installation Complete! Welcome to Odisea Cloud"
 echo "--------------------------------------------------"
 echo "WHM: http://$VPS_IP:$WHM_PORT"
 echo "ODIN: http://$VPS_IP:$ODIN_PORT"
