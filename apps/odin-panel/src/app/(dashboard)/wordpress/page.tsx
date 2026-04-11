@@ -2,10 +2,11 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { fetchWpSites, installWordPress } from "../../../lib/api";
+import { fetchWpSites, installWordPress, fetchDomains } from "../../../lib/api";
 
 export default function WordPressManagerPage() {
   const [sites, setSites] = useState<any[]>([]);
+  const [domains, setDomains] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isWizardOpen, setIsWizardOpen] = useState(false);
   const [isInstalling, setIsInstalling] = useState(false);
@@ -31,10 +32,14 @@ export default function WordPressManagerPage() {
   const loadSites = async () => {
     try {
       setIsLoading(true);
-      const data = await fetchWpSites();
-      setSites(data);
+      const [sitesData, domainsData] = await Promise.all([
+        fetchWpSites(),
+        fetchDomains()
+      ]);
+      setSites(sitesData);
+      setDomains(domainsData);
     } catch (err) {
-      console.error("Failed to load WP sites", err);
+      console.error("Failed to load WP data", err);
     } finally {
       setIsLoading(false);
     }
@@ -165,7 +170,10 @@ export default function WordPressManagerPage() {
                    >
                       <span className="material-symbols-outlined">settings</span>
                    </Link>
-                   <button className="flex items-center gap-3 px-6 py-4 rounded-xl bg-primary text-black font-black text-[10px] uppercase tracking-widest hover:brightness-110 active:scale-95 transition-all">
+                   <button 
+                     onClick={() => window.open(`http://${site.domain}/wp-admin`, '_blank')}
+                     className="flex items-center gap-3 px-6 py-4 rounded-xl bg-primary text-black font-black text-[10px] uppercase tracking-widest hover:brightness-110 active:scale-95 transition-all"
+                   >
                       <span>Admin Login</span>
                       <span className="material-symbols-outlined text-sm">open_in_new</span>
                    </button>
@@ -218,12 +226,28 @@ export default function WordPressManagerPage() {
                  ) : (
                    <div className="space-y-6">
                       <div className="grid grid-cols-2 gap-6">
-                         <WizardField 
-                            label="Installation Domain" 
-                            placeholder="e.g. site.com" 
-                            value={formData.domain}
-                            onChange={(v) => setFormData(prev => ({ ...prev, domain: v }))}
-                         />
+                         {domains.length > 0 ? (
+                           <div className="space-y-2">
+                             <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Installation Domain</label>
+                             <select 
+                               value={formData.domain}
+                               onChange={(e) => setFormData(prev => ({ ...prev, domain: e.target.value }))}
+                               className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-primary/50 transition-all appearance-none cursor-pointer"
+                             >
+                               <option value="" className="bg-zinc-900">Select a domain...</option>
+                               {domains.map(d => (
+                                 <option key={d.id} value={d.domain_name} className="bg-zinc-900">{d.domain_name}</option>
+                               ))}
+                             </select>
+                           </div>
+                         ) : (
+                           <WizardField 
+                              label="Installation Domain" 
+                              placeholder="e.g. site.com" 
+                              value={formData.domain}
+                              onChange={(v) => setFormData(prev => ({ ...prev, domain: v }))}
+                           />
+                         )}
                          <WizardField 
                             label="Directory (Optional)" 
                             placeholder="e.g. blog" 

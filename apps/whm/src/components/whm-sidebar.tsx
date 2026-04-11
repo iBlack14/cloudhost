@@ -33,6 +33,7 @@ export function WhmSidebar() {
         <NavItem icon="person_add" label="Create New Account" href="/whm/accounts/create" active={pathname === "/whm/accounts/create"} />
         <NavItem icon="settings_suggest" label="Packages & Tiers" href="/whm/plans" active={pathname === "/whm/plans"} />
         <NavItem icon="dns" label="Server Config" href="/whm/config" active={pathname === "/whm/config"} />
+        <NavItem icon="language" label="DNS Zone Manager" href="/whm/domains" active={pathname.startsWith("/whm/domains")} />
         <NavItem icon="security" label="Security Center" />
         <NavItem icon="monitoring" label="Resource Monitor" />
       </nav>

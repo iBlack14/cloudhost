@@ -154,3 +154,11 @@ export const listUserWpSites = async (userId: string) => {
   );
   return result.rows;
 };
+
+export const getWpSiteById = async (id: string, userId: string) => {
+  const result = await db.query(
+    "SELECT * FROM wordpress_sites WHERE id = $1 AND user_id = $2",
+    [id, userId]
+  );
+  return result.rows[0] || null;
+};

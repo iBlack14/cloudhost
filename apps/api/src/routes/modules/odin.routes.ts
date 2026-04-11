@@ -1,5 +1,6 @@
 import { Router } from "express";
-import { installWpHandler, listWpSitesHandler } from "../../controllers/odin/wordpress.controller.js";
+import { installWpHandler, listWpSitesHandler, getWpSiteByIdHandler } from "../../controllers/odin/wordpress.controller.js";
+import { listDomainsHandler, addDomainHandler, deleteDomainHandler } from "../../controllers/odin/domain.controller.js";
 
 export const odinRouter = Router();
 
@@ -14,5 +15,10 @@ odinRouter.get("/dashboard", (_req, res) => {
 });
 
 odinRouter.get("/wordpress", listWpSitesHandler);
+odinRouter.get("/wordpress/:id", getWpSiteByIdHandler);
 odinRouter.post("/wordpress/install", installWpHandler);
+
+odinRouter.get("/domains", listDomainsHandler);
+odinRouter.post("/domains", addDomainHandler);
+odinRouter.delete("/domains/:id", deleteDomainHandler);
 

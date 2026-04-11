@@ -8,6 +8,8 @@ import {
   resumeWhmAccountHandler,
   suspendWhmAccountHandler
 } from "../../controllers/whm/account.controller.js";
+import { listAllDomainsHandler } from "../../controllers/odin/domain.controller.js";
+import { getDnsZoneHandler, addDnsRecordHandler, deleteDnsRecordHandler } from "../../controllers/odin/dns.controller.js";
 
 export const whmRouter = Router();
 
@@ -27,3 +29,7 @@ whmRouter.post("/accounts", createWhmAccountHandler);
 whmRouter.post("/accounts/:accountId/suspend", suspendWhmAccountHandler);
 whmRouter.post("/accounts/:accountId/resume", resumeWhmAccountHandler);
 whmRouter.post("/accounts/:accountId/impersonate", impersonateWhmAccountHandler);
+whmRouter.get("/domains", listAllDomainsHandler);
+whmRouter.get("/domains/:id/dns", getDnsZoneHandler);
+whmRouter.post("/dns/zones/:zoneId/records", addDnsRecordHandler);
+whmRouter.delete("/dns/records/:recordId", deleteDnsRecordHandler);

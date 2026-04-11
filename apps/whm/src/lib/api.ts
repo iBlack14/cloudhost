@@ -79,3 +79,27 @@ export const impersonateAccount = async (accountId: string): Promise<WhmImperson
   const response = await fetch(`${API_BASE}/whm/accounts/${accountId}/impersonate`, { method: "POST" });
   return parsePayload<WhmImpersonation>(response);
 };
+
+export const fetchWhmDomains = async (): Promise<any[]> => {
+  const response = await fetch(`${API_BASE}/whm/domains`, { cache: "no-store" });
+  return parsePayload<any[]>(response);
+};
+
+export const fetchDnsZone = async (domainId: string): Promise<any> => {
+  const response = await fetch(`${API_BASE}/whm/domains/${domainId}/dns`, { cache: "no-store" });
+  return parsePayload<any>(response);
+};
+
+export const addDnsRecord = async (zoneId: string, input: any): Promise<any> => {
+  const response = await fetch(`${API_BASE}/whm/dns/zones/${zoneId}/records`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input)
+  });
+  return parsePayload<any>(response);
+};
+
+export const deleteDnsRecord = async (recordId: string): Promise<void> => {
+  const response = await fetch(`${API_BASE}/whm/dns/records/${recordId}`, { method: "DELETE" });
+  await parsePayload(response);
+};

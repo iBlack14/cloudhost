@@ -75,6 +75,11 @@ export const fetchWpSites = async (): Promise<any[]> => {
   return parsePayload<any[]>(response);
 };
 
+export const fetchWpSiteById = async (id: string): Promise<any> => {
+  const response = await fetch(`${API_BASE}/odin-panel/wordpress/${id}`, { cache: "no-store" });
+  return parsePayload<any>(response);
+};
+
 export const installWordPress = async (input: any): Promise<any> => {
   const response = await fetch(`${API_BASE}/odin-panel/wordpress/install`, {
     method: "POST",
@@ -82,4 +87,23 @@ export const installWordPress = async (input: any): Promise<any> => {
     body: JSON.stringify(input)
   });
   return parsePayload<any>(response);
+};
+
+export const fetchDomains = async (): Promise<any[]> => {
+  const response = await fetch(`${API_BASE}/odin-panel/domains`, { cache: "no-store" });
+  return parsePayload<any[]>(response);
+};
+
+export const addDomain = async (domainName: string): Promise<any> => {
+  const response = await fetch(`${API_BASE}/odin-panel/domains`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ domainName })
+  });
+  return parsePayload<any>(response);
+};
+
+export const deleteDomain = async (id: string): Promise<void> => {
+  const response = await fetch(`${API_BASE}/odin-panel/domains/${id}`, { method: "DELETE" });
+  await parsePayload(response);
 };

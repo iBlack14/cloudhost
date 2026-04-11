@@ -1,6 +1,6 @@
 import type { Request, Response } from "express";
 import { z } from "zod";
-import { installWordPress, listUserWpSites } from "../../services/odin/wordpress.service.js";
+import { installWordPress, listUserWpSites, getWpSiteById } from "../../services/odin/wordpress.service.js";
 
 const installWpSchema = z.object({
   domain: z.string().min(3),
@@ -8,6 +8,10 @@ const installWpSchema = z.object({
   siteTitle: z.string().min(1),
   adminUser: z.string().min(3),
   adminPass: z.string().min(3)
+});
+
+const siteIdParamSchema = z.object({
+  id: z.string().uuid()
 });
 
 export const installWpHandler = async (req: Request, res: Response): Promise<Response> => {
@@ -69,6 +73,43 @@ export const listWpSitesHandler = async (req: Request, res: Response): Promise<R
     return res.status(500).json({
       success: false,
       error: { code: "INTERNAL_ERROR", message: "No se pudieron listar los sitios" }
+    });
+  }
+};
+
+export const getWpSiteByIdHandler = async (req: Request, res: Response): Promise<Response> => {
+  const parsedParams = siteIdParamSchema.safeParse(req.params);
+  
+  if (!parsedParams.success) {
+    return res.status(422).json({
+      success: false,
+      error: { code: "VALIDATION_ERROR", message: "ID de sitio inválido" }
+    });
+  }
+
+  try {
+    let userId = req.headers["x-user-id"] as string;
+    
+    if (!userId) {
+      const { db } = await import("../../config/db.js");
+      const userRes = await db.query("SELECT id FROM users LIMIT 1");
+      userId = userRes.rowCount > 0 ? userRes.rows[0].id : "00000000-0000-0000-0000-000000000000";
+    }
+
+    const site = await getWpSiteById(parsedParams.data.id, userId);
+    
+    if (!site) {
+      return res.status(404).json({
+        success: false,
+        error: { code: "NOT_FOUND", message: "Sitio no encontrado" }
+      });
+    }
+
+    return res.status(200).json({ success: true, data: site });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      error: { code: "INTERNAL_ERROR", message: "No se pudo obtener el sitio" }
     });
   }
 };
