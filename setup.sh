@@ -39,7 +39,11 @@ ufw allow 53/tcp
 echo "y" | ufw enable
 
 # 4. Install Dependencies
-echo "📦 Installing System Dependencies (Node.js, Docker, PM2)..."
+echo "📦 Cleaning up conflicts and installing dependencies..."
+# Remove potential conflicts
+apt purge -y containerd docker.io runc containerd.io || true
+apt autoremove -y
+
 apt update && apt install -y curl git docker.io docker-compose
 
 # Install Node.js 20
