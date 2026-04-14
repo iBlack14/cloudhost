@@ -89,7 +89,8 @@ pnpm build
 
 # 8. Launching Services with PM2
 echo "🛰️  Launching Services with PM2..."
-pm2 delete nexhost-api nexhost-whm nexhost-odin || true
+# Cleanup any old NexHost or Odisea processes to avoid ghost instances
+pm2 delete nexhost-api nexhost-whm nexhost-odin odisea-api odisea-whm odisea-odin || true
 pm2 start apps/api/dist/index.js --name odisea-api
 pm2 start "pnpm --filter whm start -- -p $WHM_PORT" --name odisea-whm
 pm2 start "pnpm --filter odin-panel start -- -p $ODIN_PORT" --name odisea-odin
@@ -98,7 +99,7 @@ pm2 save
 
 echo "✅ Installation Complete! Welcome to Odisea Cloud"
 echo "--------------------------------------------------"
-echo "WHM: http://$VPS_IP:$WHM_PORT"
-echo "ODIN: http://$VPS_IP:$ODIN_PORT"
-echo "API: http://$VPS_IP:$API_PORT"
+echo "WHM Dashboard: http://$VPS_IP:$WHM_PORT"
+echo "ODIN Panel:    http://$VPS_IP:$ODIN_PORT"
+echo "API Service:   http://$VPS_IP:$API_PORT"
 echo "--------------------------------------------------"

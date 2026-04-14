@@ -5,8 +5,8 @@ import "./globals.css";
 import Providers from "./providers";
 
 export const metadata: Metadata = {
-  title: "NexHost WHM | Admin Console",
-  description: "Web Host Manager"
+  title: "Odisea Cloud | WHM Console",
+  description: "Advanced Web Host Manager"
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {

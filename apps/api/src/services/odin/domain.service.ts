@@ -7,7 +7,7 @@ export const ensureDomainsTable = async () => {
         user_id UUID NOT NULL,
         domain_name TEXT NOT NULL UNIQUE,
         status TEXT DEFAULT 'active',
-        dns_provider TEXT DEFAULT 'nexhost_managed',
+        dns_provider TEXT DEFAULT 'odisea_managed',
         nameservers JSONB,
         ssl_enabled BOOLEAN DEFAULT false,
         expiry_date TIMESTAMP WITH TIME ZONE,

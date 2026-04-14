@@ -4,7 +4,7 @@ import "./globals.css";
 import Providers from "./providers";
 
 export const metadata: Metadata = {
-  title: "NexHost | Pro Dashboard",
+  title: "Odisea Cloud | Pro Dashboard",
   description: "Advanced Hosting Control Panel"
 };
 

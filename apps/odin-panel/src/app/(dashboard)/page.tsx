@@ -12,7 +12,7 @@ export default function DashboardPage() {
             SYSTEM CONSOLE
           </h1>
           <div className="flex items-center gap-3">
-             <span className="text-primary font-mono text-[10px] tracking-[0.2em]">NODE: NEX-CLOUD-01</span>
+             <span className="text-primary font-mono text-[10px] tracking-[0.2em]">NODE: OD-CLOUD-01</span>
              <div className="h-px w-12 bg-white/10"></div>
              <span className="text-zinc-500 font-mono text-[10px] tracking-[0.2em]">REGION: US-BLUE-EAST</span>
           </div>
@@ -97,7 +97,7 @@ export default function DashboardPage() {
 
       <footer className="pt-12 pb-8 border-t border-white/5 flex justify-between items-center text-[10px] font-black text-zinc-600 uppercase tracking-[0.4em]">
          <span>Odin Panel v2.4.0-Stable</span>
-         <span className="text-primary italic">NexHost Cloud Infrastructure</span>
+         <span className="text-primary italic">Odisea Cloud Infrastructure</span>
       </footer>
     </div>
   );

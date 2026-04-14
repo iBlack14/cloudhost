@@ -13,10 +13,10 @@ export function Sidebar() {
         <Link href="/" className="flex items-center gap-2">
           <div className="w-8 h-8 relative flex-shrink-0">
              <div className="absolute inset-0 bg-primary/20 rounded-lg blur-md"></div>
-             <img src="/logo.png" alt="NexHost Logo" className="w-full h-full object-contain relative z-10" />
+             <img src="/logo.png" alt="Odisea Cloud Logo" className="w-full h-full object-contain relative z-10" />
           </div>
           <h2 className="text-2xl font-black tracking-tighter text-white font-headline italic">
-            NEXHOST
+            ODISEA <span className="text-primary tracking-normal">CLOUD</span>
           </h2>
         </Link>
         <p className="text-[10px] text-primary/60 uppercase tracking-widest mt-2 ml-10 font-bold">

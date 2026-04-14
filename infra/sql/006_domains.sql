@@ -4,7 +4,7 @@ CREATE TABLE IF NOT EXISTS domains (
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     domain_name TEXT NOT NULL UNIQUE,
     status TEXT DEFAULT 'pending_verification', -- pending_verification, active, expired
-    dns_provider TEXT DEFAULT 'nexhost_managed',
+    dns_provider TEXT DEFAULT 'odisea_managed',
     nameservers JSONB,
     ssl_enabled BOOLEAN DEFAULT false,
     expiry_date TIMESTAMP WITH TIME ZONE,

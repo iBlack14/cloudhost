@@ -42,7 +42,7 @@ export const getOrCreateZone = async (domainId: string, domainName: string) => {
     const result = await db.query(
         `INSERT INTO dns_zones (domain_id, origin, soa_mname, soa_rname, soa_serial) 
          VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-        [domainId, `${domainName}.`, "ns1.nexhost.cloud.", "admin.nexhost.cloud.", Date.now()]
+        [domainId, `${domainName}.`, "ns1.odisea.cloud.", "admin.odisea.cloud.", Date.now()]
     );
     
     const zone = result.rows[0];
