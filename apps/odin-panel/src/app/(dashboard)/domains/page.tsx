@@ -1,53 +1,45 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { fetchDomains, addDomain, deleteDomain } from "../../../lib/api";
 
 export default function DomainsPage() {
-  const [domains, setDomains] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isAdding, setIsAdding] = useState(false);
   const [newDomain, setNewDomain] = useState("");
+  const queryClient = useQueryClient();
 
-  const loadDomains = async () => {
-    try {
-      setIsLoading(true);
-      const data = await fetchDomains();
-      setDomains(data);
-    } catch (err) {
-      console.error("Failed to load domains", err);
-    } finally {
-      setIsLoading(false);
+  // FIX #5: Use React Query instead of manual useState + useEffect
+  const { data: domains = [], isLoading, error } = useQuery({
+    queryKey: ["odin", "domains"],
+    queryFn: fetchDomains,
+    staleTime: 1000 * 60 * 5 // 5 minutes
+  });
+
+  // FIX #7: useMutation handles loading state automatically
+  const addMutation = useMutation({
+    mutationFn: addDomain,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["odin", "domains"] });
+      setNewDomain("");
     }
-  };
+  });
 
-  useEffect(() => {
-    loadDomains();
-  }, []);
+  const deleteMutation = useMutation({
+    mutationFn: deleteDomain,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["odin", "domains"] });
+    }
+  });
 
   const handleAddDomain = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newDomain) return;
-    try {
-      setIsAdding(true);
-      await addDomain(newDomain);
-      setNewDomain("");
-      await loadDomains();
-    } catch (err) {
-      alert("Error adding domain");
-    } finally {
-      setIsAdding(false);
-    }
+    await addMutation.mutateAsync(newDomain);
   };
 
   const handleDelete = async (id: string) => {
     if (!confirm("Are you sure?")) return;
-    try {
-      await deleteDomain(id);
-      await loadDomains();
-    } catch (err) {
-      alert("Error deleting domain");
-    }
+    deleteMutation.mutate(id);
   };
 
   return (
@@ -78,14 +70,15 @@ export default function DomainsPage() {
                  placeholder="e.g. blxkstudio.com"
                  value={newDomain}
                  onChange={(e) => setNewDomain(e.target.value)}
-                 className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white focus:outline-none focus:border-primary/50 transition-all placeholder:text-zinc-800 font-headline italic uppercase tracking-tighter"
+                 disabled={addMutation.isPending}
+                 className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white focus:outline-none focus:border-primary/50 transition-all placeholder:text-zinc-800 font-headline italic uppercase tracking-tighter disabled:opacity-50"
                />
             </div>
             <button 
-              disabled={isAdding || !newDomain}
+              disabled={addMutation.isPending || !newDomain}
               className="w-full md:w-auto mt-6 md:mt-0 kinetic-gradient px-12 py-5 rounded-2xl text-white font-black font-headline tracking-widest active:scale-95 transition-all shadow-xl shadow-primary/40 uppercase text-xs disabled:opacity-50"
             >
-              {isAdding ? "Connecting..." : "+ Connect Domain"}
+              {addMutation.isPending ? "Connecting..." : "+ Connect Domain"}
             </button>
          </form>
       </div>
@@ -140,7 +133,8 @@ export default function DomainsPage() {
                          </button>
                          <button 
                            onClick={() => handleDelete(domain.id)}
-                           className="p-3 rounded-lg border border-white/5 bg-white/5 text-zinc-500 hover:text-red-500 hover:bg-red-500/10 transition-all"
+                           disabled={deleteMutation.isPending}
+                           className="p-3 rounded-lg border border-white/5 bg-white/5 text-zinc-500 hover:text-red-500 hover:bg-red-500/10 transition-all disabled:opacity-50"
                          >
                             <span className="material-symbols-outlined text-sm">delete</span>
                          </button>

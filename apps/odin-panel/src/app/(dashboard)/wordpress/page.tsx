@@ -1,16 +1,37 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import Link from "next/link";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { fetchWpSites, installWordPress, fetchDomains } from "../../../lib/api";
 
 export default function WordPressManagerPage() {
-  const [sites, setSites] = useState<any[]>([]);
-  const [domains, setDomains] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [isWizardOpen, setIsWizardOpen] = useState(false);
-  const [isInstalling, setIsInstalling] = useState(false);
   const [installStep, setInstallStep] = useState(0);
+  const queryClient = useQueryClient();
+
+  // FIX #5: Use React Query instead of manual useState + useEffect
+  const { data: sites = [], isLoading: sitesLoading, error: sitesError } = useQuery({
+    queryKey: ["odin", "wordpress", "sites"],
+    queryFn: fetchWpSites,
+    staleTime: 1000 * 60 * 5 // 5 minutes
+  });
+
+  const { data: domains = [], isLoading: domainsLoading } = useQuery({
+    queryKey: ["odin", "domains"],
+    queryFn: fetchDomains,
+    staleTime: 1000 * 60 * 5 // 5 minutes
+  });
+
+  // FIX #7: useMutation handles installation with proper cleanup
+  const installMutation = useMutation({
+    mutationFn: installWordPress,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["odin", "wordpress", "sites"] });
+      setIsWizardOpen(false);
+      setInstallStep(0);
+    }
+  });
 
   // Form State
   const [formData, setFormData] = useState({
@@ -29,58 +50,31 @@ export default function WordPressManagerPage() {
     "FINALIZING ENVIRONMENT OPTIMIZATION...",
   ];
 
-  const loadSites = async () => {
-    try {
-      setIsLoading(true);
-      const [sitesData, domainsData] = await Promise.all([
-        fetchWpSites(),
-        fetchDomains()
-      ]);
-      setSites(sitesData);
-      setDomains(domainsData);
-    } catch (err) {
-      console.error("Failed to load WP data", err);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadSites();
-  }, []);
-
-  useEffect(() => {
-    if (isInstalling) {
-      const interval = setInterval(() => {
-        setInstallStep(prev => {
-          if (prev < installLogs.length - 1) return prev + 1;
-          clearInterval(interval);
-          return prev;
-        });
-      }, 1500);
-      return () => clearInterval(interval);
-    }
-  }, [isInstalling]);
-
   const handleInstall = async () => {
+    setInstallStep(0);
+    
+    // Simulate log progression
+    const interval = setInterval(() => {
+      setInstallStep(prev => {
+        if (prev < installLogs.length - 1) return prev + 1;
+        clearInterval(interval);
+        return prev;
+      });
+    }, 1500);
+    
     try {
-      setIsInstalling(true);
-      setInstallStep(0);
-      
-      await installWordPress(formData);
-      
-      // Keep showing logs for a bit for the "experience"
-      setTimeout(async () => {
-        setIsInstalling(false);
-        setIsWizardOpen(false);
-        await loadSites();
+      await installMutation.mutateAsync(formData);
+      setTimeout(() => {
+        setFormData({ domain: "", directory: "", adminUser: "admin", adminPass: "", siteTitle: "" });
       }, 2000);
     } catch (err) {
-      console.error("Installation failed", err);
-      setIsInstalling(false);
+      clearInterval(interval);
       alert("Error: " + (err instanceof Error ? err.message : "Falla técnica en el despliegue"));
     }
   };
+
+  const isLoading = sitesLoading || domainsLoading;
+  const isInstalling = installMutation.isPending;
 
   return (
     <div className="space-y-12">
@@ -101,7 +95,7 @@ export default function WordPressManagerPage() {
         
         <div className="flex gap-4">
           <button 
-            onClick={loadSites}
+            onClick={() => queryClient.invalidateQueries({ queryKey: ["odin", "wordpress", "sites"] })}
             className="glass-card px-6 py-4 text-white font-black text-[10px] uppercase tracking-widest hover:border-primary/40 transition-all active:scale-95"
           >
              Scan Infrastructure

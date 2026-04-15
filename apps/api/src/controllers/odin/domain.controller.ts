@@ -1,6 +1,7 @@
 import type { Request, Response } from "express";
 import { z } from "zod";
 import { listUserDomains, addDomain, deleteDomain, listAllDomains } from "../../services/odin/domain.service.js";
+import { getUserId } from "../../utils/get-user-id.js";
 
 const addDomainSchema = z.object({
   domainName: z.string().min(3)
@@ -13,16 +14,6 @@ export const listAllDomainsHandler = async (_req: Request, res: Response): Promi
   } catch (error) {
     return res.status(500).json({ success: false, error: { message: "Error al listar todos los dominios" } });
   }
-};
-
-const getUserId = async (req: Request) => {
-  let userId = req.headers["x-user-id"] as string;
-  if (!userId) {
-    const { db } = await import("../../config/db.js");
-    const userRes = await db.query("SELECT id FROM users LIMIT 1");
-    userId = userRes.rowCount > 0 ? userRes.rows[0].id : "00000000-0000-0000-0000-000000000000";
-  }
-  return userId;
 };
 
 export const listDomainsHandler = async (req: Request, res: Response): Promise<Response> => {

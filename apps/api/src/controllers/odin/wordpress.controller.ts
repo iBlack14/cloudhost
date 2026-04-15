@@ -1,6 +1,7 @@
 import type { Request, Response } from "express";
 import { z } from "zod";
 import { installWordPress, listUserWpSites, getWpSiteById } from "../../services/odin/wordpress.service.js";
+import { getUserId } from "../../utils/get-user-id.js";
 
 const installWpSchema = z.object({
   domain: z.string().min(3),
@@ -29,19 +30,8 @@ export const installWpHandler = async (req: Request, res: Response): Promise<Res
   }
 
   try {
-    // In dev mode, if no user is provided, we fetch the first one from the DB
-    let userId = req.headers["x-user-id"] as string;
-    
-    if (!userId) {
-      const { db } = await import("../../config/db.js");
-      const userRes = await db.query("SELECT id FROM users LIMIT 1");
-      if (userRes.rowCount > 0) {
-        userId = userRes.rows[0].id;
-      } else {
-        // Fallback to a random UUID if no users exist (will still fail FK, but handled)
-        userId = "00000000-0000-0000-0000-000000000000";
-      }
-    }
+    // FIX: Usar utility en vez de fallback inválido
+    const userId = await getUserId(req);
     
     const result = await installWordPress({
       ...parsed.data,
@@ -59,14 +49,8 @@ export const installWpHandler = async (req: Request, res: Response): Promise<Res
 
 export const listWpSitesHandler = async (req: Request, res: Response): Promise<Response> => {
   try {
-    let userId = req.headers["x-user-id"] as string;
-    
-    if (!userId) {
-      const { db } = await import("../../config/db.js");
-      const userRes = await db.query("SELECT id FROM users LIMIT 1");
-      userId = userRes.rowCount > 0 ? userRes.rows[0].id : "00000000-0000-0000-0000-000000000000";
-    }
-
+    // FIX: Usar utility en vez de fallback inválido
+    const userId = await getUserId(req);
     const sites = await listUserWpSites(userId);
     return res.status(200).json({ success: true, data: sites });
   } catch (error) {
@@ -88,14 +72,8 @@ export const getWpSiteByIdHandler = async (req: Request, res: Response): Promise
   }
 
   try {
-    let userId = req.headers["x-user-id"] as string;
-    
-    if (!userId) {
-      const { db } = await import("../../config/db.js");
-      const userRes = await db.query("SELECT id FROM users LIMIT 1");
-      userId = userRes.rowCount > 0 ? userRes.rows[0].id : "00000000-0000-0000-0000-000000000000";
-    }
-
+    // FIX: Usar utility en vez de fallback inválido
+    const userId = await getUserId(req);
     const site = await getWpSiteById(parsedParams.data.id, userId);
     
     if (!site) {
