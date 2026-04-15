@@ -1,8 +1,11 @@
 import { Router } from "express";
 import { installWpHandler, listWpSitesHandler, getWpSiteByIdHandler } from "../../controllers/odin/wordpress.controller.js";
 import { listDomainsHandler, addDomainHandler, deleteDomainHandler } from "../../controllers/odin/domain.controller.js";
+import { requireAuth } from "../../middleware/auth.js";
 
 export const odinRouter = Router();
+
+odinRouter.use(requireAuth({ roles: ["user"] }));
 
 odinRouter.get("/dashboard", (_req, res) => {
   res.status(200).json({

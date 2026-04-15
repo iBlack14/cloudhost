@@ -3,6 +3,7 @@ import { exec } from "child_process";
 import { promisify } from "util";
 import fs from "fs/promises";
 import path from "path";
+import { randomBytes } from "crypto";
 
 const execAsync = promisify(exec);
 
@@ -17,12 +18,13 @@ export interface InstallWpInput {
 }
 
 export const installWordPress = async (input: InstallWpInput) => {
-  const { userId, domain, directory, siteTitle, adminUser, adminPass } = input;
+  const { userId, domain, directory, siteTitle, adminUser } = input;
   
   // 1. Generate unique database details
   const sanitize = (str: string) => str.replace(/[^a-z0-9]/gi, '_').toLowerCase();
   const dbName = `wp_${sanitize(domain)}_${Date.now().toString().slice(-4)}`;
   const dbUser = `u_${sanitize(adminUser)}`;
+  const dbPassword = randomBytes(16).toString("hex");
   
   console.log(`[wp:install] Starting installation for ${domain} (${dbName})`);
 
@@ -95,7 +97,7 @@ export const installWordPress = async (input: InstallWpInput) => {
 /** WordPress Config Mock for ${siteTitle} **/
 define('DB_NAME', '${dbName}');
 define('DB_USER', '${dbUser}');
-define('DB_PASSWORD', '${adminPass}');
+define('DB_PASSWORD', '${dbPassword}');
 define('DB_HOST', 'localhost');
 ?>`
     );

@@ -205,7 +205,7 @@ export const impersonateWhmAccount = async (
     tokenType: "impersonation"
   });
 
-  const odinPanelUrl = `${env.ODIN_PANEL_URL}/auth/impersonate?token=${encodeURIComponent(impersonateToken)}`;
+  const odinPanelUrl = `${env.ODIN_PANEL_URL}/auth/impersonate#token=${encodeURIComponent(impersonateToken)}`;
 
   await db.query(
     `INSERT INTO activity_logs (user_id, action, resource, details)

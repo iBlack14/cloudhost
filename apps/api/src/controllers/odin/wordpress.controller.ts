@@ -8,7 +8,7 @@ const installWpSchema = z.object({
   directory: z.string().optional(),
   siteTitle: z.string().min(1),
   adminUser: z.string().min(3),
-  adminPass: z.string().min(3)
+  adminPass: z.string().min(8)
 });
 
 const siteIdParamSchema = z.object({
@@ -30,7 +30,6 @@ export const installWpHandler = async (req: Request, res: Response): Promise<Res
   }
 
   try {
-    // FIX: Usar utility en vez de fallback inválido
     const userId = await getUserId(req);
     
     const result = await installWordPress({
@@ -40,6 +39,13 @@ export const installWpHandler = async (req: Request, res: Response): Promise<Res
 
     return res.status(201).json(result);
   } catch (error) {
+    if (error instanceof Error && error.message === "AUTH_REQUIRED") {
+      return res.status(401).json({
+        success: false,
+        error: { code: "AUTH_REQUIRED", message: "Autenticación requerida" }
+      });
+    }
+
     return res.status(500).json({
       success: false,
       error: { code: "INTERNAL_ERROR", message: "No se pudo iniciar la instalación" }
@@ -49,11 +55,17 @@ export const installWpHandler = async (req: Request, res: Response): Promise<Res
 
 export const listWpSitesHandler = async (req: Request, res: Response): Promise<Response> => {
   try {
-    // FIX: Usar utility en vez de fallback inválido
     const userId = await getUserId(req);
     const sites = await listUserWpSites(userId);
     return res.status(200).json({ success: true, data: sites });
   } catch (error) {
+    if (error instanceof Error && error.message === "AUTH_REQUIRED") {
+      return res.status(401).json({
+        success: false,
+        error: { code: "AUTH_REQUIRED", message: "Autenticación requerida" }
+      });
+    }
+
     return res.status(500).json({
       success: false,
       error: { code: "INTERNAL_ERROR", message: "No se pudieron listar los sitios" }
@@ -72,7 +84,6 @@ export const getWpSiteByIdHandler = async (req: Request, res: Response): Promise
   }
 
   try {
-    // FIX: Usar utility en vez de fallback inválido
     const userId = await getUserId(req);
     const site = await getWpSiteById(parsedParams.data.id, userId);
     
@@ -85,6 +96,13 @@ export const getWpSiteByIdHandler = async (req: Request, res: Response): Promise
 
     return res.status(200).json({ success: true, data: site });
   } catch (error) {
+    if (error instanceof Error && error.message === "AUTH_REQUIRED") {
+      return res.status(401).json({
+        success: false,
+        error: { code: "AUTH_REQUIRED", message: "Autenticación requerida" }
+      });
+    }
+
     return res.status(500).json({
       success: false,
       error: { code: "INTERNAL_ERROR", message: "No se pudo obtener el sitio" }

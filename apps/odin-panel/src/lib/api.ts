@@ -1,4 +1,5 @@
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001/api/v1";
+const ODIN_ACCESS_TOKEN_KEY = "odin-access-token";
 
 export interface Plan {
   id: string;
@@ -33,6 +34,25 @@ const parsePayload = async <T>(response: Response): Promise<T> => {
   }
 
   return payload.data as T;
+};
+
+const getAccessToken = (): string | null => {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  return window.sessionStorage.getItem(ODIN_ACCESS_TOKEN_KEY);
+};
+
+const withOdinAuth = (headers: Record<string, string> = {}): Record<string, string> => {
+  const token = getAccessToken();
+
+  return token
+    ? {
+        ...headers,
+        Authorization: `Bearer ${token}`
+      }
+    : headers;
 };
 
 export const fetchPlans = async (): Promise<Plan[]> => {
@@ -71,39 +91,61 @@ export const impersonateAccount = async (accountId: string): Promise<WhmImperson
 };
 
 export const fetchWpSites = async (): Promise<any[]> => {
-  const response = await fetch(`${API_BASE}/odin-panel/wordpress`, { cache: "no-store" });
+  const response = await fetch(`${API_BASE}/odin-panel/wordpress`, {
+    cache: "no-store",
+    headers: withOdinAuth()
+  });
   return parsePayload<any[]>(response);
 };
 
 export const fetchWpSiteById = async (id: string): Promise<any> => {
-  const response = await fetch(`${API_BASE}/odin-panel/wordpress/${id}`, { cache: "no-store" });
+  const response = await fetch(`${API_BASE}/odin-panel/wordpress/${id}`, {
+    cache: "no-store",
+    headers: withOdinAuth()
+  });
   return parsePayload<any>(response);
 };
 
 export const installWordPress = async (input: any): Promise<any> => {
   const response = await fetch(`${API_BASE}/odin-panel/wordpress/install`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: withOdinAuth({ "Content-Type": "application/json" }),
     body: JSON.stringify(input)
   });
   return parsePayload<any>(response);
 };
 
 export const fetchDomains = async (): Promise<any[]> => {
-  const response = await fetch(`${API_BASE}/odin-panel/domains`, { cache: "no-store" });
+  const response = await fetch(`${API_BASE}/odin-panel/domains`, {
+    cache: "no-store",
+    headers: withOdinAuth()
+  });
   return parsePayload<any[]>(response);
 };
 
 export const addDomain = async (domainName: string): Promise<any> => {
   const response = await fetch(`${API_BASE}/odin-panel/domains`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: withOdinAuth({ "Content-Type": "application/json" }),
     body: JSON.stringify({ domainName })
   });
   return parsePayload<any>(response);
 };
 
 export const deleteDomain = async (id: string): Promise<void> => {
-  const response = await fetch(`${API_BASE}/odin-panel/domains/${id}`, { method: "DELETE" });
+  const response = await fetch(`${API_BASE}/odin-panel/domains/${id}`, {
+    method: "DELETE",
+    headers: withOdinAuth()
+  });
   await parsePayload(response);
+};
+
+export const exchangeImpersonationToken = async (token: string): Promise<{ token: string; role: string }> => {
+  const response = await fetch(`${API_BASE}/auth/impersonate/exchange`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ token })
+  });
+
+  return parsePayload<{ token: string; role: string }>(response);
 };

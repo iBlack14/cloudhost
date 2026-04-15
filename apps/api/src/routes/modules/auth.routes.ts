@@ -1,24 +1,17 @@
 import { Router } from "express";
 import { z } from "zod";
-import jwt from "jsonwebtoken";
-import { scryptSync, timingSafeEqual } from "crypto";
-import { env } from "../../config/env.js";
 import { db } from "../../config/db.js";
+import { verifyPassword } from "../../utils/hash-password.js";
+import { signAccessToken, verifyAuthToken, type AuthRole } from "../../utils/jwt.js";
 
 const loginSchema = z.object({
   username: z.string().min(3),
   password: z.string().min(8)
 });
 
-const comparePassword = (password: string, hash: string): boolean => {
-  const [salt, digest] = hash.split(':');
-  const computedDigest = scryptSync(password, salt, 64).toString('hex');
-  try {
-    return timingSafeEqual(Buffer.from(digest), Buffer.from(computedDigest));
-  } catch {
-    return false;
-  }
-};
+const exchangeImpersonationSchema = z.object({
+  token: z.string().min(1)
+});
 
 export const authRouter = Router();
 
@@ -33,8 +26,14 @@ authRouter.post("/login", async (req, res) => {
   }
 
   try {
-    const userResult = await db.query(
-      "SELECT id, email, role, password_hash FROM users WHERE username = $1 LIMIT 1",
+    const userResult = await db.query<{
+      id: string;
+      username: string;
+      role: AuthRole;
+      status: "active" | "suspended" | "terminated";
+      password_hash: string;
+    }>(
+      "SELECT id, username, role, status, password_hash FROM users WHERE username = $1 LIMIT 1",
       [parsed.data.username]
     );
 
@@ -46,7 +45,7 @@ authRouter.post("/login", async (req, res) => {
     }
 
     const user = userResult.rows[0];
-    const isPasswordValid = comparePassword(parsed.data.password, user.password_hash);
+    const isPasswordValid = verifyPassword(parsed.data.password, user.password_hash);
 
     if (!isPasswordValid) {
       return res.status(401).json({
@@ -55,16 +54,19 @@ authRouter.post("/login", async (req, res) => {
       });
     }
 
-    // FIX: Generar JWT real en vez de mock-token
-    const token = jwt.sign(
-      {
-        sub: user.id,
-        email: user.email,
-        role: user.role
-      },
-      env.JWT_SECRET,
-      { expiresIn: "24h" }
-    );
+    if (user.status !== "active") {
+      return res.status(403).json({
+        success: false,
+        error: { code: "ACCOUNT_DISABLED", message: "La cuenta está suspendida o inactiva" }
+      });
+    }
+
+    const token = signAccessToken({
+      userId: user.id,
+      username: user.username,
+      role: user.role,
+      tokenType: "access"
+    });
 
     return res.status(200).json({
       success: true,
@@ -79,6 +81,48 @@ authRouter.post("/login", async (req, res) => {
     return res.status(500).json({
       success: false,
       error: { code: "INTERNAL_ERROR", message: "Error en login" }
+    });
+  }
+});
+
+authRouter.post("/impersonate/exchange", (req, res) => {
+  const parsed = exchangeImpersonationSchema.safeParse(req.body);
+
+  if (!parsed.success) {
+    return res.status(422).json({
+      success: false,
+      error: { code: "VALIDATION_ERROR", message: "Token de impersonación inválido" }
+    });
+  }
+
+  try {
+    const payload = verifyAuthToken(parsed.data.token);
+
+    if (payload.tokenType !== "impersonation") {
+      return res.status(400).json({
+        success: false,
+        error: { code: "INVALID_TOKEN_TYPE", message: "Se requiere token de impersonación" }
+      });
+    }
+
+    const accessToken = signAccessToken({
+      userId: payload.userId,
+      username: payload.username,
+      role: payload.role,
+      tokenType: "access"
+    });
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        token: accessToken,
+        role: payload.role
+      }
+    });
+  } catch {
+    return res.status(401).json({
+      success: false,
+      error: { code: "AUTH_INVALID", message: "Token de impersonación inválido o expirado" }
     });
   }
 });
