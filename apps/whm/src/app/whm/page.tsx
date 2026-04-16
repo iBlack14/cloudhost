@@ -2,8 +2,22 @@
 
 import React from "react";
 import Link from "next/link";
+import { useWhmDashboard } from "../../lib/hooks/use-whm-accounts";
+
+const formatUptime = (seconds?: number): string => {
+  if (!seconds || seconds <= 0) return "UPTIME: N/A";
+  const days = Math.floor(seconds / 86400);
+  const hours = Math.floor((seconds % 86400) / 3600);
+  if (days > 0) return `UPTIME: ${days}D ${hours}H`;
+  const mins = Math.floor((seconds % 3600) / 60);
+  return `UPTIME: ${hours}H ${mins}M`;
+};
 
 export default function WhmDashboardPage() {
+  const { data: dashboard } = useWhmDashboard();
+  const server = dashboard?.server;
+  const accounts = dashboard?.accounts;
+
   return (
     <>
       <header className="flex justify-between items-end mb-16 relative z-10">
@@ -38,10 +52,34 @@ export default function WhmDashboardPage() {
 
       {/* Real-time Stats Refined */}
       <section className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-16 relative z-10">
-        <StatCard label="CPU CHARGE" value="31%" desc="STABLE (10M AVG)" icon="memory" variant="azure" />
-        <StatCard label="RAM RESIDENT" value="62%" desc="12.4 GB ACTIVE" icon="database" variant="cyan" />
-        <StatCard label="DISK VOLUME" value="48%" desc="NVME-RAY-01" icon="storage" variant="azure" />
-        <StatCard label="ACTIVE NODES" value="120" desc="HEALTHY CLUSTER" icon="group" variant="cyan" />
+        <StatCard
+          label="CPU CHARGE"
+          value={`${server?.cpu ?? 0}%`}
+          desc={`LOAD 1M: ${server?.loadAverage1m ?? 0}`}
+          icon="memory"
+          variant="azure"
+        />
+        <StatCard
+          label="RAM RESIDENT"
+          value={`${server?.ram ?? 0}%`}
+          desc={formatUptime(server?.uptimeSeconds)}
+          icon="database"
+          variant="cyan"
+        />
+        <StatCard
+          label="DISK VOLUME"
+          value={`${server?.disk ?? 0}%`}
+          desc={`CORES: ${server?.cores ?? 1}`}
+          icon="storage"
+          variant="azure"
+        />
+        <StatCard
+          label="ACTIVE NODES"
+          value={`${accounts?.active ?? 0}`}
+          desc={`SUSP: ${accounts?.suspended ?? 0} · TERM: ${accounts?.terminated ?? 0}`}
+          icon="group"
+          variant="cyan"
+        />
       </section>
 
       {/* Operations Focus Refined */}

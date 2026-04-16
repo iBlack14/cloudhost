@@ -111,7 +111,14 @@ export const fetchPlans = async (): Promise<Plan[]> => {
 };
 
 export interface DashboardStats {
-  server: { cpu: number; ram: number; disk: number };
+  server: {
+    cpu: number;
+    ram: number;
+    disk: number;
+    loadAverage1m?: number;
+    cores?: number;
+    uptimeSeconds?: number;
+  };
   accounts: { active: number; suspended: number; terminated: number };
 }
 
