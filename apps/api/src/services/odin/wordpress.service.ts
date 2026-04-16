@@ -71,9 +71,9 @@ const pickFreePort = async (): Promise<number> =>
 
 const createMysqlResources = async (dbName: string, dbUser: string, dbPassword: string) => {
   const sql = [
-    `CREATE DATABASE IF NOT EXISTS \`${dbName}\`;`,
+    `CREATE DATABASE IF NOT EXISTS ${dbName};`,
     `CREATE USER IF NOT EXISTS '${dbUser}'@'%' IDENTIFIED BY '${dbPassword}';`,
-    `GRANT ALL PRIVILEGES ON \`${dbName}\`.* TO '${dbUser}'@'%';`,
+    `GRANT ALL PRIVILEGES ON ${dbName}.* TO '${dbUser}'@'%';`,
     "FLUSH PRIVILEGES;"
   ].join(" ");
 
@@ -282,4 +282,3 @@ export const getWpSiteById = async (id: string, userId: string) => {
   if (!site) return null;
   return enrichWpSite(site);
 };
-
