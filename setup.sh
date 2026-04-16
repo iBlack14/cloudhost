@@ -59,7 +59,7 @@ if [ "$EUID" -ne 0 ]; then
   exit 1
 fi
 
-# 2. Configuration Prompts
+# 2. Configuration
 echo -e "${YELLOW}📋 Configuration${NC}"
 echo "──────────────────────────────────────────"
 
@@ -90,44 +90,51 @@ DEFAULT_API_PORT=3001
 DEFAULT_WHM_PORT=3002
 DEFAULT_ODIN_PORT=3003
 DEFAULT_PG_PORT=5434
+AUTO_MODE="${AUTO_MODE:-1}"
 
-if [ -z "$DEFAULT_VPS_IP" ]; then
+if [ -z "${VPS_IP:-}" ] && [ -z "$DEFAULT_VPS_IP" ]; then
   echo -e "${YELLOW}⚠️  Could not auto-detect public IP. Please enter it manually.${NC}"
+  if [ "$AUTO_MODE" = "1" ]; then
+    echo -e "${RED}❌ AUTO_MODE is enabled and VPS_IP could not be detected.${NC}"
+    echo -e "${YELLOW}Set VPS_IP manually: VPS_IP=<YOUR_IP> bash setup.sh${NC}"
+    exit 1
+  fi
   read -p "Enter VPS Public IP: " DEFAULT_VPS_IP
 fi
 
-if [ -z "$DEFAULT_VPS_IP" ]; then
+if [ -z "${VPS_IP:-}" ] && [ -z "$DEFAULT_VPS_IP" ]; then
   echo -e "${RED}❌ VPS IP is required.${NC}"
   exit 1
 fi
 
-echo -e "${GREEN}🌐 Auto-detected VPS IP: ${DEFAULT_VPS_IP}${NC}"
+VPS_IP="${VPS_IP:-$DEFAULT_VPS_IP}"
+API_PORT="${API_PORT:-$DEFAULT_API_PORT}"
+WHM_PORT="${WHM_PORT:-$DEFAULT_WHM_PORT}"
+ODIN_PORT="${ODIN_PORT:-$DEFAULT_ODIN_PORT}"
+PG_PORT="${PG_PORT:-$DEFAULT_PG_PORT}"
+
+echo -e "${GREEN}🌐 Selected VPS IP: ${VPS_IP}${NC}"
 echo -e "${CYAN}Tip:${NC} By default everything runs automatic. You only choose ports if needed."
+if [ "$AUTO_MODE" != "1" ]; then
+  read -p "Customize ports? [y/N]: " CUSTOM_PORTS
+  CUSTOM_PORTS=${CUSTOM_PORTS:-N}
 
-VPS_IP="$DEFAULT_VPS_IP"
-API_PORT="$DEFAULT_API_PORT"
-WHM_PORT="$DEFAULT_WHM_PORT"
-ODIN_PORT="$DEFAULT_ODIN_PORT"
-PG_PORT="$DEFAULT_PG_PORT"
+  if [[ "$CUSTOM_PORTS" =~ ^[Yy]$ ]]; then
+    while true; do
+      API_PORT=$(prompt_with_default "API Port" "$DEFAULT_API_PORT")
+      WHM_PORT=$(prompt_with_default "WHM Port" "$DEFAULT_WHM_PORT")
+      ODIN_PORT=$(prompt_with_default "ODIN Panel Port" "$DEFAULT_ODIN_PORT")
+      PG_PORT=$(prompt_with_default "PostgreSQL Port" "$DEFAULT_PG_PORT")
 
-read -p "Customize ports? [y/N]: " CUSTOM_PORTS
-CUSTOM_PORTS=${CUSTOM_PORTS:-N}
+      if ! is_valid_port "$API_PORT" || ! is_valid_port "$WHM_PORT" || ! is_valid_port "$ODIN_PORT" || ! is_valid_port "$PG_PORT"; then
+        echo -e "${YELLOW}⚠️  Invalid port detected. Use values between 1 and 65535.${NC}"
+        continue
+      fi
 
-if [[ "$CUSTOM_PORTS" =~ ^[Yy]$ ]]; then
-  while true; do
-    API_PORT=$(prompt_with_default "API Port" "$DEFAULT_API_PORT")
-    WHM_PORT=$(prompt_with_default "WHM Port" "$DEFAULT_WHM_PORT")
-    ODIN_PORT=$(prompt_with_default "ODIN Panel Port" "$DEFAULT_ODIN_PORT")
-    PG_PORT=$(prompt_with_default "PostgreSQL Port" "$DEFAULT_PG_PORT")
-
-    if ! is_valid_port "$API_PORT" || ! is_valid_port "$WHM_PORT" || ! is_valid_port "$ODIN_PORT" || ! is_valid_port "$PG_PORT"; then
-      echo -e "${YELLOW}⚠️  Invalid port detected. Use values between 1 and 65535.${NC}"
-      continue
-    fi
-
-    assert_distinct_ports
-    break
-  done
+      assert_distinct_ports
+      break
+    done
+  fi
 fi
 
 if ! is_valid_port "$API_PORT" || ! is_valid_port "$WHM_PORT" || ! is_valid_port "$ODIN_PORT" || ! is_valid_port "$PG_PORT"; then
@@ -152,11 +159,13 @@ echo "  ODIN Port:  $ODIN_PORT"
 echo "  PG Port:    $PG_PORT"
 echo "  PG Pass:    [auto-generated]"
 echo ""
-read -p "Continue? [Y/n]: " CONFIRM
-CONFIRM=${CONFIRM:-Y}
-if [[ ! "$CONFIRM" =~ ^[Yy]$ ]]; then
-  echo "Aborted."
-  exit 0
+if [ "$AUTO_MODE" != "1" ]; then
+  read -p "Continue? [Y/n]: " CONFIRM
+  CONFIRM=${CONFIRM:-Y}
+  if [[ ! "$CONFIRM" =~ ^[Yy]$ ]]; then
+    echo "Aborted."
+    exit 0
+  fi
 fi
 
 # 3. Firewall Setup
@@ -173,17 +182,19 @@ echo -e "${GREEN}✅ Firewall configured${NC}"
 
 # 4. Install Dependencies
 echo -e "\n${YELLOW}📦 Installing dependencies...${NC}"
+apt update -qq
+apt install -y -qq curl git ca-certificates > /dev/null 2>&1
 
-# Remove potential Docker conflicts
-apt purge -y containerd docker.io runc containerd.io 2>/dev/null || true
-apt autoremove -y > /dev/null 2>&1
+if ! command -v docker > /dev/null 2>&1; then
+  apt install -y -qq docker.io docker-compose-plugin > /dev/null 2>&1
+fi
+echo -e "${GREEN}✅ Docker dependencies ready${NC}"
 
-apt update -qq && apt install -y -qq curl git ca-certificates docker.io docker-compose-plugin > /dev/null 2>&1
-echo -e "${GREEN}✅ Docker installed${NC}"
-
-# Start Docker if not running
-systemctl enable docker
-systemctl start docker
+# Start Docker if installed but not running
+if systemctl list-unit-files | grep -q "^docker.service"; then
+  systemctl enable docker > /dev/null 2>&1 || true
+  systemctl start docker > /dev/null 2>&1 || true
+fi
 
 # Install Node.js 20
 if ! command -v node &> /dev/null || [[ $(node -v | cut -d. -f1 | tr -d 'v') -lt 20 ]]; then
