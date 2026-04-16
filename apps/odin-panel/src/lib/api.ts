@@ -26,6 +26,37 @@ export interface WhmImpersonation {
   odinPanelUrl: string;
 }
 
+export interface DomainRecord {
+  id: string;
+  domain_name: string;
+  status: "active" | "pending_verification" | "offline" | string;
+  dns_provider: string;
+  ssl_enabled: boolean;
+  verification?: {
+    publicUrl?: string | null;
+    dns?: {
+      resolves: boolean;
+      aRecords: string[];
+      cnameRecords: string[];
+      error?: string;
+    };
+  };
+}
+
+export interface WordPressSite {
+  id: string;
+  domain: string;
+  site_title: string;
+  wp_version: string;
+  php_version: string;
+  db_name: string;
+  auto_updates: boolean;
+  status: string;
+  admin_url?: string;
+  service_port?: number;
+  container_name?: string;
+}
+
 const parsePayload = async <T>(response: Response): Promise<T> => {
   const payload = await response.json();
 
@@ -90,46 +121,65 @@ export const impersonateAccount = async (accountId: string): Promise<WhmImperson
   return parsePayload<WhmImpersonation>(response);
 };
 
-export const fetchWpSites = async (): Promise<any[]> => {
+export const fetchWpSites = async (): Promise<WordPressSite[]> => {
   const response = await fetch(`${API_BASE}/odin-panel/wordpress`, {
     cache: "no-store",
     headers: withOdinAuth()
   });
-  return parsePayload<any[]>(response);
+  return parsePayload<WordPressSite[]>(response);
 };
 
-export const fetchWpSiteById = async (id: string): Promise<any> => {
+export const fetchWpSiteById = async (id: string): Promise<WordPressSite> => {
   const response = await fetch(`${API_BASE}/odin-panel/wordpress/${id}`, {
     cache: "no-store",
     headers: withOdinAuth()
   });
-  return parsePayload<any>(response);
+  return parsePayload<WordPressSite>(response);
 };
 
-export const installWordPress = async (input: any): Promise<any> => {
+export const installWordPress = async (input: {
+  domain: string;
+  directory?: string;
+  siteTitle: string;
+  adminUser: string;
+  adminPass: string;
+}): Promise<{
+  id: string;
+  domain: string;
+  status: string;
+  adminUrl: string;
+}> => {
   const response = await fetch(`${API_BASE}/odin-panel/wordpress/install`, {
     method: "POST",
     headers: withOdinAuth({ "Content-Type": "application/json" }),
     body: JSON.stringify(input)
   });
-  return parsePayload<any>(response);
+  return parsePayload(response);
 };
 
-export const fetchDomains = async (): Promise<any[]> => {
+export const fetchDomains = async (): Promise<DomainRecord[]> => {
   const response = await fetch(`${API_BASE}/odin-panel/domains`, {
     cache: "no-store",
     headers: withOdinAuth()
   });
-  return parsePayload<any[]>(response);
+  return parsePayload<DomainRecord[]>(response);
 };
 
-export const addDomain = async (domainName: string): Promise<any> => {
+export const addDomain = async (domainName: string): Promise<DomainRecord> => {
   const response = await fetch(`${API_BASE}/odin-panel/domains`, {
     method: "POST",
     headers: withOdinAuth({ "Content-Type": "application/json" }),
     body: JSON.stringify({ domainName })
   });
-  return parsePayload<any>(response);
+  return parsePayload<DomainRecord>(response);
+};
+
+export const verifyDomain = async (id: string): Promise<DomainRecord> => {
+  const response = await fetch(`${API_BASE}/odin-panel/domains/${id}/verify`, {
+    method: "POST",
+    headers: withOdinAuth()
+  });
+  return parsePayload<DomainRecord>(response);
 };
 
 export const deleteDomain = async (id: string): Promise<void> => {

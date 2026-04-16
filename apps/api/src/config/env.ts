@@ -7,7 +7,10 @@ const envSchema = z.object({
   JWT_SECRET: z.string().min(32), // FIX: Aumentado de 16 a 32 por seguridad
   DATABASE_URL: z.string().url(),
   ODIN_PANEL_URL: z.string().url().default("http://localhost:3003"),
-  IMPERSONATE_EXPIRES_IN: z.string().default("2h")
+  IMPERSONATE_EXPIRES_IN: z.string().default("2h"),
+  MYSQL_CONTAINER_NAME: z.string().default("odisea-mysql"),
+  MYSQL_ROOT_PASSWORD: z.string().default("root"),
+  MYSQL_HOST_PORT: z.coerce.number().int().positive().default(3307)
 });
 
 export const env = envSchema.parse(process.env);

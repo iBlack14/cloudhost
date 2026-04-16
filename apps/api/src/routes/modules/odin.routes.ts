@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { installWpHandler, listWpSitesHandler, getWpSiteByIdHandler } from "../../controllers/odin/wordpress.controller.js";
-import { listDomainsHandler, addDomainHandler, deleteDomainHandler } from "../../controllers/odin/domain.controller.js";
+import { listDomainsHandler, addDomainHandler, deleteDomainHandler, verifyDomainHandler } from "../../controllers/odin/domain.controller.js";
 import { requireAuth } from "../../middleware/auth.js";
 
 export const odinRouter = Router();
@@ -23,5 +23,6 @@ odinRouter.post("/wordpress/install", installWpHandler);
 
 odinRouter.get("/domains", listDomainsHandler);
 odinRouter.post("/domains", addDomainHandler);
+odinRouter.post("/domains/:id/verify", verifyDomainHandler);
 odinRouter.delete("/domains/:id", deleteDomainHandler);
 

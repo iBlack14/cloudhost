@@ -1,9 +1,10 @@
 import { db } from "../../config/db.js";
-import { exec } from "child_process";
-import { promisify } from "util";
-import fs from "fs/promises";
-import path from "path";
-import { randomBytes } from "crypto";
+import { env } from "../../config/env.js";
+import { exec } from "node:child_process";
+import { promisify } from "node:util";
+import { randomBytes } from "node:crypto";
+import net from "node:net";
+import { probeDomainRuntime } from "./runtime-probe.service.js";
 
 const execAsync = promisify(exec);
 
@@ -17,119 +18,9 @@ export interface InstallWpInput {
   adminPass: string;
 }
 
-export const installWordPress = async (input: InstallWpInput) => {
-  const { userId, domain, directory, siteTitle, adminUser } = input;
-  
-  // 1. Generate unique database details
-  const sanitize = (str: string) => str.replace(/[^a-z0-9]/gi, '_').toLowerCase();
-  const dbName = `wp_${sanitize(domain)}_${Date.now().toString().slice(-4)}`;
-  const dbUser = `u_${sanitize(adminUser)}`;
-  const dbPassword = randomBytes(16).toString("hex");
-  
-  console.log(`[wp:install] Starting installation for ${domain} (${dbName})`);
+const sanitize = (str: string) => str.replace(/[^a-z0-9]/gi, "_").toLowerCase();
 
-  // 2. Simulate/Run DB Creation (In a real environment, we'd talk to the DB server)
-  // For demo/dev purposes, we'll record it in our main Postgres DB
-  const client = await db.connect();
-  
-  try {
-    // AUTO-CREATE TABLE IF MISSING (Dev Mode Fix)
-    await client.query(`
-      CREATE TABLE IF NOT EXISTS wordpress_sites (
-        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        user_id UUID NOT NULL,
-        account_id UUID,
-        site_title TEXT NOT NULL,
-        domain TEXT NOT NULL,
-        install_path TEXT NOT NULL,
-        wp_version TEXT NOT NULL,
-        php_version TEXT NOT NULL,
-        db_name TEXT NOT NULL,
-        db_user TEXT NOT NULL,
-        admin_user TEXT NOT NULL,
-        auto_updates BOOLEAN DEFAULT true,
-        status TEXT DEFAULT 'active',
-        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-      );
-    `);
-
-    await client.query("BEGIN");
-
-    // Insert into our tracking table
-    const result = await client.query(
-      `INSERT INTO wordpress_sites (
-        user_id, account_id, site_title, domain, install_path, 
-        wp_version, php_version, db_name, db_user, admin_user
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-      RETURNING id`,
-      [
-        userId,
-        input.accountId || null,
-        siteTitle,
-        domain,
-        directory ? `${domain}/${directory}` : domain,
-        "6.4.3",
-        "8.3",
-        dbName,
-        dbUser,
-        adminUser
-      ]
-    );
-
-    const wpId = result.rows[0].id;
-
-    // 3. Physical Installation & DB Creation
-    // In a real environment, we'd use the root password from docker-compose
-    try {
-      console.log(`[wp:install] Creating MySQL database: ${dbName}`);
-      await execAsync(`docker exec odisea-mysql mysql -uroot -proot -e "CREATE DATABASE IF NOT EXISTS ${dbName};"`);
-    } catch (dbErr) {
-      console.warn("[wp:install:db_warn] Could not create DB via docker exec, skipping physical DB creation for now.", dbErr);
-    }
-    
-    const installRoot = path.join(process.cwd(), "../../infra/wp_installs", sanitize(domain));
-    await fs.mkdir(installRoot, { recursive: true });
-    
-    await fs.writeFile(
-      path.join(installRoot, "wp-config.php"),
-      `<?php
-/** WordPress Config Mock for ${siteTitle} **/
-define('DB_NAME', '${dbName}');
-define('DB_USER', '${dbUser}');
-define('DB_PASSWORD', '${dbPassword}');
-define('DB_HOST', 'localhost');
-?>`
-    );
-
-    await client.query(
-      `INSERT INTO activity_logs (user_id, action, resource, details)
-       VALUES ($1, 'install_wordpress', 'wordpress_site', $2::jsonb)`,
-      [userId, JSON.stringify({ wpId, domain, dbName })]
-    );
-
-    await client.query("COMMIT");
-    
-    return {
-      success: true,
-      data: {
-        id: wpId,
-        domain,
-        dbName,
-        adminUrl: `http://${domain}/wp-admin`
-      }
-    };
-  } catch (error) {
-    await client.query("ROLLBACK");
-    console.error("[wp:install:error]", error);
-    throw error;
-  } finally {
-    client.release();
-  }
-};
-
-export const listUserWpSites = async (userId: string) => {
-  // AUTO-CREATE TABLE IF MISSING (Dev Mode Fix)
+const ensureWordPressTable = async () => {
   await db.query(`
     CREATE TABLE IF NOT EXISTS wordpress_sites (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -144,23 +35,251 @@ export const listUserWpSites = async (userId: string) => {
       db_user TEXT NOT NULL,
       admin_user TEXT NOT NULL,
       auto_updates BOOLEAN DEFAULT true,
-      status TEXT DEFAULT 'active',
+      status TEXT DEFAULT 'provisioning',
+      container_name TEXT,
+      service_port INTEGER,
+      admin_url TEXT,
+      runtime JSONB,
       created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
       updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
     );
-  `);
 
-  const result = await db.query(
-    "SELECT * FROM wordpress_sites WHERE user_id = $1 ORDER BY created_at DESC",
-    [userId]
+    ALTER TABLE wordpress_sites ADD COLUMN IF NOT EXISTS container_name TEXT;
+    ALTER TABLE wordpress_sites ADD COLUMN IF NOT EXISTS service_port INTEGER;
+    ALTER TABLE wordpress_sites ADD COLUMN IF NOT EXISTS admin_url TEXT;
+    ALTER TABLE wordpress_sites ADD COLUMN IF NOT EXISTS runtime JSONB;
+    ALTER TABLE wordpress_sites ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'provisioning';
+    ALTER TABLE wordpress_sites ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP;
+  `);
+};
+
+const pickFreePort = async (): Promise<number> =>
+  new Promise((resolve, reject) => {
+    const server = net.createServer();
+    server.unref();
+    server.on("error", reject);
+    server.listen(0, "127.0.0.1", () => {
+      const address = server.address();
+      if (!address || typeof address === "string") {
+        server.close(() => reject(new Error("No se pudo obtener puerto libre")));
+        return;
+      }
+      const { port } = address;
+      server.close(() => resolve(port));
+    });
+  });
+
+const createMysqlResources = async (dbName: string, dbUser: string, dbPassword: string) => {
+  const sql = [
+    `CREATE DATABASE IF NOT EXISTS \`${dbName}\`;`,
+    `CREATE USER IF NOT EXISTS '${dbUser}'@'%' IDENTIFIED BY '${dbPassword}';`,
+    `GRANT ALL PRIVILEGES ON \`${dbName}\`.* TO '${dbUser}'@'%';`,
+    "FLUSH PRIVILEGES;"
+  ].join(" ");
+
+  const cmd = `docker exec -i ${env.MYSQL_CONTAINER_NAME} mysql -uroot -p${env.MYSQL_ROOT_PASSWORD} -e "${sql}"`;
+  await execAsync(cmd);
+};
+
+const runWordPressContainer = async (opts: {
+  containerName: string;
+  servicePort: number;
+  dbName: string;
+  dbUser: string;
+  dbPassword: string;
+}) => {
+  const cmd = [
+    "docker run -d",
+    `--name ${opts.containerName}`,
+    "--restart unless-stopped",
+    "--add-host=host.docker.internal:host-gateway",
+    `-p ${opts.servicePort}:80`,
+    `-e WORDPRESS_DB_HOST=host.docker.internal:${env.MYSQL_HOST_PORT}`,
+    `-e WORDPRESS_DB_NAME=${opts.dbName}`,
+    `-e WORDPRESS_DB_USER=${opts.dbUser}`,
+    `-e WORDPRESS_DB_PASSWORD=${opts.dbPassword}`,
+    "wordpress:latest"
+  ].join(" ");
+
+  await execAsync(cmd);
+};
+
+const probeWpLogin = async (url: string, timeoutMs = 6000): Promise<{ ok: boolean; status?: number; isWordPress?: boolean }> => {
+  try {
+    const response = await fetch(url, {
+      method: "GET",
+      redirect: "manual",
+      signal: AbortSignal.timeout(timeoutMs)
+    });
+    const text = await response.text();
+    const isWordPress =
+      text.toLowerCase().includes("wp-login.php") ||
+      text.toLowerCase().includes("wordpress") ||
+      text.toLowerCase().includes("name=\"log\"");
+    return { ok: response.status < 500, status: response.status, isWordPress };
+  } catch {
+    return { ok: false };
+  }
+};
+
+const enrichWpSite = async <
+  T extends { id: string; domain: string; service_port?: number | null; container_name?: string | null; admin_url?: string | null }
+>(
+  site: T
+) => {
+  const domainProbe = await probeDomainRuntime(site.domain);
+  const httpsProbe = await probeWpLogin(`https://${site.domain}/wp-login.php`);
+  const httpProbe = await probeWpLogin(`http://${site.domain}/wp-login.php`);
+  const localProbe =
+    site.service_port != null ? await probeWpLogin(`http://127.0.0.1:${site.service_port}/wp-login.php`) : { ok: false as const };
+
+  const reachable = httpsProbe.ok || httpProbe.ok || localProbe.ok;
+  const endpoint = httpsProbe.ok
+    ? `https://${site.domain}`
+    : httpProbe.ok
+      ? `http://${site.domain}`
+      : localProbe.ok && site.service_port != null
+        ? `http://127.0.0.1:${site.service_port}`
+        : null;
+
+  const runtimeStatus = reachable
+    ? "active"
+    : domainProbe.dns.resolves
+      ? "offline"
+      : "pending_verification";
+
+  const runtime = {
+    reachable,
+    endpoint,
+    checks: {
+      https: httpsProbe,
+      http: httpProbe,
+      local: localProbe
+    },
+    domain: domainProbe
+  };
+
+  const adminUrl = endpoint ? `${endpoint}/wp-admin` : site.admin_url ?? `https://${site.domain}/wp-admin`;
+
+  await db.query(
+    `UPDATE wordpress_sites
+     SET status = $1,
+         admin_url = $2,
+         runtime = $3::jsonb,
+         updated_at = CURRENT_TIMESTAMP
+     WHERE id = $4`,
+    [runtimeStatus, adminUrl, JSON.stringify(runtime), site.id]
   );
-  return result.rows;
+
+  return {
+    ...site,
+    status: runtimeStatus,
+    admin_url: adminUrl,
+    runtime
+  };
+};
+
+export const installWordPress = async (input: InstallWpInput) => {
+  const { userId, domain, directory, siteTitle, adminUser } = input;
+  await ensureWordPressTable();
+
+  const normalizedDomain = domain.trim().toLowerCase();
+  const dbName = `wp_${sanitize(normalizedDomain)}_${Date.now().toString().slice(-4)}`;
+  const dbUser = `u_${sanitize(adminUser).slice(0, 24)}`;
+  const dbPassword = randomBytes(16).toString("hex");
+
+  const client = await db.connect();
+
+  try {
+    await client.query("BEGIN");
+
+    const created = await client.query(
+      `INSERT INTO wordpress_sites (
+        user_id, account_id, site_title, domain, install_path,
+        wp_version, php_version, db_name, db_user, admin_user, status
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'provisioning')
+      RETURNING id`,
+      [
+        userId,
+        input.accountId ?? null,
+        siteTitle,
+        normalizedDomain,
+        directory ? `${normalizedDomain}/${directory}` : normalizedDomain,
+        "6.4.3",
+        "8.3",
+        dbName,
+        dbUser,
+        adminUser
+      ]
+    );
+
+    const wpId = created.rows[0].id as string;
+    const containerName = `wp_${sanitize(normalizedDomain)}_${wpId.slice(0, 8)}`;
+    const servicePort = await pickFreePort();
+
+    try {
+      await createMysqlResources(dbName, dbUser, dbPassword);
+      await runWordPressContainer({ containerName, servicePort, dbName, dbUser, dbPassword });
+    } catch (error) {
+      await client.query(
+        "UPDATE wordpress_sites SET status = 'provisioning_failed', runtime = $1::jsonb WHERE id = $2",
+        [JSON.stringify({ error: error instanceof Error ? error.message : String(error) }), wpId]
+      );
+      throw error;
+    }
+
+    await client.query(
+      `UPDATE wordpress_sites
+       SET container_name = $1,
+           service_port = $2,
+           admin_url = $3,
+           status = 'pending_verification'
+       WHERE id = $4`,
+      [containerName, servicePort, `https://${normalizedDomain}/wp-admin`, wpId]
+    );
+
+    await client.query(
+      `INSERT INTO activity_logs (user_id, action, resource, details)
+       VALUES ($1, 'install_wordpress', 'wordpress_site', $2::jsonb)`,
+      [
+        userId,
+        JSON.stringify({ wpId, domain: normalizedDomain, dbName, containerName, servicePort })
+      ]
+    );
+
+    await client.query("COMMIT");
+
+    return {
+      success: true,
+      data: {
+        id: wpId,
+        domain: normalizedDomain,
+        dbName,
+        containerName,
+        servicePort,
+        adminUrl: `https://${normalizedDomain}/wp-admin`,
+        status: "pending_verification"
+      }
+    };
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+};
+
+export const listUserWpSites = async (userId: string) => {
+  await ensureWordPressTable();
+  const result = await db.query("SELECT * FROM wordpress_sites WHERE user_id = $1 ORDER BY created_at DESC", [userId]);
+  return Promise.all(result.rows.map((site) => enrichWpSite(site)));
 };
 
 export const getWpSiteById = async (id: string, userId: string) => {
-  const result = await db.query(
-    "SELECT * FROM wordpress_sites WHERE id = $1 AND user_id = $2",
-    [id, userId]
-  );
-  return result.rows[0] || null;
+  await ensureWordPressTable();
+  const result = await db.query("SELECT * FROM wordpress_sites WHERE id = $1 AND user_id = $2", [id, userId]);
+  const site = result.rows[0] ?? null;
+  if (!site) return null;
+  return enrichWpSite(site);
 };
+

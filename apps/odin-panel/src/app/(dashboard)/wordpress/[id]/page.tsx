@@ -71,7 +71,7 @@ export default function WordPressDetailPage() {
                    <span className="w-1 h-1 rounded-full bg-zinc-800"></span>
                    <div className="flex items-center gap-2">
                       <span className="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.5)]"></span>
-                      <span className="text-[9px] font-black text-zinc-400 uppercase tracking-widest">Status: Healthy</span>
+                      <span className="text-[9px] font-black text-zinc-400 uppercase tracking-widest">Status: {site.status}</span>
                    </div>
                 </div>
              </div>
@@ -86,7 +86,7 @@ export default function WordPressDetailPage() {
               </div>
            </button>
            <button 
-             onClick={() => window.open(`http://${site.domain}/wp-admin`, '_blank')}
+             onClick={() => window.open(site.admin_url ?? `https://${site.domain}/wp-admin`, '_blank')}
              className="kinetic-gradient px-10 py-4 rounded-2xl text-white font-black font-headline tracking-widest active:scale-95 transition-all shadow-xl shadow-primary/40 uppercase text-xs flex items-center gap-3"
            >
               <span>Admin Login</span>

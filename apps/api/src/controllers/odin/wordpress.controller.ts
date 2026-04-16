@@ -19,11 +19,12 @@ export const installWpHandler = async (req: Request, res: Response): Promise<Res
   const parsed = installWpSchema.safeParse(req.body);
 
   if (!parsed.success) {
+    const firstIssue = parsed.error.issues[0];
     return res.status(422).json({
       success: false,
       error: {
         code: "VALIDATION_ERROR",
-        message: "Datos de instalación inválidos",
+        message: firstIssue?.message ?? "Datos de instalación inválidos",
         details: parsed.error.flatten()
       }
     });

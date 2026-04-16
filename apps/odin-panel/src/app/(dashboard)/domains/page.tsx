@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { fetchDomains, addDomain, deleteDomain } from "../../../lib/api";
+import { fetchDomains, addDomain, deleteDomain, verifyDomain } from "../../../lib/api";
 
 export default function DomainsPage() {
   const [newDomain, setNewDomain] = useState("");
@@ -26,6 +26,13 @@ export default function DomainsPage() {
 
   const deleteMutation = useMutation({
     mutationFn: deleteDomain,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["odin", "domains"] });
+    }
+  });
+
+  const verifyMutation = useMutation({
+    mutationFn: verifyDomain,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["odin", "domains"] });
     }
@@ -125,11 +132,22 @@ export default function DomainsPage() {
                                {domain.ssl_enabled ? 'Protected' : 'Inactive'}
                              </span>
                          </div>
+                         <div className="text-center min-w-[220px]">
+                             <span className="text-[9px] font-black text-zinc-600 uppercase tracking-widest block mb-1">Runtime</span>
+                             <span className="text-[10px] font-bold text-zinc-400 tracking-tight">
+                               {domain.verification?.publicUrl ?? (domain.verification?.dns?.resolves ? "DNS OK, sin respuesta web" : "DNS no resuelve aún")}
+                             </span>
+                         </div>
                       </div>
 
                       <div className="flex gap-2">
-                         <button className="p-3 rounded-lg border border-white/5 bg-white/5 text-zinc-500 hover:text-white hover:bg-white/10 transition-all">
-                            <span className="material-symbols-outlined text-sm">dns</span>
+                         <button
+                           onClick={() => verifyMutation.mutate(domain.id)}
+                           disabled={verifyMutation.isPending}
+                           title="Verificar DNS/SSL ahora"
+                           className="p-3 rounded-lg border border-white/5 bg-white/5 text-zinc-500 hover:text-white hover:bg-white/10 transition-all disabled:opacity-50"
+                         >
+                            <span className="material-symbols-outlined text-sm">sync</span>
                          </button>
                          <button 
                            onClick={() => handleDelete(domain.id)}

@@ -165,7 +165,7 @@ export default function WordPressManagerPage() {
                       <span className="material-symbols-outlined">settings</span>
                    </Link>
                    <button 
-                     onClick={() => window.open(`http://${site.domain}/wp-admin`, '_blank')}
+                     onClick={() => window.open(site.admin_url ?? `https://${site.domain}/wp-admin`, '_blank')}
                      className="flex items-center gap-3 px-6 py-4 rounded-xl bg-primary text-black font-black text-[10px] uppercase tracking-widest hover:brightness-110 active:scale-95 transition-all"
                    >
                       <span>Admin Login</span>

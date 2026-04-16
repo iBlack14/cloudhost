@@ -19,11 +19,12 @@ export const createWhmAccountHandler = async (req: Request, res: Response): Prom
   const parsed = createWhmAccountSchema.safeParse(req.body);
 
   if (!parsed.success) {
+    const firstIssue = parsed.error.issues[0];
     return res.status(422).json({
       success: false,
       error: {
         code: "VALIDATION_ERROR",
-        message: "Payload inválido",
+        message: firstIssue?.message ?? "Datos inválidos",
         details: parsed.error.flatten()
       }
     });

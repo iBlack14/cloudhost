@@ -1,10 +1,19 @@
 import { z } from "zod";
 
 export const createWhmAccountSchema = z.object({
-  domain: z.string().min(3).regex(/^[a-z0-9.-]+\.[a-z]{2,}$/i),
-  username: z.string().min(4).max(16).regex(/^[a-z0-9]+$/),
-  password: z.string().min(8),
-  email: z.string().email(),
+  domain: z.string().min(3, "Ingresa un dominio válido").regex(/^[a-z0-9.-]+\.[a-z]{2,}$/i, "Formato de dominio inválido"),
+  username: z
+    .string()
+    .min(4, "El usuario debe tener mínimo 4 caracteres")
+    .max(16, "El usuario no puede tener más de 16 caracteres")
+    .regex(/^[a-z0-9]+$/, "El usuario solo permite letras minúsculas y números"),
+  password: z
+    .string()
+    .min(12, "La contraseña debe tener mínimo 12 caracteres")
+    .regex(/[A-Z]/, "La contraseña debe incluir al menos una mayúscula")
+    .regex(/[0-9]/, "La contraseña debe incluir al menos un número")
+    .regex(/[!@#$%^&*]/, "La contraseña debe incluir al menos un carácter especial (!@#$%^&*)"),
+  email: z.string().email("Correo electrónico inválido"),
   planId: z.string().uuid().optional(),
   nameservers: z.object({
     inheritRoot: z.boolean(),
