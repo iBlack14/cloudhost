@@ -36,7 +36,7 @@ export const getOrCreateZone = async (domainId: string, domainName: string) => {
     await ensureDnsTables();
     const existing = await db.query("SELECT * FROM dns_zones WHERE domain_id = $1", [domainId]);
     
-    if (existing.rowCount > 0) return existing.rows[0];
+    if ((existing.rowCount ?? 0) > 0) return existing.rows[0];
 
     // Create new zone
     const result = await db.query(

@@ -45,7 +45,7 @@ export default function CreateWhmAccountPage() {
 
     if (name.startsWith("settings.")) {
       const key = name.replace("settings.", "") as keyof WhmCreateAccountInput["settings"];
-      setForm((prev) => ({
+      setForm((prev: WhmCreateAccountInput) => ({
         ...prev,
         settings: {
           ...prev.settings,
@@ -57,7 +57,7 @@ export default function CreateWhmAccountPage() {
 
     if (name.startsWith("nameservers.")) {
       const key = name.replace("nameservers.", "") as keyof WhmCreateAccountInput["nameservers"];
-      setForm((prev) => ({
+      setForm((prev: WhmCreateAccountInput) => ({
         ...prev,
         nameservers: {
           ...prev.nameservers,
@@ -67,7 +67,7 @@ export default function CreateWhmAccountPage() {
       return;
     }
 
-    setForm((prev) => ({ ...prev, [name]: value }));
+    setForm((prev: WhmCreateAccountInput) => ({ ...prev, [name]: value }));
   };
 
   const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -132,7 +132,7 @@ export default function CreateWhmAccountPage() {
               <input 
                 name="email"
                 type="email" 
-                placeholder="sysops@nexhost.cloud"
+                placeholder="sysops@odisea.cloud"
                 value={form.email}
                 onChange={onInputChange}
                 required
@@ -202,17 +202,17 @@ export default function CreateWhmAccountPage() {
                 <ModuleToggle 
                   label="SSH Shell" 
                   active={form.settings.shellAccess} 
-                  onClick={() => setForm(prev => ({ ...prev, settings: { ...prev.settings, shellAccess: !prev.settings.shellAccess } }))} 
+                  onClick={() => setForm((prev: WhmCreateAccountInput) => ({ ...prev, settings: { ...prev.settings, shellAccess: !prev.settings.shellAccess } }))} 
                 />
                 <ModuleToggle 
                   label="Node.js Cluster" 
                   active={form.settings.nodejsEnabled} 
-                  onClick={() => setForm(prev => ({ ...prev, settings: { ...prev.settings, nodejsEnabled: !prev.settings.nodejsEnabled } }))} 
+                  onClick={() => setForm((prev: WhmCreateAccountInput) => ({ ...prev, settings: { ...prev.settings, nodejsEnabled: !prev.settings.nodejsEnabled } }))} 
                 />
                 <ModuleToggle 
                   label="Docker Engine" 
                   active={form.settings.dockerEnabled} 
-                  onClick={() => setForm(prev => ({ ...prev, settings: { ...prev.settings, dockerEnabled: !prev.settings.dockerEnabled } }))} 
+                  onClick={() => setForm((prev: WhmCreateAccountInput) => ({ ...prev, settings: { ...prev.settings, dockerEnabled: !prev.settings.dockerEnabled } }))} 
                 />
              </div>
           </section>

@@ -2,10 +2,17 @@
 
 import React from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { logoutWhmSession } from "../lib/api";
 
 export function WhmSidebar() {
   const pathname = usePathname();
+  const router = useRouter();
+
+  const onLogout = () => {
+    logoutWhmSession();
+    router.replace("/auth/login");
+  };
 
   return (
     <aside className="w-72 glass-sidebar fixed inset-y-0 left-0 z-50 p-6 flex flex-col border-r border-[#00A3FF]/10">
@@ -48,7 +55,10 @@ export function WhmSidebar() {
               <div className="h-full w-2/3 kinetic-gradient"></div>
            </div>
         </div>
-        <button className="flex items-center justify-center gap-3 w-full py-3 rounded-xl bg-white/5 text-zinc-400 hover:text-white transition-all text-xs font-black">
+        <button
+          onClick={onLogout}
+          className="flex items-center justify-center gap-3 w-full py-3 rounded-xl bg-white/5 text-zinc-400 hover:text-white transition-all text-xs font-black"
+        >
           <span className="material-symbols-outlined text-sm">logout</span>
           Exit Console
         </button>

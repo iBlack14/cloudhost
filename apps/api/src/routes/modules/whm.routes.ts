@@ -10,8 +10,10 @@ import {
 } from "../../controllers/whm/account.controller.js";
 import { listAllDomainsHandler } from "../../controllers/odin/domain.controller.js";
 import { getDnsZoneHandler, addDnsRecordHandler, deleteDnsRecordHandler } from "../../controllers/odin/dns.controller.js";
+import { requireAuth } from "../../middleware/auth.js";
 
 export const whmRouter = Router();
+whmRouter.use(requireAuth({ roles: ["admin", "reseller"] }));
 
 whmRouter.get("/dashboard", (_req, res) => {
   res.status(200).json({

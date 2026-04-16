@@ -2,12 +2,13 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { hasWhmSession } from "../lib/api";
 
 export default function RootPage() {
   const router = useRouter();
 
   useEffect(() => {
-    router.replace("/whm");
+    router.replace(hasWhmSession() ? "/whm" : "/auth/login");
   }, [router]);
 
   return (

@@ -73,7 +73,7 @@ authRouter.post("/login", async (req, res) => {
       data: {
         token,
         role: user.role,
-        redirectTo: user.role === "admin" ? "/whm/dashboard" : "/odin-panel/dashboard"
+        redirectTo: user.role === "user" ? "/" : "/whm"
       }
     });
   } catch (error) {

@@ -1,9 +1,19 @@
 "use client";
 
-import React from "react";
+import React, { useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { WhmSidebar } from "../../components/whm-sidebar";
+import { hasWhmSession } from "../../lib/api";
 
 export default function WhmLayout({ children }: { children: React.ReactNode }) {
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!hasWhmSession()) {
+      router.replace("/auth/login");
+    }
+  }, [router]);
+
   return (
     <div className="flex min-h-screen overflow-hidden">
       <WhmSidebar />

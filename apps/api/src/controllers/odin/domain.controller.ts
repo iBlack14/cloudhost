@@ -7,6 +7,10 @@ const addDomainSchema = z.object({
   domainName: z.string().min(3)
 });
 
+const deleteDomainParamSchema = z.object({
+  id: z.string().uuid()
+});
+
 export const listAllDomainsHandler = async (_req: Request, res: Response): Promise<Response> => {
   try {
     const domains = await listAllDomains();
@@ -55,9 +59,17 @@ export const addDomainHandler = async (req: Request, res: Response): Promise<Res
 };
 
 export const deleteDomainHandler = async (req: Request, res: Response): Promise<Response> => {
+  const parsedParams = deleteDomainParamSchema.safeParse(req.params);
+  if (!parsedParams.success) {
+    return res.status(422).json({
+      success: false,
+      error: { code: "VALIDATION_ERROR", message: "ID de dominio inválido" }
+    });
+  }
+
   try {
     const userId = await getUserId(req);
-    await deleteDomain(userId, req.params.id);
+    await deleteDomain(userId, parsedParams.data.id);
     return res.status(200).json({ success: true });
   } catch (error) {
     if (error instanceof Error && error.message === "AUTH_REQUIRED") {

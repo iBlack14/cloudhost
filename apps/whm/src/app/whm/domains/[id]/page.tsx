@@ -88,7 +88,7 @@ export default function DnsZoneEditorPage() {
            <div className="w-px h-8 bg-white/5"></div>
            <div className="text-right">
               <p className="text-[9px] font-black text-zinc-500 uppercase tracking-widest">Primary NS</p>
-              <p className="text-xs font-mono text-zinc-300">ns1.nexhost.cloud</p>
+              <p className="text-xs font-mono text-zinc-300">ns1.odisea.cloud</p>
            </div>
         </div>
       </header>

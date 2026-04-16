@@ -10,7 +10,9 @@
     "isolatedModules": true,
     "baseUrl": ".",
     "paths": {
+      "@odisea/types": ["packages/types/src/index.ts"],
       "@odisea/types/*": ["packages/types/src/*"],
+      "@odisea/ui": ["packages/ui/src/index.ts"],
       "@odisea/ui/*": ["packages/ui/src/*"]
     }
   }

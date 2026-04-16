@@ -4,8 +4,8 @@ CREATE TABLE IF NOT EXISTS dns_zones (
     domain_id UUID NOT NULL REFERENCES domains(id) ON DELETE CASCADE,
     origin TEXT NOT NULL, -- domain.com.
     ttl INTEGER DEFAULT 86400,
-    soa_mname TEXT NOT NULL, -- ns1.nexhost.cloud.
-    soa_rname TEXT NOT NULL, -- admin.nexhost.cloud.
+    soa_mname TEXT NOT NULL, -- ns1.odisea.cloud.
+    soa_rname TEXT NOT NULL, -- admin.odisea.cloud.
     soa_serial BIGINT DEFAULT EXTRACT(EPOCH FROM CURRENT_TIMESTAMP)::BIGINT,
     refresh INTEGER DEFAULT 7200,
     retry INTEGER DEFAULT 3600,
@@ -20,7 +20,7 @@ CREATE TABLE IF NOT EXISTS dns_records (
     zone_id UUID NOT NULL REFERENCES dns_zones(id) ON DELETE CASCADE,
     name TEXT NOT NULL, -- @, www, mail
     type TEXT NOT NULL, -- A, AAAA, CNAME, MX, TXT, NS
-    content TEXT NOT NULL, -- 1.2.3.4, ns1.nexhost.cloud
+    content TEXT NOT NULL, -- 1.2.3.4, ns1.odisea.cloud
     priority INTEGER, -- for MX
     ttl INTEGER DEFAULT 3600,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,

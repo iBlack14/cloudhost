@@ -30,26 +30,54 @@ fi
 echo -e "${YELLOW}📋 Configuration${NC}"
 echo "──────────────────────────────────────────"
 
-read -p "Enter VPS Public IP (required): " VPS_IP
-if [ -z "$VPS_IP" ]; then
-  echo -e "${RED}❌ VPS IP is required!${NC}"
+detect_public_ip() {
+  local detected_ip=""
+
+  if command -v curl > /dev/null 2>&1; then
+    detected_ip=$(curl -4 -fsS https://api.ipify.org 2>/dev/null || true)
+  fi
+
+  if [ -z "$detected_ip" ]; then
+    detected_ip=$(hostname -I 2>/dev/null | awk '{print $1}')
+  fi
+
+  echo "$detected_ip"
+}
+
+prompt_with_default() {
+  local prompt_text="$1"
+  local default_value="$2"
+  local result=""
+  read -p "$prompt_text [$default_value]: " result
+  echo "${result:-$default_value}"
+}
+
+DEFAULT_VPS_IP=$(detect_public_ip)
+DEFAULT_API_PORT=3001
+DEFAULT_WHM_PORT=3002
+DEFAULT_ODIN_PORT=3003
+DEFAULT_PG_PORT=5434
+DEFAULT_PG_PASS=postgres
+
+if [ -z "$DEFAULT_VPS_IP" ]; then
+  echo -e "${YELLOW}⚠️  Could not auto-detect public IP. Please enter it manually.${NC}"
+  read -p "Enter VPS Public IP: " DEFAULT_VPS_IP
+fi
+
+if [ -z "$DEFAULT_VPS_IP" ]; then
+  echo -e "${RED}❌ VPS IP is required.${NC}"
   exit 1
 fi
 
-read -p "Enter API Port [Default: 3001]: " API_PORT
-API_PORT=${API_PORT:-3001}
+echo -e "${GREEN}🌐 Auto-detected VPS IP: ${DEFAULT_VPS_IP}${NC}"
+echo -e "${CYAN}Tip:${NC} press Enter on each step to keep defaults (next/next mode)."
 
-read -p "Enter WHM Port [Default: 3002]: " WHM_PORT
-WHM_PORT=${WHM_PORT:-3002}
-
-read -p "Enter ODIN Panel Port [Default: 3003]: " ODIN_PORT
-ODIN_PORT=${ODIN_PORT:-3003}
-
-read -p "Enter PostgreSQL Port [Default: 5434]: " PG_PORT
-PG_PORT=${PG_PORT:-5434}
-
-read -p "Enter PostgreSQL Password [Default: postgres]: " PG_PASS
-PG_PASS=${PG_PASS:-postgres}
+VPS_IP=$(prompt_with_default "VPS Public IP" "$DEFAULT_VPS_IP")
+API_PORT=$(prompt_with_default "API Port" "$DEFAULT_API_PORT")
+WHM_PORT=$(prompt_with_default "WHM Port" "$DEFAULT_WHM_PORT")
+ODIN_PORT=$(prompt_with_default "ODIN Panel Port" "$DEFAULT_ODIN_PORT")
+PG_PORT=$(prompt_with_default "PostgreSQL Port" "$DEFAULT_PG_PORT")
+PG_PASS=$(prompt_with_default "PostgreSQL Password" "$DEFAULT_PG_PASS")
 
 # Generate a random JWT secret (64 chars)
 JWT_SECRET=$(openssl rand -hex 32)
@@ -180,8 +208,6 @@ echo -e "\n${YELLOW}🛰️  Launching services with PM2...${NC}"
 
 # Cleanup old processes
 pm2 delete odisea-api odisea-whm odisea-odin 2>/dev/null || true
-pm2 delete nexhost-api nexhost-whm nexhost-odin 2>/dev/null || true
-
 # Start API (compiled JS)
 pm2 start apps/api/dist/server.js --name odisea-api --env production
 echo -e "  ${GREEN}✅ odisea-api started on :$API_PORT${NC}"

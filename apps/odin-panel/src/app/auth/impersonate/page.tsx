@@ -1,12 +1,13 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
+import { exchangeImpersonationToken } from "../../../lib/api";
 
 export default function OdinImpersonatePage() {
-  const searchParams = useSearchParams();
   const router = useRouter();
-  const token = searchParams.get("token");
+  const [token, setToken] = useState<string | null>(null);
+  const [invalidToken, setInvalidToken] = useState(false);
   const [step, setStep] = useState(0);
 
   const logs = [
@@ -21,12 +22,20 @@ export default function OdinImpersonatePage() {
 
   useEffect(() => {
     setMounted(true);
+
+    const hashToken = window.location.hash.startsWith("#token=")
+      ? decodeURIComponent(window.location.hash.replace("#token=", ""))
+      : null;
+
+    setToken(hashToken);
   }, []);
 
   useEffect(() => {
     if (!token) return;
 
     // Simulate technical handshake
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
     const interval = setInterval(() => {
       setStep((prev) => {
         if (prev < logs.length - 1) return prev + 1;
@@ -35,26 +44,41 @@ export default function OdinImpersonatePage() {
       });
     }, 600);
 
-    // Actual session logic
-    localStorage.setItem("odin-token", token);
+    const authenticateFromImpersonation = async () => {
+      const exchange = await exchangeImpersonationToken(token);
+      window.sessionStorage.setItem("odin-access-token", exchange.token);
+      window.history.replaceState(null, "", "/auth/impersonate");
+    };
     
-    const timeout = setTimeout(() => {
-      router.replace("/");
-    }, 4000);
+    authenticateFromImpersonation()
+      .then(() => {
+        timeoutId = setTimeout(() => {
+          router.replace("/");
+        }, 4000);
+      })
+      .catch(() => {
+        setInvalidToken(true);
+        window.sessionStorage.removeItem("odin-access-token");
+        clearInterval(interval);
+      });
 
     return () => {
       clearInterval(interval);
-      clearTimeout(timeout);
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
     };
   }, [token, router]);
 
-  if (!token) {
+  if (!token || invalidToken) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#050B14]">
          <div className="glass-card p-12 text-center border-red-500/20">
             <span className="material-symbols-outlined text-red-500 text-5xl mb-4">error</span>
             <h2 className="text-2xl font-headline font-black text-white italic tracking-tighter uppercase">Connection Fault</h2>
-            <p className="text-zinc-500 mt-2 text-[10px] font-black tracking-widest uppercase">Administrative token not detected in current sector.</p>
+            <p className="text-zinc-500 mt-2 text-[10px] font-black tracking-widest uppercase">
+              {invalidToken ? "Administrative token is invalid or expired." : "Administrative token not detected in current sector."}
+            </p>
          </div>
       </div>
     );

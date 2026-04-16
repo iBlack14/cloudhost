@@ -10,7 +10,7 @@ export default function WhmDashboardPage() {
         <div className="flex items-center gap-6">
           <div className="w-20 h-20 relative flex-shrink-0 group">
              <div className="absolute inset-0 bg-primary/20 rounded-full blur-2xl group-hover:bg-primary/40 transition-all animate-pulse"></div>
-             <img src="/logo.png" alt="NexHost Logo" className="w-full h-full object-contain relative z-10" />
+             <img src="/logo.png" alt="Odisea Cloud Logo" className="w-full h-full object-contain relative z-10" />
           </div>
           <div className="space-y-2">
             <div className="flex items-center gap-3 mb-1">

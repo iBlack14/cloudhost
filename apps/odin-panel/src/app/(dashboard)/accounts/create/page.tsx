@@ -1,9 +1,11 @@
 "use client";
 
 import React, { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCreateWhmAccount, useWhmPlans } from "../../../lib/hooks/use-whm-accounts";
-import { WhmCreateAccountInput } from "../../../lib/schemas/whm-create-account";
+import { useCreateWhmAccount, useWhmPlans } from "../../../../lib/hooks/use-whm-accounts";
+import type { WhmCreateAccountInput } from "../../../../lib/schemas/whm-create-account";
+import type { Plan } from "../../../../lib/api";
 
 export default function CreateAccountPage() {
   const router = useRouter();
@@ -38,23 +40,23 @@ export default function CreateAccountPage() {
       await createMutation.mutateAsync(form);
       setFeedback("Account provisioned successfully.");
       setTimeout(() => router.push("/accounts"), 1500);
-    } catch (error: any) {
-      setFeedback(error.message || "Failed to create account");
+    } catch (error: unknown) {
+      setFeedback(error instanceof Error ? error.message : "Failed to create account");
     }
   };
 
-  const updateForm = (field: string, value: any) => {
+  const updateForm = (field: string, value: string | boolean | undefined) => {
     if (field.includes(".")) {
       const [parent, child] = field.split(".");
-      setForm(prev => ({
+      setForm((prev: WhmCreateAccountInput) => ({
         ...prev,
         [parent]: {
-          ...(prev[parent as keyof typeof prev] as any),
+          ...(prev[parent as keyof WhmCreateAccountInput] as Record<string, unknown>),
           [child]: value
         }
       }));
     } else {
-      setForm(prev => ({ ...prev, [field]: value }));
+      setForm((prev: WhmCreateAccountInput) => ({ ...prev, [field]: value }));
     }
   };
 
@@ -122,7 +124,7 @@ export default function CreateAccountPage() {
                 className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-primary/50 transition-colors appearance-none"
               >
                 <option value="" className="bg-[#0A1221]">Select a resource plan</option>
-                {plans.map(plan => (
+                {plans.map((plan: Plan) => (
                   <option key={plan.id} value={plan.id} className="bg-[#0A1221]">
                     {plan.name} ({plan.disk_quota_mb}MB)
                   </option>

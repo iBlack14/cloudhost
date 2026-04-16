@@ -37,7 +37,7 @@ export default function ServerConfigPage() {
             <dl className="space-y-4">
                <ConfigItem label="Operating System" value="Ubuntu 22.04.3 LTS (Jammy)" />
                <ConfigItem label="Kernel Version" value="6.5.0-27-generic" />
-               <ConfigItem label="Web Server" value="Nginx/1.24.0 (NexHost Optimized)" />
+               <ConfigItem label="Web Server" value="Nginx/1.24.0 (Odisea Optimized)" />
                <ConfigItem label="PHP Global" value="8.3.4 (FPM/FastCGI)" />
                <ConfigItem label="Node.js Runtime" value="20.11.1 (LTS)" />
             </dl>
@@ -65,7 +65,7 @@ export default function ServerConfigPage() {
          <ConfigCard title="Network & Security" icon="security">
              <dl className="space-y-4">
                <ConfigItem label="Primary IPv4" value="192.168.1.100" />
-               <ConfigItem label="Nameservers" value="ns1.nexhost.cloud" />
+               <ConfigItem label="Nameservers" value="ns1.odisea.cloud" />
                <ConfigItem label="Firewall (UFW)" value="Active / Protected" badge="emerald" />
                <ConfigItem label="SSL Global" value="Auto-Renew (LE)" badge="azure" />
                <ConfigItem label="SSH Access" value="Port 22345 / Key Only" />
@@ -78,7 +78,7 @@ export default function ServerConfigPage() {
             <span className="material-symbols-outlined text-primary text-4xl">dns</span>
             <div>
                <h3 className="text-2xl font-headline font-black text-white uppercase italic tracking-tighter">Global PHP Configuration</h3>
-               <p className="text-[10px] text-zinc-500 font-black tracking-widest uppercase">NexHost.ini Management</p>
+               <p className="text-[10px] text-zinc-500 font-black tracking-widest uppercase">Odisea.ini Management</p>
             </div>
          </div>
          

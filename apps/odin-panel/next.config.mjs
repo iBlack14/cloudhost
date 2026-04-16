@@ -1,7 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  transpilePackages: ["@odisea/ui"],
-  output: "standalone"
+  transpilePackages: ["@odisea/ui", "@odisea/types"]
 };
 
 export default nextConfig;

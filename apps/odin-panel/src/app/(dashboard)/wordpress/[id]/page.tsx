@@ -185,7 +185,7 @@ export default function WordPressDetailPage() {
                  </div>
 
                  <div className="glass-card p-8 bg-white/[0.02] border-primary/10">
-                    <h3 className="text-[10px] font-black text-primary uppercase tracking-widest mb-4 italic">NexHost AI Advisor</h3>
+                    <h3 className="text-[10px] font-black text-primary uppercase tracking-widest mb-4 italic">Odisea AI Advisor</h3>
                     <p className="text-[11px] text-zinc-400 leading-relaxed font-medium">
                        "Your database table <span className="text-white italic">wp_options</span> is growing. Consider optimizing autoloaded options to improve load times by ~15%."
                     </p>
