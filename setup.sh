@@ -24,6 +24,18 @@ is_valid_port() {
   [[ "$1" =~ ^[0-9]+$ ]] && [ "$1" -ge 1 ] && [ "$1" -le 65535 ]
 }
 
+is_valid_username() {
+  [[ "$1" =~ ^[a-zA-Z0-9_.-]{3,32}$ ]]
+}
+
+is_valid_password() {
+  [ "${#1}" -ge 8 ]
+}
+
+is_valid_email() {
+  [[ "$1" =~ ^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$ ]]
+}
+
 assert_distinct_ports() {
   if [ "$API_PORT" = "$WHM_PORT" ] || [ "$API_PORT" = "$ODIN_PORT" ] || [ "$WHM_PORT" = "$ODIN_PORT" ]; then
     echo -e "${RED}❌ API/WHM/ODIN ports must be different.${NC}"
@@ -150,6 +162,42 @@ PG_PASS=$(openssl rand -hex 12)
 JWT_SECRET=$(openssl rand -hex 32)
 echo -e "${GREEN}🔑 JWT Secret generated automatically${NC}"
 
+# Initial admin credentials
+ADMIN_USER="${ADMIN_USER:-admin}"
+ADMIN_PASS="${ADMIN_PASS:-}"
+ADMIN_EMAIL="${ADMIN_EMAIL:-${ADMIN_USER}@odisea.local}"
+ADMIN_PASS_GENERATED=0
+
+if [ "$AUTO_MODE" = "1" ]; then
+  if [ -z "$ADMIN_PASS" ]; then
+    ADMIN_PASS=$(openssl rand -base64 18 | tr -d '=+/' | cut -c1-16)
+    ADMIN_PASS_GENERATED=1
+  fi
+else
+  ADMIN_USER=$(prompt_with_default "WHM admin username" "$ADMIN_USER")
+  if [ -z "$ADMIN_PASS" ]; then
+    read -rsp "WHM admin password (min 8 chars): " ADMIN_PASS
+    echo ""
+  fi
+  read -rp "WHM admin email [${ADMIN_EMAIL}]: " _admin_email_input
+  ADMIN_EMAIL="${_admin_email_input:-$ADMIN_EMAIL}"
+fi
+
+if ! is_valid_username "$ADMIN_USER"; then
+  echo -e "${RED}❌ Invalid ADMIN_USER. Use 3-32 chars: letters, numbers, ., _, -${NC}"
+  exit 1
+fi
+
+if ! is_valid_password "$ADMIN_PASS"; then
+  echo -e "${RED}❌ Invalid ADMIN_PASS. Minimum 8 characters.${NC}"
+  exit 1
+fi
+
+if ! is_valid_email "$ADMIN_EMAIL"; then
+  echo -e "${RED}❌ Invalid ADMIN_EMAIL.${NC}"
+  exit 1
+fi
+
 echo ""
 echo -e "${CYAN}Configuration Summary:${NC}"
 echo "  VPS IP:     $VPS_IP"
@@ -158,6 +206,12 @@ echo "  WHM Port:   $WHM_PORT"
 echo "  ODIN Port:  $ODIN_PORT"
 echo "  PG Port:    $PG_PORT"
 echo "  PG Pass:    [auto-generated]"
+echo "  Admin User: $ADMIN_USER"
+if [ "$ADMIN_PASS_GENERATED" = "1" ]; then
+  echo "  Admin Pass: [auto-generated]"
+else
+  echo "  Admin Pass: [provided]"
+fi
 echo ""
 if [ "$AUTO_MODE" != "1" ]; then
   read -p "Continue? [Y/n]: " CONFIRM
@@ -237,6 +291,17 @@ for i in {1..12}; do
   sleep 3
 done
 
+# Ensure initial WHM admin account exists
+echo -e "\n${YELLOW}👤 Provisioning initial WHM admin user...${NC}"
+ADMIN_HASH=$(node -e "const { randomBytes, scryptSync } = require('crypto'); const p = process.argv[1]; const s = randomBytes(16).toString('hex'); const d = scryptSync(p, s, 64).toString('hex'); process.stdout.write(s + ':' + d);" "$ADMIN_PASS")
+ADMIN_EXISTS=$(docker exec odisea-postgres psql -U postgres -d odisea_cloud -tAc "SELECT 1 FROM users WHERE username='${ADMIN_USER}' LIMIT 1;" | tr -d '[:space:]')
+if [ "$ADMIN_EXISTS" = "1" ]; then
+  echo -e "  ${GREEN}✅ Admin '${ADMIN_USER}' already exists${NC}"
+else
+  docker exec odisea-postgres psql -U postgres -d odisea_cloud -c "INSERT INTO users (username, email, password_hash, role, status) VALUES ('${ADMIN_USER}', '${ADMIN_EMAIL}', '${ADMIN_HASH}', 'admin', 'active');" > /dev/null
+  echo -e "  ${GREEN}✅ Admin '${ADMIN_USER}' created${NC}"
+fi
+
 # 6. Generate Environment Files
 echo -e "\n${YELLOW}⚙️  Generating environment files...${NC}"
 
@@ -287,8 +352,8 @@ echo -e "\n${YELLOW}🛰️  Launching services with PM2...${NC}"
 
 # Cleanup old processes
 pm2 delete odisea-api odisea-whm odisea-odin 2>/dev/null || true
-# Start API (compiled JS)
-pm2 start apps/api/dist/server.js --name odisea-api --env production
+# Start API (compiled JS) with app cwd so dotenv reads apps/api/.env
+pm2 start dist/server.js --name odisea-api --cwd apps/api --env production
 echo -e "  ${GREEN}✅ odisea-api started on :$API_PORT${NC}"
 
 # Start WHM (Next.js - workspace local version)
@@ -335,6 +400,8 @@ echo "║  🌐 WHM Dashboard:  http://$VPS_IP:$WHM_PORT"
 echo "║  👤 ODIN Panel:     http://$VPS_IP:$ODIN_PORT"
 echo "║  🔌 API Service:    http://$VPS_IP:$API_PORT"
 echo "║  💚 API Health:     http://$VPS_IP:$API_PORT/health"
+echo "║  🔐 WHM User:       $ADMIN_USER"
+echo "║  🔐 WHM Pass:       $ADMIN_PASS"
 echo "║  ✅ WHM Health:     http://$VPS_IP:$WHM_PORT"
 echo "║  ✅ ODIN Health:    http://$VPS_IP:$ODIN_PORT"
 echo "║                                                       ║"
