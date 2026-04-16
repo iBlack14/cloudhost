@@ -40,6 +40,8 @@ export const installWpHandler = async (req: Request, res: Response): Promise<Res
 
     return res.status(201).json(result);
   } catch (error) {
+    console.error("[odin:wordpress:install:error]", error);
+
     if (error instanceof Error && error.message === "AUTH_REQUIRED") {
       return res.status(401).json({
         success: false,
@@ -49,7 +51,13 @@ export const installWpHandler = async (req: Request, res: Response): Promise<Res
 
     return res.status(500).json({
       success: false,
-      error: { code: "INTERNAL_ERROR", message: "No se pudo iniciar la instalación" }
+      error: {
+        code: "INTERNAL_ERROR",
+        message:
+          error instanceof Error && error.message
+            ? `No se pudo iniciar la instalación: ${error.message}`
+            : "No se pudo iniciar la instalación"
+      }
     });
   }
 };
