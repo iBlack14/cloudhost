@@ -5,13 +5,46 @@
 # Designed for Ubuntu 22.04+
 # ═══════════════════════════════════════════════════════════════
 
-set -e
+set -Eeuo pipefail
+
+on_error() {
+  local line_no="$1"
+  echo -e "\n${RED}❌ Setup failed on line ${line_no}.${NC}"
+  echo -e "${YELLOW}Check logs above and run again.${NC}"
+}
+trap 'on_error $LINENO' ERR
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 CYAN='\033[0;36m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
+
+is_valid_port() {
+  [[ "$1" =~ ^[0-9]+$ ]] && [ "$1" -ge 1 ] && [ "$1" -le 65535 ]
+}
+
+assert_distinct_ports() {
+  if [ "$API_PORT" = "$WHM_PORT" ] || [ "$API_PORT" = "$ODIN_PORT" ] || [ "$WHM_PORT" = "$ODIN_PORT" ]; then
+    echo -e "${RED}❌ API/WHM/ODIN ports must be different.${NC}"
+    exit 1
+  fi
+}
+
+resolve_compose_cmd() {
+  if docker compose version > /dev/null 2>&1; then
+    echo "docker compose"
+    return
+  fi
+
+  if command -v docker-compose > /dev/null 2>&1; then
+    echo "docker-compose"
+    return
+  fi
+
+  echo -e "${RED}❌ docker compose not found.${NC}"
+  exit 1
+}
 
 echo -e "${CYAN}"
 echo "╔═══════════════════════════════════════════════════════╗"
@@ -57,7 +90,6 @@ DEFAULT_API_PORT=3001
 DEFAULT_WHM_PORT=3002
 DEFAULT_ODIN_PORT=3003
 DEFAULT_PG_PORT=5434
-DEFAULT_PG_PASS=postgres
 
 if [ -z "$DEFAULT_VPS_IP" ]; then
   echo -e "${YELLOW}⚠️  Could not auto-detect public IP. Please enter it manually.${NC}"
@@ -70,14 +102,42 @@ if [ -z "$DEFAULT_VPS_IP" ]; then
 fi
 
 echo -e "${GREEN}🌐 Auto-detected VPS IP: ${DEFAULT_VPS_IP}${NC}"
-echo -e "${CYAN}Tip:${NC} press Enter on each step to keep defaults (next/next mode)."
+echo -e "${CYAN}Tip:${NC} By default everything runs automatic. You only choose ports if needed."
 
-VPS_IP=$(prompt_with_default "VPS Public IP" "$DEFAULT_VPS_IP")
-API_PORT=$(prompt_with_default "API Port" "$DEFAULT_API_PORT")
-WHM_PORT=$(prompt_with_default "WHM Port" "$DEFAULT_WHM_PORT")
-ODIN_PORT=$(prompt_with_default "ODIN Panel Port" "$DEFAULT_ODIN_PORT")
-PG_PORT=$(prompt_with_default "PostgreSQL Port" "$DEFAULT_PG_PORT")
-PG_PASS=$(prompt_with_default "PostgreSQL Password" "$DEFAULT_PG_PASS")
+VPS_IP="$DEFAULT_VPS_IP"
+API_PORT="$DEFAULT_API_PORT"
+WHM_PORT="$DEFAULT_WHM_PORT"
+ODIN_PORT="$DEFAULT_ODIN_PORT"
+PG_PORT="$DEFAULT_PG_PORT"
+
+read -p "Customize ports? [y/N]: " CUSTOM_PORTS
+CUSTOM_PORTS=${CUSTOM_PORTS:-N}
+
+if [[ "$CUSTOM_PORTS" =~ ^[Yy]$ ]]; then
+  while true; do
+    API_PORT=$(prompt_with_default "API Port" "$DEFAULT_API_PORT")
+    WHM_PORT=$(prompt_with_default "WHM Port" "$DEFAULT_WHM_PORT")
+    ODIN_PORT=$(prompt_with_default "ODIN Panel Port" "$DEFAULT_ODIN_PORT")
+    PG_PORT=$(prompt_with_default "PostgreSQL Port" "$DEFAULT_PG_PORT")
+
+    if ! is_valid_port "$API_PORT" || ! is_valid_port "$WHM_PORT" || ! is_valid_port "$ODIN_PORT" || ! is_valid_port "$PG_PORT"; then
+      echo -e "${YELLOW}⚠️  Invalid port detected. Use values between 1 and 65535.${NC}"
+      continue
+    fi
+
+    assert_distinct_ports
+    break
+  done
+fi
+
+if ! is_valid_port "$API_PORT" || ! is_valid_port "$WHM_PORT" || ! is_valid_port "$ODIN_PORT" || ! is_valid_port "$PG_PORT"; then
+  echo -e "${RED}❌ One or more ports are invalid.${NC}"
+  exit 1
+fi
+
+assert_distinct_ports
+
+PG_PASS=$(openssl rand -hex 12)
 
 # Generate a random JWT secret (64 chars)
 JWT_SECRET=$(openssl rand -hex 32)
@@ -90,6 +150,7 @@ echo "  API Port:   $API_PORT"
 echo "  WHM Port:   $WHM_PORT"
 echo "  ODIN Port:  $ODIN_PORT"
 echo "  PG Port:    $PG_PORT"
+echo "  PG Pass:    [auto-generated]"
 echo ""
 read -p "Continue? [Y/n]: " CONFIRM
 CONFIRM=${CONFIRM:-Y}
@@ -107,7 +168,7 @@ ufw allow 443/tcp > /dev/null 2>&1
 ufw allow $API_PORT/tcp > /dev/null 2>&1
 ufw allow $WHM_PORT/tcp > /dev/null 2>&1
 ufw allow $ODIN_PORT/tcp > /dev/null 2>&1
-echo "y" | ufw enable > /dev/null 2>&1
+ufw --force enable > /dev/null 2>&1
 echo -e "${GREEN}✅ Firewall configured${NC}"
 
 # 4. Install Dependencies
@@ -117,7 +178,7 @@ echo -e "\n${YELLOW}📦 Installing dependencies...${NC}"
 apt purge -y containerd docker.io runc containerd.io 2>/dev/null || true
 apt autoremove -y > /dev/null 2>&1
 
-apt update -qq && apt install -y -qq curl git docker.io docker-compose > /dev/null 2>&1
+apt update -qq && apt install -y -qq curl git ca-certificates docker.io docker-compose-plugin > /dev/null 2>&1
 echo -e "${GREEN}✅ Docker installed${NC}"
 
 # Start Docker if not running
@@ -138,12 +199,19 @@ echo -e "${GREEN}✅ pnpm & PM2 installed${NC}"
 # 5. Update docker-compose ports if non-default
 echo -e "\n${YELLOW}🗄️  Starting Database Clusters...${NC}"
 
-# Update docker-compose.yml with custom PG port
-sed -i "s/\"5434:5432\"/\"${PG_PORT}:5432\"/" docker-compose.yml
-sed -i "s/POSTGRES_PASSWORD: postgres/POSTGRES_PASSWORD: ${PG_PASS}/" docker-compose.yml
+# Keep base compose untouched; write override for this host
+cat <<EOT > docker-compose.override.yml
+services:
+  postgres:
+    ports:
+      - "${PG_PORT}:5432"
+    environment:
+      POSTGRES_PASSWORD: ${PG_PASS}
+EOT
 
-docker-compose down 2>/dev/null || true
-docker-compose up -d
+COMPOSE_CMD=$(resolve_compose_cmd)
+$COMPOSE_CMD down > /dev/null 2>&1 || true
+$COMPOSE_CMD up -d
 echo -e "${GREEN}✅ PostgreSQL (port $PG_PORT) & MySQL (port 3307) running${NC}"
 
 # Wait for databases to be ready
@@ -228,10 +296,22 @@ echo -e "\n${YELLOW}🔍 Running health checks...${NC}"
 sleep 3
 
 API_STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:$API_PORT/health 2>/dev/null || echo "000")
+WHM_STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:$WHM_PORT 2>/dev/null || echo "000")
+ODIN_STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:$ODIN_PORT 2>/dev/null || echo "000")
 if [ "$API_STATUS" = "200" ]; then
   echo -e "  ${GREEN}✅ API health: OK (200)${NC}"
 else
   echo -e "  ${RED}⚠️  API health: $API_STATUS (may still be starting)${NC}"
+fi
+if [ "$WHM_STATUS" = "200" ]; then
+  echo -e "  ${GREEN}✅ WHM health: OK (200)${NC}"
+else
+  echo -e "  ${YELLOW}⚠️  WHM health: $WHM_STATUS${NC}"
+fi
+if [ "$ODIN_STATUS" = "200" ]; then
+  echo -e "  ${GREEN}✅ ODIN health: OK (200)${NC}"
+else
+  echo -e "  ${YELLOW}⚠️  ODIN health: $ODIN_STATUS${NC}"
 fi
 
 # 10. Summary
@@ -244,6 +324,8 @@ echo "║  🌐 WHM Dashboard:  http://$VPS_IP:$WHM_PORT"
 echo "║  👤 ODIN Panel:     http://$VPS_IP:$ODIN_PORT"
 echo "║  🔌 API Service:    http://$VPS_IP:$API_PORT"
 echo "║  💚 API Health:     http://$VPS_IP:$API_PORT/health"
+echo "║  ✅ WHM Health:     http://$VPS_IP:$WHM_PORT"
+echo "║  ✅ ODIN Health:    http://$VPS_IP:$ODIN_PORT"
 echo "║                                                       ║"
 echo "║  📋 PM2 Status:     pm2 status                       ║"
 echo "║  📋 PM2 Logs:       pm2 logs                         ║"
