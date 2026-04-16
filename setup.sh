@@ -292,11 +292,11 @@ pm2 start apps/api/dist/server.js --name odisea-api --env production
 echo -e "  ${GREEN}✅ odisea-api started on :$API_PORT${NC}"
 
 # Start WHM (Next.js - workspace local version)
-pm2 start "pnpm --filter @odisea/whm exec next start apps/whm -p $WHM_PORT" --name odisea-whm
+pm2 start "pnpm --filter @odisea/whm exec next start -p $WHM_PORT" --name odisea-whm
 echo -e "  ${GREEN}✅ odisea-whm started on :$WHM_PORT${NC}"
 
 # Start ODIN Panel (Next.js - workspace local version)
-pm2 start "pnpm --filter @odisea/odin-panel exec next start apps/odin-panel -p $ODIN_PORT" --name odisea-odin
+pm2 start "pnpm --filter @odisea/odin-panel exec next start -p $ODIN_PORT" --name odisea-odin
 echo -e "  ${GREEN}✅ odisea-odin started on :$ODIN_PORT${NC}"
 
 pm2 save
