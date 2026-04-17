@@ -233,7 +233,7 @@ export const installWordPress = async (input: InstallWpInput) => {
       await new Promise(r => setTimeout(r, 6000));
       
       try {
-        const wpInstallCmd = `docker exec ${containerName} su www-data -s /bin/bash -c "wp core install --url='${siteUrl}' --title='${siteTitle}' --admin_user='${adminUser}' --admin_password='${adminPass}' --admin_email='${input.adminEmail}' --skip-email"`;
+        const wpInstallCmd = `docker exec ${containerName} su www-data -s /bin/bash -c "wp core install --url='${siteUrl}' --title='${siteTitle}' --admin_user='${adminUser}' --admin_password='${input.adminPass}' --admin_email='${input.adminEmail}' --skip-email"`;
         await execAsync(wpInstallCmd);
         
         if (input.siteDescription) {
