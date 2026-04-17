@@ -12,7 +12,7 @@ import { signImpersonationToken } from "../../utils/jwt.js";
 
 export const createWhmAccount = async (
   input: WhmCreateAccountInput
-): Promise<WhmCreateAccountResult> => {
+): Promise<CreateWhmAccountResult> => {
   const client = await db.connect();
 
   try {
