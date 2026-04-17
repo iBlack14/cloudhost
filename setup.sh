@@ -15,22 +15,17 @@ on_error() {
 trap 'on_error $LINENO' ERR
 
 wait_for_apt() {
-  # Ensure fuser is available (part of psmisc)
-  if ! command -v fuser > /dev/null 2>&1; then
-    apt update > /dev/null 2>&1
-    apt install -y psmisc > /dev/null 2>&1
-  fi
-
   local count=0
-  while fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1 ; do
+  # We check for the lock file itself. If we can't get an exclusive lock, it means another process has it.
+  while ! flock -n /var/lib/dpkg/lock-frontend true 2>/dev/null; do
     if [ $count -eq 0 ]; then
       echo -n -e "${YELLOW}⏳ Waiting for other apt processes to finish...${NC}"
     fi
     echo -n "."
     sleep 2
     ((count++))
-    if [ $count -gt 30 ]; then
-       echo -e "\n${RED}❌ Timeout waiting for apt lock.${NC}"
+    if [ $count -gt 60 ]; then
+       echo -e "\n${RED}❌ Timeout waiting for apt lock. Try restarting the VPS.${NC}"
        exit 1
     fi
   done
