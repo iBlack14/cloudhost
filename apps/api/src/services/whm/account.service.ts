@@ -1,31 +1,14 @@
 import { env } from "../../config/env.js";
 import { db } from "../../config/db.js";
-import type {
-  CreateWhmAccountInput,
-  CreateWhmAccountResult,
-  WhmImpersonationResult
-} from "../../types/whm-account.js";
+import {
+  type WhmCreateAccountInput,
+  type CreateWhmAccountResult,
+  type WhmImpersonationResult,
+  type Plan as WhmPlan,
+  type WhmAccountRow
+} from "@odisea/types";
 import { hashPassword } from "../../utils/hash-password.js";
 import { signImpersonationToken } from "../../utils/jwt.js";
-
-export interface WhmPlan {
-  id: string;
-  name: string;
-  disk_quota_mb: number;
-  bandwidth_mb: number;
-}
-
-export interface WhmAccountRow {
-  account_id: string;
-  user_id: string;
-  username: string;
-  email: string;
-  domain: string;
-  plan_name: string | null;
-  status: "active" | "suspended" | "terminated";
-  disk_used_mb: number;
-  created_at: string;
-}
 
 export const createWhmAccount = async (
   input: CreateWhmAccountInput

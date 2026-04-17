@@ -4,14 +4,7 @@ import { db } from "../../config/db.js";
 import { verifyPassword } from "../../utils/hash-password.js";
 import { signAccessToken, verifyAuthToken, type AuthRole } from "../../utils/jwt.js";
 
-const loginSchema = z.object({
-  username: z.string().min(3),
-  password: z.string().min(8)
-});
-
-const exchangeImpersonationSchema = z.object({
-  token: z.string().min(1)
-});
+import { loginSchema, exchangeImpersonationSchema } from "@odisea/types";
 
 export const authRouter = Router();
 

@@ -1,7 +1,7 @@
 import type { Request, Response } from "express";
 import { z } from "zod";
 
-import { createWhmAccountSchema } from "./create-account.schema.js";
+import { whmCreateAccountSchema } from "@odisea/types";
 import {
   createWhmAccount,
   impersonateWhmAccount,
@@ -16,7 +16,7 @@ const accountIdParamSchema = z.object({
 });
 
 export const createWhmAccountHandler = async (req: Request, res: Response): Promise<Response> => {
-  const parsed = createWhmAccountSchema.safeParse(req.body);
+  const parsed = whmCreateAccountSchema.safeParse(req.body);
 
   if (!parsed.success) {
     const firstIssue = parsed.error.issues[0];

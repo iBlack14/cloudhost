@@ -257,9 +257,10 @@ if ! command -v node &> /dev/null || [[ $(node -v | cut -d. -f1 | tr -d 'v') -lt
 fi
 echo -e "${GREEN}✅ Node.js $(node -v) installed${NC}"
 
-# Install PNPM & PM2
+# Install PNPM, PM2 & Certbot
 npm install -g pnpm@9 pm2 > /dev/null 2>&1
-echo -e "${GREEN}✅ pnpm & PM2 installed${NC}"
+apt install -y -qq nginx certbot python3-certbot-nginx > /dev/null 2>&1
+echo -e "${GREEN}✅ pnpm, PM2, Nginx & Certbot installed${NC}"
 
 # 5. Update docker-compose ports if non-default
 echo -e "\n${YELLOW}🗄️  Starting Database Clusters...${NC}"
@@ -413,7 +414,8 @@ echo "╚═══════════════════════�
 echo -e "${NC}"
 
 echo -e "${YELLOW}💡 Next Steps:${NC}"
-echo "  1. Configure Nginx reverse proxy for domains (optional)"
-echo "  2. Setup SSL with certbot (optional)"
-echo "  3. Test: curl http://$VPS_IP:$API_PORT/health"
+echo "  1. Use 'certbot --nginx' to enable SSL on your domains."
+echo "  2. Professional SSL management script available at: infra/scripts/provision-ssl.sh"
+echo "  3. Config templates in: infra/nginx/"
+echo "  4. Test: curl http://$VPS_IP:$API_PORT/health"
 echo ""

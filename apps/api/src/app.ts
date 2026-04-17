@@ -4,12 +4,16 @@ import helmet from "helmet";
 
 import { apiRouter } from "./routes/index.js";
 import { errorHandler } from "./middleware/error-handler.js";
+import { env } from "./config/env.js";
 
 export const createApp = (): Application => {
   const app = express();
 
   app.use(helmet());
-  app.use(cors());
+  
+  const origins = env.CORS_ORIGIN === "*" ? "*" : env.CORS_ORIGIN.split(",");
+  app.use(cors({ origin: origins }));
+  
   app.use(express.json({ limit: "1mb" }));
 
   app.get("/health", (_req, res) => {

@@ -42,3 +42,79 @@ export const whmCreateAccountSchema = z.object({
 });
 
 export type WhmCreateAccountInput = z.infer<typeof whmCreateAccountSchema>;
+
+// Auth Schemas
+export const loginSchema = z.object({
+  username: z.string().min(3, "Usuario debe tener al menos 3 caracteres"),
+  password: z.string().min(8, "Contraseña debe tener al menos 8 caracteres")
+});
+
+export type LoginInput = z.infer<typeof loginSchema>;
+
+export const exchangeImpersonationSchema = z.object({
+  token: z.string().min(1, "Token requerido")
+});
+
+export type ExchangeImpersonationInput = z.infer<typeof exchangeImpersonationSchema>;
+
+// Result Types
+export interface CreateWhmAccountResult {
+  userId: string;
+  accountId: string;
+}
+
+export interface WhmImpersonationResult {
+  accountId: string;
+  impersonateToken: string;
+  odinPanelUrl: string;
+}
+
+export interface Plan {
+  id: string;
+  name: string;
+  disk_quota_mb: number;
+  bandwidth_mb: number;
+}
+
+export interface WhmAccountRow {
+  account_id: string;
+  user_id: string;
+  username: string;
+  email: string;
+  domain: string;
+  plan_name: string | null;
+  status: "active" | "suspended" | "terminated";
+  disk_used_mb: number;
+  created_at: string;
+}
+
+export interface DomainRecord {
+  id: string;
+  domain_name: string;
+  status: "active" | "pending_verification" | "offline" | string;
+  dns_provider: string;
+  ssl_enabled: boolean;
+  verification?: {
+    publicUrl?: string | null;
+    dns?: {
+      resolves: boolean;
+      aRecords: string[];
+      cnameRecords: string[];
+      error?: string;
+    };
+  };
+}
+
+export interface WordPressSite {
+  id: string;
+  domain: string;
+  site_title: string;
+  wp_version: string;
+  php_version: string;
+  db_name: string;
+  auto_updates: boolean;
+  status: string;
+  admin_url?: string;
+  service_port?: number;
+  container_name?: string;
+}

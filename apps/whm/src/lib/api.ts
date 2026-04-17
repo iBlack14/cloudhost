@@ -1,30 +1,13 @@
+import { 
+  whmCreateAccountSchema, 
+  type WhmCreateAccountInput, 
+  type Plan, 
+  type WhmAccountRow as WhmAccount, 
+  type WhmImpersonationResult as WhmImpersonation 
+} from "@odisea/types";
+
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001/api/v1";
 const WHM_ACCESS_TOKEN_KEY = "whm-access-token";
-
-export interface Plan {
-  id: string;
-  name: string;
-  disk_quota_mb: number;
-  bandwidth_mb: number;
-}
-
-export interface WhmAccount {
-  account_id: string;
-  user_id: string;
-  username: string;
-  email: string;
-  domain: string;
-  plan_name: string | null;
-  status: "active" | "suspended" | "terminated";
-  disk_used_mb: number;
-  created_at: string;
-}
-
-export interface WhmImpersonation {
-  accountId: string;
-  impersonateToken: string;
-  odinPanelUrl: string;
-}
 
 interface AuthLoginResponse {
   token: string;
@@ -138,7 +121,7 @@ export const fetchAccounts = async (): Promise<WhmAccount[]> => {
   return parsePayload<WhmAccount[]>(response);
 };
 
-export const createAccount = async (input: unknown): Promise<{ userId: string; accountId: string }> => {
+export const createAccount = async (input: WhmCreateAccountInput): Promise<{ userId: string; accountId: string }> => {
   const response = await fetch(`${API_BASE}/whm/accounts`, {
     method: "POST",
     headers: withWhmAuth({ "Content-Type": "application/json" }),

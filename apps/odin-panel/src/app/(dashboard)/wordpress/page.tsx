@@ -50,14 +50,24 @@ export default function WordPressManagerPage() {
     "FINALIZING ENVIRONMENT OPTIMIZATION...",
   ];
 
+  const installIntervalRef = React.useRef<NodeJS.Timeout | null>(null);
+
+  React.useEffect(() => {
+    return () => {
+      if (installIntervalRef.current) clearInterval(installIntervalRef.current);
+    };
+  }, []);
+
   const handleInstall = async () => {
     setInstallStep(0);
     
+    if (installIntervalRef.current) clearInterval(installIntervalRef.current);
+
     // Simulate log progression
-    const interval = setInterval(() => {
+    installIntervalRef.current = setInterval(() => {
       setInstallStep(prev => {
         if (prev < installLogs.length - 1) return prev + 1;
-        clearInterval(interval);
+        if (installIntervalRef.current) clearInterval(installIntervalRef.current);
         return prev;
       });
     }, 1500);
@@ -68,7 +78,7 @@ export default function WordPressManagerPage() {
         setFormData({ domain: "", directory: "", adminUser: "admin", adminPass: "", siteTitle: "" });
       }, 2000);
     } catch (err) {
-      clearInterval(interval);
+      if (installIntervalRef.current) clearInterval(installIntervalRef.current);
       alert("Error: " + (err instanceof Error ? err.message : "Falla técnica en el despliegue"));
     }
   };

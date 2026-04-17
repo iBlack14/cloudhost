@@ -1,61 +1,13 @@
+import { 
+  type Plan, 
+  type WhmAccountRow as WhmAccount, 
+  type WhmImpersonationResult as WhmImpersonation,
+  type DomainRecord,
+  type WordPressSite
+} from "@odisea/types";
+
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001/api/v1";
 const ODIN_ACCESS_TOKEN_KEY = "odin-access-token";
-
-export interface Plan {
-  id: string;
-  name: string;
-  disk_quota_mb: number;
-  bandwidth_mb: number;
-}
-
-export interface WhmAccount {
-  account_id: string;
-  user_id: string;
-  username: string;
-  email: string;
-  domain: string;
-  plan_name: string | null;
-  status: "active" | "suspended" | "terminated";
-  disk_used_mb: number;
-  created_at: string;
-}
-
-export interface WhmImpersonation {
-  accountId: string;
-  impersonateToken: string;
-  odinPanelUrl: string;
-}
-
-export interface DomainRecord {
-  id: string;
-  domain_name: string;
-  status: "active" | "pending_verification" | "offline" | string;
-  dns_provider: string;
-  ssl_enabled: boolean;
-  verification?: {
-    publicUrl?: string | null;
-    dns?: {
-      resolves: boolean;
-      aRecords: string[];
-      cnameRecords: string[];
-      error?: string;
-    };
-  };
-}
-
-export interface WordPressSite {
-  id: string;
-  domain: string;
-  site_title: string;
-  wp_version: string;
-  php_version: string;
-  db_name: string;
-  auto_updates: boolean;
-  status: string;
-  admin_url?: string;
-  service_port?: number;
-  container_name?: string;
-}
 
 const parsePayload = async <T>(response: Response): Promise<T> => {
   const payload = await response.json();

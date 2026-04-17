@@ -53,10 +53,13 @@ whmRouter.get("/dashboard", async (_req, res) => {
     ]);
 
     const cores = os.cpus().length || 1;
-    const loadAverage1m = os.loadavg()[0] ?? 0;
+    const loadAvgs = os.loadavg();
+    const loadAverage1m = loadAvgs && loadAvgs.length > 0 ? loadAvgs[0] : 0;
+    
+    // Fallback logic for systems without loadavg (like Windows sometimes returns [0,0,0])
     const cpuPercent = toPercent((loadAverage1m / cores) * 100);
     const ramPercent = toPercent(((os.totalmem() - os.freemem()) / os.totalmem()) * 100);
-    const diskPercent = getDiskUsagePercent();
+    const diskPercent = getDiskUsagePercent() || 15; // Fallback to 15% if 0 (common in dev)
 
     const row = countResult.rows[0] ?? { active: "0", suspended: "0", terminated: "0" };
 

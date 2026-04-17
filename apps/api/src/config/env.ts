@@ -10,7 +10,8 @@ const envSchema = z.object({
   IMPERSONATE_EXPIRES_IN: z.string().default("2h"),
   MYSQL_CONTAINER_NAME: z.string().default("odisea-mysql"),
   MYSQL_ROOT_PASSWORD: z.string().default("root"),
-  MYSQL_HOST_PORT: z.coerce.number().int().positive().default(3307)
+  MYSQL_HOST_PORT: z.coerce.number().int().positive().default(3307),
+  CORS_ORIGIN: z.string().default("*")
 });
 
 export const env = envSchema.parse(process.env);
