@@ -102,9 +102,18 @@ export const deleteWordPress = async (id: string): Promise<{ success: boolean; m
     method: "DELETE",
     headers: withOdinAuth()
   });
-  const data = await response.json();
-  if (!response.ok) throw new Error(data.error?.message || "Falló la eliminación");
-  return data;
+  
+  const textBody = await response.text();
+  try {
+    const data = JSON.parse(textBody);
+    if (!response.ok) throw new Error(data.error?.message || "Falló la eliminación");
+    return data;
+  } catch (err: any) {
+    if (err.name === "SyntaxError") {
+      throw new Error(`Servidor devolvió HTML/Texto inesperado (HTTP ${response.status}): ${textBody.substring(0, 100)}...`);
+    }
+    throw err;
+  }
 };
 
 export const installWordPress = async (input: {
