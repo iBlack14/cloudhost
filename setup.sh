@@ -15,6 +15,12 @@ on_error() {
 trap 'on_error $LINENO' ERR
 
 wait_for_apt() {
+  # Ensure fuser is available (part of psmisc)
+  if ! command -v fuser > /dev/null 2>&1; then
+    apt update > /dev/null 2>&1
+    apt install -y psmisc > /dev/null 2>&1
+  fi
+
   local count=0
   while fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1 ; do
     if [ $count -eq 0 ]; then
