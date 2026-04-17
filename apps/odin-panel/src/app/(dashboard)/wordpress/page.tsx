@@ -45,6 +45,16 @@ export default function WordPressManagerPage() {
     siteTitle: "",
     siteDescription: ""
   });
+  
+  const [showPassword, setShowPassword] = useState(false);
+
+  const generatePassword = () => {
+    const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*";
+    let pass = "";
+    for (let i = 0; i < 16; i++) pass += chars.charAt(Math.floor(Math.random() * chars.length));
+    setFormData(prev => ({ ...prev, adminPass: pass }));
+    setShowPassword(true); // Automatically show when they generate a new one
+  };
 
   const getPasswordStrength = (pass: string) => {
     let score = 0;
@@ -359,16 +369,30 @@ export default function WordPressManagerPage() {
                            />
                            
                            <div className="space-y-2">
-                              <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Admin Password</label>
+                              <div className="flex justify-between items-center ml-1">
+                                <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Admin Password</label>
+                                <button type="button" onClick={generatePassword} className="text-[9px] font-bold tracking-widest uppercase text-primary hover:brightness-125 flex items-center gap-1">
+                                  <span className="material-symbols-outlined text-[12px]">cycle</span>
+                                  Auto-Generate
+                                </button>
+                              </div>
                               <div className="relative">
                                 <input 
-                                  type="text" 
+                                  type={showPassword ? "text" : "password"} 
                                   placeholder="••••••••••••"
                                   value={formData.adminPass}
                                   onChange={(e) => setFormData(prev => ({ ...prev, adminPass: e.target.value }))}
-                                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-primary/50 transition-all placeholder:text-zinc-700 font-mono"
+                                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-primary/50 transition-all placeholder:text-zinc-700 font-mono pr-12"
                                 />
-                                <span className="absolute right-4 top-1/2 -translate-y-1/2 material-symbols-outlined text-sm text-primary cursor-pointer hover:scale-110 transition-transform">vpn_key</span>
+                                <button 
+                                  type="button"
+                                  onClick={() => setShowPassword(!showPassword)}
+                                  className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white transition-colors"
+                                >
+                                  <span className="material-symbols-outlined text-sm">
+                                    {showPassword ? "visibility_off" : "visibility"}
+                                  </span>
+                                </button>
                               </div>
                               <div className="flex items-center gap-3 mt-2 px-1">
                                 <div className="flex-1 h-1.5 bg-white/10 rounded-full overflow-hidden">

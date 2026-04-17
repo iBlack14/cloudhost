@@ -4,6 +4,7 @@ import { exec } from "node:child_process";
 import { promisify } from "node:util";
 import { randomBytes } from "node:crypto";
 import net from "node:net";
+import fs from "node:fs/promises";
 import { probeDomainRuntime } from "./runtime-probe.service.js";
 
 const execAsync = promisify(exec);
@@ -240,6 +241,30 @@ export const installWordPress = async (input: InstallWpInput) => {
         }
       } catch (wpError) {
         console.warn("[odin:wordpress:service] Manual WP-CLI install failed, user might need to finish via UI:", wpError);
+      }
+      
+      // NEW: Automated Nginx Proxy setup
+      try {
+        console.log(`[odin:wordpress] Configuring Nginx proxy for ${normalizedDomain} -> 127.0.0.1:${servicePort}`);
+        const nginxConfig = `server {
+    listen 80;
+    server_name ${normalizedDomain};
+
+    location / {
+        proxy_pass http://127.0.0.1:${servicePort};
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+`;
+        await fs.writeFile(`/etc/nginx/sites-available/${normalizedDomain}`, nginxConfig, 'utf8');
+        await execAsync(`ln -sf /etc/nginx/sites-available/${normalizedDomain} /etc/nginx/sites-enabled/`);
+        await execAsync(`systemctl reload nginx`);
+        console.log(`[odin:wordpress] Nginx reloaded successfully for ${normalizedDomain}`);
+      } catch (nginxError) {
+        console.error("[odin:wordpress:service] Failed to configure Nginx proxy:", nginxError);
       }
 
     } catch (error) {
