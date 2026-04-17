@@ -257,7 +257,7 @@ run_apt apt install -y curl git ca-certificates
 
 if ! command -v docker > /dev/null 2>&1; then
   echo -e "${YELLOW}🐳 Installing Docker...${NC}"
-  run_apt apt install -y docker.io docker-compose-plugin
+  run_apt apt install -y docker.io docker-compose
 fi
 echo -e "${GREEN}✅ Docker dependencies ready${NC}"
 
