@@ -14,6 +14,23 @@ on_error() {
 }
 trap 'on_error $LINENO' ERR
 
+wait_for_apt() {
+  local count=0
+  while fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1 ; do
+    if [ $count -eq 0 ]; then
+      echo -n -e "${YELLOW}⏳ Waiting for other apt processes to finish...${NC}"
+    fi
+    echo -n "."
+    sleep 2
+    ((count++))
+    if [ $count -gt 30 ]; then
+       echo -e "\n${RED}❌ Timeout waiting for apt lock.${NC}"
+       exit 1
+    fi
+  done
+  [ $count -gt 0 ] && echo -e " ${GREEN}Ready!${NC}"
+}
+
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 CYAN='\033[0;36m'
@@ -238,11 +255,14 @@ echo -e "${GREEN}✅ Firewall configured${NC}"
 
 # 4. Install Dependencies
 echo -e "\n${YELLOW}📦 Installing dependencies...${NC}"
-apt update -qq
-apt install -y -qq curl git ca-certificates > /dev/null 2>&1
+wait_for_apt
+apt update
+apt install -y curl git ca-certificates
 
 if ! command -v docker > /dev/null 2>&1; then
-  apt install -y -qq docker.io docker-compose-plugin > /dev/null 2>&1
+  echo -e "${YELLOW}🐳 Installing Docker...${NC}"
+  wait_for_apt
+  apt install -y docker.io docker-compose-plugin
 fi
 echo -e "${GREEN}✅ Docker dependencies ready${NC}"
 
@@ -254,14 +274,18 @@ fi
 
 # Install Node.js 20
 if ! command -v node &> /dev/null || [[ $(node -v | cut -d. -f1 | tr -d 'v') -lt 20 ]]; then
-  curl -fsSL https://deb.nodesource.com/setup_20.x | bash - > /dev/null 2>&1
-  apt install -y -qq nodejs > /dev/null 2>&1
+  echo -e "${YELLOW}🟢 Installing Node.js...${NC}"
+  wait_for_apt
+  curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+  apt install -y nodejs
 fi
 echo -e "${GREEN}✅ Node.js $(node -v) installed${NC}"
 
 # Install PNPM, PM2 & Certbot
-npm install -g pnpm@9 pm2 > /dev/null 2>&1
-apt install -y -qq nginx certbot python3-certbot-nginx > /dev/null 2>&1
+echo -e "${YELLOW}🧹 Cleanup and tool setup...${NC}"
+wait_for_apt
+npm install -g pnpm@9 pm2
+apt install -y nginx certbot python3-certbot-nginx
 echo -e "${GREEN}✅ pnpm, PM2, Nginx & Certbot installed${NC}"
 
 # 5. Update docker-compose ports if non-default
