@@ -11,8 +11,8 @@ import { hashPassword } from "../../utils/hash-password.js";
 import { signImpersonationToken } from "../../utils/jwt.js";
 
 export const createWhmAccount = async (
-  input: CreateWhmAccountInput
-): Promise<CreateWhmAccountResult> => {
+  input: WhmCreateAccountInput
+): Promise<WhmCreateAccountResult> => {
   const client = await db.connect();
 
   try {

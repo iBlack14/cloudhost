@@ -356,7 +356,7 @@ echo -e "  ${GREEN}✅ apps/odin-panel/.env.local${NC}"
 
 # 7. Install & Build
 echo -e "\n${YELLOW}🏗️  Installing dependencies & building...${NC}"
-pnpm install --frozen-lockfile 2>&1 || pnpm install 2>&1
+pnpm install
 echo -e "${GREEN}✅ Dependencies installed${NC}"
 
 echo -e "${YELLOW}  Building API...${NC}"
