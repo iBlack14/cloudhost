@@ -1,10 +1,18 @@
-export { 
+import { 
   type Plan, 
   type WhmAccountRow as WhmAccount, 
   type WhmImpersonationResult as WhmImpersonation,
   type DomainRecord,
   type WordPressSite
 } from "@odisea/types";
+
+export { 
+  type Plan, 
+  WhmAccount, 
+  WhmImpersonation,
+  type DomainRecord,
+  type WordPressSite
+};
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001/api/v1";
 const ODIN_ACCESS_TOKEN_KEY = "odin-access-token";

@@ -1,10 +1,18 @@
-export { 
+import { 
   whmCreateAccountSchema, 
   type WhmCreateAccountInput, 
   type Plan, 
   type WhmAccountRow as WhmAccount, 
   type WhmImpersonationResult as WhmImpersonation 
 } from "@odisea/types";
+
+export { 
+  whmCreateAccountSchema, 
+  type WhmCreateAccountInput, 
+  type Plan, 
+  WhmAccount, 
+  WhmImpersonation 
+};
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001/api/v1";
 const WHM_ACCESS_TOKEN_KEY = "whm-access-token";
