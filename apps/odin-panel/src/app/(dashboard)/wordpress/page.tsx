@@ -37,6 +37,9 @@ export default function WordPressManagerPage() {
     mutationFn: deleteWordPress,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["odin", "wordpress", "sites"] });
+    },
+    onError: (error: any) => {
+      alert("Error eliminando el sitio: " + error.message);
     }
   });
 
