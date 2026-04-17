@@ -359,6 +359,9 @@ echo -e "\n${YELLOW}🏗️  Installing dependencies & building...${NC}"
 pnpm install
 echo -e "${GREEN}✅ Dependencies installed${NC}"
 
+echo -e "${YELLOW}  Building Shared Types...${NC}"
+pnpm --filter @odisea/types build
+
 echo -e "${YELLOW}  Building API...${NC}"
 pnpm --filter @odisea/api build
 echo -e "${GREEN}  ✅ API built${NC}"
