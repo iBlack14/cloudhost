@@ -35,12 +35,29 @@ export default function WordPressManagerPage() {
 
   // Form State
   const [formData, setFormData] = useState({
+    protocol: "https://",
     domain: "",
     directory: "",
+    wpVersion: "6.4.3",
     adminUser: "admin",
     adminPass: "",
-    siteTitle: ""
+    adminEmail: "admin@domain.com",
+    siteTitle: "",
+    siteDescription: ""
   });
+
+  const getPasswordStrength = (pass: string) => {
+    let score = 0;
+    if (pass.length > 8) score += 20;
+    if (pass.length > 12) score += 20;
+    if (/[A-Z]/.test(pass)) score += 20;
+    if (/[0-9]/.test(pass)) score += 20;
+    if (/[^A-Za-z0-9]/.test(pass)) score += 20;
+    return score;
+  };
+
+  const passStrength = getPasswordStrength(formData.adminPass);
+  const strengthColor = passStrength < 40 ? "bg-red-500" : passStrength < 80 ? "bg-yellow-500" : "bg-green-500";
 
   const installLogs = [
     "PROVISIONING ISOLATED CONTAINER...",
@@ -75,7 +92,7 @@ export default function WordPressManagerPage() {
     try {
       await installMutation.mutateAsync(formData);
       setTimeout(() => {
-        setFormData({ domain: "", directory: "", adminUser: "admin", adminPass: "", siteTitle: "" });
+        setFormData({ protocol: "https://", domain: "", directory: "", wpVersion: "6.4.3", adminUser: "admin", adminPass: "", adminEmail: "admin@domain.com", siteTitle: "", siteDescription: "" });
       }, 2000);
     } catch (err) {
       if (installIntervalRef.current) clearInterval(installIntervalRef.current);
@@ -228,60 +245,151 @@ export default function WordPressManagerPage() {
                       </div>
                    </div>
                  ) : (
-                   <div className="space-y-6">
-                      <div className="grid grid-cols-2 gap-6">
-                         {domains.length > 0 ? (
-                           <div className="space-y-2">
-                             <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Installation Domain</label>
-                             <select 
-                               value={formData.domain}
-                               onChange={(e) => setFormData(prev => ({ ...prev, domain: e.target.value }))}
-                               className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-primary/50 transition-all appearance-none cursor-pointer"
-                             >
-                               <option value="" className="bg-zinc-900">Select a domain...</option>
-                               {domains.map(d => (
-                                 <option key={d.id} value={d.domain_name} className="bg-zinc-900">{d.domain_name}</option>
-                               ))}
-                             </select>
-                           </div>
-                         ) : (
-                           <WizardField 
-                              label="Installation Domain" 
-                              placeholder="e.g. site.com" 
-                              value={formData.domain}
-                              onChange={(v) => setFormData(prev => ({ ...prev, domain: v }))}
-                           />
-                         )}
-                         <WizardField 
-                            label="Directory (Optional)" 
-                            placeholder="e.g. blog" 
-                            value={formData.directory}
-                            onChange={(v) => setFormData(prev => ({ ...prev, directory: v }))}
-                         />
+                   <div className="space-y-8">
+                      {/* Software Setup Section */}
+                      <div className="border-b border-white/5 pb-2">
+                        <h3 className="text-sm font-headline font-bold text-white uppercase tracking-widest border-b-2 border-primary inline-block pb-2">Software Configuration</h3>
                       </div>
-                      <div className="grid grid-cols-2 gap-6">
-                         <WizardField 
-                            label="Admin User" 
-                            placeholder="admin" 
-                            value={formData.adminUser}
-                            onChange={(v) => setFormData(prev => ({ ...prev, adminUser: v }))}
-                         />
-                         <WizardField 
-                            label="Admin Password" 
-                            placeholder="••••••••••••" 
-                            type="password" 
-                            value={formData.adminPass}
-                            onChange={(v) => setFormData(prev => ({ ...prev, adminPass: v }))}
-                         />
-                      </div>
-                      <WizardField 
-                        label="Site Title" 
-                        placeholder="My Awesome WordPress Site" 
-                        value={formData.siteTitle}
-                        onChange={(v) => setFormData(prev => ({ ...prev, siteTitle: v }))}
-                      />
                       
-                      <div className="pt-6 flex justify-end">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <div className="space-y-4">
+                          <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1 block mb-2">Installation URL</label>
+                          <div className="flex gap-2">
+                            <select 
+                               value={formData.protocol}
+                               onChange={(e) => setFormData(prev => ({ ...prev, protocol: e.target.value }))}
+                               className="w-1/3 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-primary/50 transition-all appearance-none cursor-pointer"
+                             >
+                               <option value="http://" className="bg-zinc-900">http://</option>
+                               <option value="https://" className="bg-zinc-900">https://</option>
+                             </select>
+                             
+                             {domains.length > 0 ? (
+                               <select 
+                                 value={formData.domain}
+                                 onChange={(e) => {
+                                   setFormData(prev => ({ 
+                                     ...prev, 
+                                     domain: e.target.value,
+                                     adminEmail: `admin@${e.target.value}`
+                                   }))
+                                 }}
+                                 className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-primary/50 transition-all appearance-none cursor-pointer"
+                               >
+                                 <option value="" className="bg-zinc-900">Select domain...</option>
+                                 {domains.map(d => (
+                                   <option key={d.id} value={d.domain_name} className="bg-zinc-900">{d.domain_name}</option>
+                                 ))}
+                               </select>
+                             ) : (
+                               <input 
+                                 className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-primary/50 transition-all placeholder:text-zinc-700"
+                                 placeholder="e.g. site.com"
+                                 value={formData.domain}
+                                 onChange={(e) => {
+                                   setFormData(prev => ({ 
+                                     ...prev, 
+                                     domain: e.target.value,
+                                     adminEmail: `admin@${e.target.value}`
+                                   }))
+                                 }}
+                               />
+                             )}
+                          </div>
+                          <div className="flex gap-2 items-center">
+                            <span className="text-[10px] text-zinc-500 font-mono">In Directory:</span>
+                            <input 
+                               className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-sm text-white focus:outline-none focus:border-primary/50 transition-all placeholder:text-zinc-700"
+                               placeholder="e.g. wp (leave empty to install in root)"
+                               value={formData.directory}
+                               onChange={(e) => setFormData(prev => ({ ...prev, directory: e.target.value }))}
+                             />
+                          </div>
+                          {formData.domain && (
+                            <p className="text-[10px] text-zinc-400 mt-2 font-mono">
+                              URL: <span className="text-primary">{formData.protocol}{formData.domain}{formData.directory ? `/${formData.directory}` : ''}</span>
+                            </p>
+                          )}
+                        </div>
+
+                        <div className="space-y-4">
+                          <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1 block mb-2">WordPress Version</label>
+                          <select 
+                             value={formData.wpVersion}
+                             onChange={(e) => setFormData(prev => ({ ...prev, wpVersion: e.target.value }))}
+                             className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-primary/50 transition-all appearance-none cursor-pointer"
+                           >
+                             <option value="6.4.3" className="bg-zinc-900">6.4.3</option>
+                             <option value="6.3.2" className="bg-zinc-900">6.3.2</option>
+                             <option value="6.2.2" className="bg-zinc-900">6.2.2</option>
+                           </select>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-12 mt-8">
+                        {/* Site Settings Section */}
+                        <div className="space-y-6">
+                           <div className="border-b border-white/5 pb-2">
+                             <h3 className="text-sm font-headline font-bold text-white uppercase tracking-widest border-b-2 border-primary inline-block pb-2">Site Settings</h3>
+                           </div>
+                           <WizardField 
+                             label="Site Name" 
+                             placeholder="My Awesome WordPress Site" 
+                             value={formData.siteTitle}
+                             onChange={(v) => setFormData(prev => ({ ...prev, siteTitle: v }))}
+                           />
+                           <WizardField 
+                             label="Site Description" 
+                             placeholder="Just another WordPress site" 
+                             value={formData.siteDescription}
+                             onChange={(v) => setFormData(prev => ({ ...prev, siteDescription: v }))}
+                           />
+                        </div>
+
+                        {/* Admin Account Section */}
+                        <div className="space-y-6">
+                           <div className="border-b border-white/5 pb-2">
+                             <h3 className="text-sm font-headline font-bold text-white uppercase tracking-widest border-b-2 border-primary inline-block pb-2">Admin Account</h3>
+                           </div>
+                           <WizardField 
+                              label="Admin Username" 
+                              placeholder="admin" 
+                              value={formData.adminUser}
+                              onChange={(v) => setFormData(prev => ({ ...prev, adminUser: v }))}
+                           />
+                           
+                           <div className="space-y-2">
+                              <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Admin Password</label>
+                              <div className="relative">
+                                <input 
+                                  type="text" 
+                                  placeholder="••••••••••••"
+                                  value={formData.adminPass}
+                                  onChange={(e) => setFormData(prev => ({ ...prev, adminPass: e.target.value }))}
+                                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-primary/50 transition-all placeholder:text-zinc-700 font-mono"
+                                />
+                                <span className="absolute right-4 top-1/2 -translate-y-1/2 material-symbols-outlined text-sm text-primary cursor-pointer hover:scale-110 transition-transform">vpn_key</span>
+                              </div>
+                              <div className="flex items-center gap-3 mt-2 px-1">
+                                <div className="flex-1 h-1.5 bg-white/10 rounded-full overflow-hidden">
+                                  <div className={`h-full transition-all duration-300 ${strengthColor}`} style={{ width: `${passStrength}%` }}></div>
+                                </div>
+                                <span className={`text-[9px] font-black uppercase tracking-widest ${passStrength < 40 ? "text-red-500" : passStrength < 80 ? "text-yellow-500" : "text-green-500"}`}>
+                                  {passStrength < 40 ? `Weak (${passStrength}/100)` : passStrength < 80 ? `Good (${passStrength}/100)` : `Strong (${passStrength}/100)`}
+                                </span>
+                              </div>
+                           </div>
+                           
+                           <WizardField 
+                              label="Admin Email" 
+                              placeholder="admin@domain.com" 
+                              value={formData.adminEmail}
+                              onChange={(v) => setFormData(prev => ({ ...prev, adminEmail: v }))}
+                           />
+                        </div>
+                      </div>
+                      
+                      <div className="pt-8 flex justify-end border-t border-white/5">
                          <button 
                            onClick={handleInstall}
                            disabled={!formData.domain || !formData.adminPass || !formData.siteTitle}

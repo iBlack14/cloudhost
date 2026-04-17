@@ -57,6 +57,20 @@ export const exchangeImpersonationSchema = z.object({
 
 export type ExchangeImpersonationInput = z.infer<typeof exchangeImpersonationSchema>;
 
+export const installWpSchema = z.object({
+  domain: z.string().min(1, "Dominio requerido"),
+  directory: z.string().optional(),
+  adminUser: z.string().min(3, "Mínimo 3 caracteres"),
+  adminPass: z.string().min(8, "Mínimo 8 caracteres"),
+  adminEmail: z.string().email("Email inválido"),
+  siteTitle: z.string().min(1, "Título requerido"),
+  siteDescription: z.string().optional(),
+  wpVersion: z.string().default("6.4.3"),
+  protocol: z.enum(["http://", "https://"]).default("http://")
+});
+
+export type InstallWpInput = z.infer<typeof installWpSchema>;
+
 // Result Types
 export interface CreateWhmAccountResult {
   userId: string;

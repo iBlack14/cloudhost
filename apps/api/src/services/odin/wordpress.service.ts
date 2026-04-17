@@ -14,8 +14,12 @@ export interface InstallWpInput {
   domain: string;
   directory?: string;
   siteTitle: string;
+  siteDescription?: string;
   adminUser: string;
   adminPass: string;
+  adminEmail: string;
+  wpVersion?: string;
+  protocol?: string;
 }
 
 const sanitize = (str: string) => str.replace(/[^a-z0-9]/gi, "_").toLowerCase();
@@ -205,7 +209,7 @@ export const installWordPress = async (input: InstallWpInput) => {
         siteTitle,
         normalizedDomain,
         directory ? `${normalizedDomain}/${directory}` : normalizedDomain,
-        "6.4.3",
+        input.wpVersion ?? "6.4.3",
         "8.3",
         dbName,
         dbUser,
@@ -220,6 +224,24 @@ export const installWordPress = async (input: InstallWpInput) => {
     try {
       await createMysqlResources(dbName, dbUser, dbPassword);
       await runWordPressContainer({ containerName, servicePort, dbName, dbUser, dbPassword });
+      
+      // NEW: Automated WP-CLI installation
+      const siteUrl = `${input.protocol ?? "http://"}${normalizedDomain}${directory ? `/${directory}` : ""}`;
+      
+      // Delay to let the container start and DB connect
+      await new Promise(r => setTimeout(r, 6000));
+      
+      try {
+        const wpInstallCmd = `docker exec ${containerName} su www-data -s /bin/bash -c "wp core install --url='${siteUrl}' --title='${siteTitle}' --admin_user='${adminUser}' --admin_password='${adminPass}' --admin_email='${input.adminEmail}' --skip-email"`;
+        await execAsync(wpInstallCmd);
+        
+        if (input.siteDescription) {
+          await execAsync(`docker exec ${containerName} su www-data -s /bin/bash -c "wp option update blogdescription '${input.siteDescription}'"`);
+        }
+      } catch (wpError) {
+        console.warn("[odin:wordpress:service] Manual WP-CLI install failed, user might need to finish via UI:", wpError);
+      }
+
     } catch (error) {
       await client.query(
         "UPDATE wordpress_sites SET status = 'provisioning_failed', runtime = $1::jsonb WHERE id = $2",
