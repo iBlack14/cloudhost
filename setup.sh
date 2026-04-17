@@ -291,8 +291,12 @@ services:
     ports:
       - "${PG_PORT}:5432"
     environment:
+      POSTGRES_USER: postgres
       POSTGRES_PASSWORD: ${PG_PASS}
+      POSTGRES_DB: odisea_cloud
   mysql:
+    ports:
+      - "${MYSQL_HOST_PORT}:3306"
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASS}
 EOT
