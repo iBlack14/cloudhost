@@ -14,22 +14,18 @@ on_error() {
 }
 trap 'on_error $LINENO' ERR
 
-wait_for_apt() {
+# Helper to run apt with retries (robust against system locks)
+run_apt() {
   local count=0
-  # We check for the lock file itself. If we can't get an exclusive lock, it means another process has it.
-  while ! flock -n /var/lib/dpkg/lock-frontend true 2>/dev/null; do
-    if [ $count -eq 0 ]; then
-      echo -n -e "${YELLOW}⏳ Waiting for other apt processes to finish...${NC}"
+  until "$@" ; do
+    if [ $count -gt 15 ]; then
+      echo -e "${RED}❌ Failed to run apt after 15 retries.${NC}"
+      return 1
     fi
-    echo -n "."
-    sleep 2
+    echo -e "${YELLOW}⏳ System is busy (apt locked), retrying in 5s... ($count/15)${NC}"
+    sleep 5
     ((count++))
-    if [ $count -gt 60 ]; then
-       echo -e "\n${RED}❌ Timeout waiting for apt lock. Try restarting the VPS.${NC}"
-       exit 1
-    fi
   done
-  [ $count -gt 0 ] && echo -e " ${GREEN}Ready!${NC}"
 }
 
 RED='\033[0;31m'
@@ -256,14 +252,12 @@ echo -e "${GREEN}✅ Firewall configured${NC}"
 
 # 4. Install Dependencies
 echo -e "\n${YELLOW}📦 Installing dependencies...${NC}"
-wait_for_apt
-apt update
-apt install -y curl git ca-certificates
+run_apt apt update
+run_apt apt install -y curl git ca-certificates
 
 if ! command -v docker > /dev/null 2>&1; then
   echo -e "${YELLOW}🐳 Installing Docker...${NC}"
-  wait_for_apt
-  apt install -y docker.io docker-compose-plugin
+  run_apt apt install -y docker.io docker-compose-plugin
 fi
 echo -e "${GREEN}✅ Docker dependencies ready${NC}"
 
@@ -276,17 +270,15 @@ fi
 # Install Node.js 20
 if ! command -v node &> /dev/null || [[ $(node -v | cut -d. -f1 | tr -d 'v') -lt 20 ]]; then
   echo -e "${YELLOW}🟢 Installing Node.js...${NC}"
-  wait_for_apt
   curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
-  apt install -y nodejs
+  run_apt apt install -y nodejs
 fi
 echo -e "${GREEN}✅ Node.js $(node -v) installed${NC}"
 
 # Install PNPM, PM2 & Certbot
 echo -e "${YELLOW}🧹 Cleanup and tool setup...${NC}"
-wait_for_apt
 npm install -g pnpm@9 pm2
-apt install -y nginx certbot python3-certbot-nginx
+run_apt apt install -y nginx certbot python3-certbot-nginx
 echo -e "${GREEN}✅ pnpm, PM2, Nginx & Certbot installed${NC}"
 
 # 5. Update docker-compose ports if non-default
