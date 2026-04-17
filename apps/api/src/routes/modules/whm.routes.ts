@@ -58,8 +58,28 @@ whmRouter.get("/dashboard", async (_req, res) => {
     
     // Fallback logic for systems without loadavg (like Windows sometimes returns [0,0,0])
     const cpuPercent = toPercent((loadAverage1m / cores) * 100);
-    const ramPercent = toPercent(((os.totalmem() - os.freemem()) / os.totalmem()) * 100);
-    const diskPercent = getDiskUsagePercent() || 15; // Fallback to 15% if 0 (common in dev)
+
+    let ramPercent = 0;
+    try {
+        if (os.platform() === "linux") {
+            const memInfo = execSync("cat /proc/meminfo", { encoding: "utf-8" });
+            const totalMatch = memInfo.match(/MemTotal:\s+(\d+)/);
+            const availableMatch = memInfo.match(/MemAvailable:\s+(\d+)/);
+            if (totalMatch && availableMatch) {
+                const total = parseInt(totalMatch[1], 10);
+                const available = parseInt(availableMatch[1], 10);
+                ramPercent = toPercent(((total - available) / total) * 100);
+            }
+        }
+    } catch {
+        // Fallback to basic node:os
+    }
+
+    if (!ramPercent) {
+        ramPercent = toPercent(((os.totalmem() - os.freemem()) / os.totalmem()) * 100);
+    }
+
+    const diskPercent = getDiskUsagePercent() || 15; // Fallback to 15% if 0 (common in dev/Windows)
 
     const row = countResult.rows[0] ?? { active: "0", suspended: "0", terminated: "0" };
 

@@ -2,19 +2,53 @@ import { Router } from "express";
 import { installWpHandler, listWpSitesHandler, getWpSiteByIdHandler } from "../../controllers/odin/wordpress.controller.js";
 import { listDomainsHandler, addDomainHandler, deleteDomainHandler, verifyDomainHandler } from "../../controllers/odin/domain.controller.js";
 import { requireAuth } from "../../middleware/auth.js";
+import { db } from "../../config/db.js";
 
 export const odinRouter = Router();
 
 odinRouter.use(requireAuth({ roles: ["user"] }));
 
-odinRouter.get("/dashboard", (_req, res) => {
-  res.status(200).json({
-    success: true,
-    data: {
-      account: { plan: "Starter", diskUsed: 1536, diskLimit: 5120 },
-      services: { domains: 2, emails: 5, databases: 3, apps: 1 }
-    }
-  });
+odinRouter.get("/dashboard", async (req, res) => {
+  try {
+    const userId = req.auth?.userId;
+    
+    const [accountRes, servicesRes] = await Promise.all([
+      db.query(`
+        SELECT ha.disk_used_mb, p.name as plan_name, p.disk_quota_mb
+        FROM hosting_accounts ha
+        INNER JOIN users u ON u.id = ha.user_id
+        LEFT JOIN plans p ON p.id = u.plan_id
+        WHERE u.id = $1 LIMIT 1
+      `, [userId]),
+      db.query(`
+        SELECT 
+          (SELECT COUNT(*) FROM domains WHERE user_id = $1) as domains,
+          (SELECT COUNT(*) FROM wordpress_sites WHERE user_id = $1) as apps
+      `, [userId])
+    ]);
+
+    const account = accountRes.rows[0];
+    const services = servicesRes.rows[0];
+
+    res.status(200).json({
+      success: true,
+      data: {
+        account: { 
+          plan: account?.plan_name || "Free", 
+          diskUsed: account?.disk_used_mb || 0, 
+          diskLimit: account?.disk_quota_mb || 1024 
+        },
+        services: { 
+          domains: parseInt(services?.domains || "0"), 
+          emails: 0, 
+          databases: 1, // At least the default one
+          apps: parseInt(services?.apps || "0") 
+        }
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: { message: "Error al cargar dashboard" } });
+  }
 });
 
 odinRouter.get("/wordpress", listWpSitesHandler);

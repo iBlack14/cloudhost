@@ -156,11 +156,13 @@ fi
 
 assert_distinct_ports
 
+# Generate random passwords
 PG_PASS=$(openssl rand -hex 12)
+MYSQL_ROOT_PASS=$(openssl rand -hex 12)
 
 # Generate a random JWT secret (64 chars)
 JWT_SECRET=$(openssl rand -hex 32)
-echo -e "${GREEN}🔑 JWT Secret generated automatically${NC}"
+echo -e "${GREEN}🔑 Database & JWT secrets generated automatically${NC}"
 
 # Initial admin credentials
 ADMIN_USER="${ADMIN_USER:-admin}"
@@ -273,6 +275,9 @@ services:
       - "${PG_PORT}:5432"
     environment:
       POSTGRES_PASSWORD: ${PG_PASS}
+  mysql:
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASS}
 EOT
 
 COMPOSE_CMD=$(resolve_compose_cmd)
@@ -314,6 +319,7 @@ JWT_SECRET=$JWT_SECRET
 DATABASE_URL=postgresql://postgres:${PG_PASS}@127.0.0.1:${PG_PORT}/odisea_cloud
 ODIN_PANEL_URL=http://$VPS_IP:$ODIN_PORT
 IMPERSONATE_EXPIRES_IN=2h
+MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASS}
 EOT
 echo -e "  ${GREEN}✅ apps/api/.env${NC}"
 
