@@ -329,3 +329,40 @@ export const getWpSiteById = async (id: string, userId: string) => {
   if (!site) return null;
   return enrichWpSite(site);
 };
+
+export const deleteWordPress = async (id: string, userId: string) => {
+  const site = await getWpSiteById(id, userId);
+  if (!site) throw new Error("Sitio no encontrado");
+
+  // 1. Remove Docker Container
+  if (site.container_name) {
+    try {
+      await execAsync(`docker rm -f ${site.container_name}`);
+    } catch (e) {
+      console.warn(`[odin:wordpress:delete] Could not remove container ${site.container_name}`);
+    }
+  }
+
+  // 2. Remove Nginx Proxy
+  try {
+    const domain = site.domain;
+    await fs.unlink(`/etc/nginx/sites-available/${domain}`).catch(() => {});
+    await fs.unlink(`/etc/nginx/sites-enabled/${domain}`).catch(() => {});
+    await execAsync(`systemctl reload nginx`).catch(() => {});
+  } catch (e) {
+    console.warn(`[odin:wordpress:delete] Could not remove Nginx config config for ${site.domain}`);
+  }
+
+  // 3. Drop MySQL Database and User
+  try {
+    const dropSql = `DROP DATABASE IF EXISTS ${site.db_name}; DROP USER IF EXISTS '${site.db_user}'@'%'; FLUSH PRIVILEGES;`;
+    await execAsync(`docker exec -i ${env.MYSQL_CONTAINER_NAME} mysql -uroot -p${env.MYSQL_ROOT_PASSWORD} -e "${dropSql}"`);
+  } catch (e) {
+    console.warn(`[odin:wordpress:delete] Could not drop MySQL resources for ${site.db_name}`);
+  }
+
+  // 4. Remove from Database
+  await db.query("DELETE FROM wordpress_sites WHERE id = $1", [id]);
+  
+  return { success: true };
+};

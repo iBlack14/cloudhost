@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { fetchWpSites, installWordPress, fetchDomains } from "../../../lib/api";
+import { fetchWpSites, installWordPress, fetchDomains, deleteWordPress } from "../../../lib/api";
 
 export default function WordPressManagerPage() {
   const [isWizardOpen, setIsWizardOpen] = useState(false);
@@ -30,6 +30,13 @@ export default function WordPressManagerPage() {
       queryClient.invalidateQueries({ queryKey: ["odin", "wordpress", "sites"] });
       setIsWizardOpen(false);
       setInstallStep(0);
+    }
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: deleteWordPress,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["odin", "wordpress", "sites"] });
     }
   });
 
@@ -194,7 +201,18 @@ export default function WordPressManagerPage() {
                 </div>
 
                 {/* Action Cluster */}
-                <div className="flex gap-3">
+                <div className="flex gap-2">
+                   <button 
+                     onClick={() => {
+                        if (confirm(`¿Estás seguro de que deseas eliminar permanentemente el sitio ${site.domain}? Esta acción destruirá la base de datos y los archivos.`)) {
+                           deleteMutation.mutate(site.id);
+                        }
+                     }}
+                     className="p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 hover:text-white hover:bg-red-500 transition-all group"
+                     title="Delete site completely"
+                   >
+                      <span className="material-symbols-outlined text-sm group-hover:animate-pulse">delete_forever</span>
+                   </button>
                    <Link 
                      href={`/wordpress/${site.id}`}
                      className="p-4 rounded-xl bg-white/5 border border-white/5 text-zinc-400 hover:text-white hover:bg-white/10 transition-all"

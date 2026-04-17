@@ -1,6 +1,6 @@
 import type { Request, Response } from "express";
 import { z } from "zod";
-import { installWordPress, listUserWpSites, getWpSiteById } from "../../services/odin/wordpress.service.js";
+import { installWordPress, listUserWpSites, getWpSiteById, deleteWordPress } from "../../services/odin/wordpress.service.js";
 import { getUserId } from "../../utils/get-user-id.js";
 
 import { installWpSchema } from "@odisea/types";
@@ -108,6 +108,34 @@ export const getWpSiteByIdHandler = async (req: Request, res: Response): Promise
     return res.status(500).json({
       success: false,
       error: { code: "INTERNAL_ERROR", message: "No se pudo obtener el sitio" }
+    });
+  }
+};
+
+export const deleteWpSiteHandler = async (req: Request, res: Response): Promise<Response> => {
+  const parsedParams = siteIdParamSchema.safeParse(req.params);
+  
+  if (!parsedParams.success) {
+    return res.status(422).json({
+      success: false,
+      error: { code: "VALIDATION_ERROR", message: "ID de sitio inválido" }
+    });
+  }
+
+  try {
+    const userId = await getUserId(req);
+    await deleteWordPress(parsedParams.data.id, userId);
+    return res.status(200).json({ success: true, message: "Sitio eliminado correctamente" });
+  } catch (error) {
+    if (error instanceof Error && error.message === "Sitio no encontrado") {
+      return res.status(404).json({
+        success: false,
+        error: { code: "NOT_FOUND", message: "Sitio no encontrado" }
+      });
+    }
+    return res.status(500).json({
+      success: false,
+      error: { code: "INTERNAL_ERROR", message: "No se pudo eliminar el sitio" }
     });
   }
 };

@@ -97,6 +97,16 @@ export const fetchWpSiteById = async (id: string): Promise<WordPressSite> => {
   return parsePayload<WordPressSite>(response);
 };
 
+export const deleteWordPress = async (id: string): Promise<{ success: boolean; message?: string }> => {
+  const response = await fetch(`${API_BASE}/odin-panel/wordpress/${id}`, {
+    method: "DELETE",
+    headers: withOdinAuth()
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error?.message || "Falló la eliminación");
+  return data;
+};
+
 export const installWordPress = async (input: {
   domain: string;
   directory?: string;
