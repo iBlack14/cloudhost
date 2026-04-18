@@ -157,6 +157,8 @@ const allowedIniKeys = [
   "post_max_size",
   "max_execution_time",
   "max_input_time",
+  "max_input_vars",
+  "display_errors",
   "date.timezone",
 ] as const;
 
@@ -167,6 +169,8 @@ export const updatePhpIniHandler = async (req: Request, res: Response): Promise<
     post_max_size:       z.string().optional(),
     max_execution_time:  z.string().optional(),
     max_input_time:      z.string().optional(),
+    max_input_vars:      z.string().optional(),
+    display_errors:      z.string().optional(),
     "date.timezone":     z.string().optional(),
   });
 

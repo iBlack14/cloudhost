@@ -94,7 +94,10 @@ export default function PhpManagerPage() {
       memory_limit: config.phpIni.memory_limit ?? "256M",
       upload_max_filesize: config.phpIni.upload_max_filesize ?? "100M",
       post_max_size: config.phpIni.post_max_size ?? "100M",
-      max_execution_time: config.phpIni.max_execution_time ?? "60",
+      max_execution_time: config.phpIni.max_execution_time ?? "300",
+      max_input_time: config.phpIni.max_input_time ?? "300",
+      max_input_vars: config.phpIni.max_input_vars ?? "1000",
+      display_errors: config.phpIni.display_errors ?? "Off",
       "date.timezone": config.phpIni["date.timezone"] ?? "UTC",
     });
     setIsEditingIni(true);
@@ -202,7 +205,10 @@ export default function PhpManagerPage() {
                   memory_limit: config.phpIni.memory_limit ?? "256M",
                   upload_max_filesize: config.phpIni.upload_max_filesize ?? "100M",
                   post_max_size: config.phpIni.post_max_size ?? "100M",
-                  max_execution_time: config.phpIni.max_execution_time ?? "60",
+                  max_execution_time: config.phpIni.max_execution_time ?? "300",
+                  max_input_time: config.phpIni.max_input_time ?? "300",
+                  max_input_vars: config.phpIni.max_input_vars ?? "1000",
+                  display_errors: config.phpIni.display_errors ?? "Off",
                   "date.timezone": config.phpIni["date.timezone"] ?? "UTC",
                 }).map(([key, val]) => (
                   <div key={key} className="flex justify-between items-center border-b border-white/5 pb-2">

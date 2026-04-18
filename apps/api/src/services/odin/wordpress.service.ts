@@ -252,6 +252,11 @@ pm.min_spare_servers = 1
 pm.max_spare_servers = 3
 php_admin_value[error_log] = /home/${osUsername}/logs/error.log
 php_admin_flag[log_errors] = on
+php_admin_value[upload_max_filesize] = 100M
+php_admin_value[post_max_size] = 100M
+php_admin_value[memory_limit] = 256M
+php_admin_value[max_execution_time] = 300
+php_admin_value[max_input_time] = 300
       `.trim();
       await fs.writeFile(`/etc/php/${phpVer}/fpm/pool.d/${osUsername}.conf`, fpmConfig, "utf8");
       await execAsync(`systemctl reload php${phpVer}-fpm`);
@@ -266,6 +271,7 @@ server {
     server_name ${normalizedDomain} www.${normalizedDomain};
     root /home/${osUsername}/public_html${siteDir};
     index index.php index.html index.htm;
+    client_max_body_size 100M;
     
     access_log /home/${osUsername}/logs/access.log;
     error_log /home/${osUsername}/logs/error.log;
