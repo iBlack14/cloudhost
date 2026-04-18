@@ -218,7 +218,7 @@ export const installWordPress = async (input: InstallWpInput) => {
       await execAsync(`wp core download --path=${targetPath} --allow-root --force`);
 
       console.log(`[odin:wordpress] Configuring wp-config.php for ${normalizedDomain}...`);
-      await execAsync(`wp core config --path=${targetPath} --dbname=${dbName} --dbuser=${dbUser} --dbpass=${dbPassword} --dbhost=127.0.0.1:${env.MYSQL_HOST_PORT} --allow-root`);
+      await execAsync(`wp core config --path=${targetPath} --dbname=${dbName} --dbuser=${dbUser} --dbpass=${dbPassword} --dbhost=127.0.0.1:${env.MYSQL_HOST_PORT} --allow-root --force`);
 
       console.log(`[odin:wordpress] Installing WordPress core for ${normalizedDomain}...`);
       await execAsync(`wp core install --path=${targetPath} --url='${siteUrl}' --title='${siteTitle}' --admin_user='${adminUser}' --admin_password='${input.adminPass}' --admin_email='${input.adminEmail}' --skip-email --allow-root`);
