@@ -173,7 +173,6 @@ whmRouter.get("/databases/:dbName/sso", generateDbSsoHandler);
 whmRouter.post("/databases/:dbUser/password", resetPasswordHandler);
 
 // ── Migration & Backups Routes ─────────────────────────────────────────────────
-import os from "node:os";
 import multer from "multer";
 
 const whmUpload = multer({

@@ -84,7 +84,7 @@ export const optimizeDatabase = async (dbName: string): Promise<void> => {
 export const generateSsoUrl = async (dbName: string): Promise<string> => {
   // phpMyAdmin is running at env.PHPMYADMIN_URL
   // In a real environment, you might issue a temporary token. For now we just return the URL of phpmyadmin.
-  return `${env.API_URL?.replace("api/v1", "pma") || "http://localhost:8080"}/index.php?db=${dbName}`;
+  return `${env.ODIN_PANEL_URL?.replace(":3003", ":8080").replace("odin-panel", "pma") || "http://localhost:8080"}/index.php?db=${dbName}`;
 };
 
 export const resetDbUserPassword = async (dbUser: string, newPass: string): Promise<void> => {

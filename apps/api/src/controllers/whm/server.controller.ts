@@ -74,7 +74,7 @@ export const getProcessesHandler = async (_req: Request, res: Response): Promise
 
 export const killProcessHandler = async (req: Request, res: Response): Promise<Response> => {
   try {
-    await serverService.killProcess(req.params.pid);
+    await serverService.killProcess(req.params.pid as string);
     return res.status(200).json({ success: true });
   } catch (error) {
     return res.status(500).json({ success: false, error: { message: "Error matando el proceso" } });
@@ -111,7 +111,7 @@ export const manageServiceHandler = async (req: Request, res: Response): Promise
 
 export const getLogsHandler = async (req: Request, res: Response): Promise<Response> => {
   try {
-    const logs = await serverService.tailLog(req.params.type);
+    const logs = await serverService.tailLog(req.params.type as string);
     return res.status(200).json({ success: true, data: logs });
   } catch (error) {
     return res.status(500).json({ success: false, error: { message: "Error al leer los logs" } });
