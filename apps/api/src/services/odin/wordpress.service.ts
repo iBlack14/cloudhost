@@ -60,6 +60,7 @@ const createMysqlResources = async (dbName: string, dbUser: string, dbPassword: 
   const sql = [
     `CREATE DATABASE IF NOT EXISTS ${dbName};`,
     `CREATE USER IF NOT EXISTS '${dbUser}'@'%' IDENTIFIED BY '${dbPassword}';`,
+    `ALTER USER '${dbUser}'@'%' IDENTIFIED BY '${dbPassword}';`,
     `GRANT ALL PRIVILEGES ON ${dbName}.* TO '${dbUser}'@'%';`,
     "FLUSH PRIVILEGES;"
   ].join(" ");
@@ -143,8 +144,9 @@ export const installWordPress = async (input: InstallWpInput) => {
   await ensureWordPressTable();
 
   const normalizedDomain = domain.trim().toLowerCase();
-  const dbName = `wp_${sanitize(normalizedDomain)}_${Date.now().toString().slice(-4)}`;
-  const dbUser = `u_${sanitize(adminUser).slice(0, 24)}`;
+  const suffix = Date.now().toString().slice(-4);
+  const dbName = `wp_${sanitize(normalizedDomain)}_${suffix}`;
+  const dbUser = `u_${sanitize(adminUser).slice(0, 16)}_${suffix}`;
   const dbPassword = randomBytes(16).toString("hex");
 
   const client = await db.connect();
