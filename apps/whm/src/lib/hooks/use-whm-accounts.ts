@@ -9,8 +9,10 @@ import {
   fetchPlans,
   impersonateAccount,
   resumeAccount,
-  suspendAccount
+  suspendAccount,
+  deleteAccount
 } from "../api";
+
 import { whmCreateAccountSchema, type WhmCreateAccountInput } from "../schemas/whm-create-account";
 
 export const useWhmDashboard = () => {
@@ -75,3 +77,15 @@ export const useImpersonateWhmAccount = () => {
     mutationFn: impersonateAccount
   });
 };
+
+export const useDeleteWhmAccount = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: deleteAccount,
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["whm-accounts"] });
+    }
+  });
+};
+

@@ -195,3 +195,10 @@ export const deleteDnsRecord = async (recordId: string): Promise<void> => {
   });
   await parsePayload(response);
 };
+export const deleteAccount = async (accountId: string): Promise<void> => {
+  const response = await fetch(`${API_BASE}/whm/accounts/${accountId}`, {
+    method: "DELETE",
+    headers: withWhmAuth()
+  });
+  await parsePayload(response);
+};

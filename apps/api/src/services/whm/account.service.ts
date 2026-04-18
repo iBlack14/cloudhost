@@ -210,3 +210,36 @@ export const impersonateWhmAccount = async (
     odinPanelUrl
   };
 };
+
+export const deleteWhmAccount = async (accountId: string): Promise<void> => {
+  const client = await db.connect();
+
+  try {
+    await client.query("BEGIN");
+
+    const accountResult = await client.query<{ user_id: string; domain: string }>(
+      "SELECT user_id, domain FROM hosting_accounts WHERE id = $1",
+      [accountId]
+    );
+
+    if (accountResult.rowCount === 0) {
+      throw new Error("ACCOUNT_NOT_FOUND");
+    }
+
+    const { user_id: userId, domain } = accountResult.rows[0];
+
+    // Delete associated items
+    await client.query("DELETE FROM account_nameservers WHERE account_id = $1", [accountId]);
+    await client.query("DELETE FROM hosting_accounts WHERE id = $1", [accountId]);
+    await client.query("DELETE FROM domains WHERE user_id = $1", [userId]);
+    await client.query("DELETE FROM users WHERE id = $1", [userId]);
+
+    await client.query("COMMIT");
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+};
+

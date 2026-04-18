@@ -6,17 +6,33 @@ import {
   useWhmAccounts, 
   useSuspendWhmAccount, 
   useResumeWhmAccount, 
-  useImpersonateWhmAccount 
+  useImpersonateWhmAccount,
+  useDeleteWhmAccount
 } from "../../../lib/hooks/use-whm-accounts";
 
+
 export default function WhmAccountsPage() {
+
   const [search, setSearch] = useState("");
   const { data: accounts = [], isLoading, isError } = useWhmAccounts();
   const suspendMutation = useSuspendWhmAccount();
   const resumeMutation = useResumeWhmAccount();
   const impersonateMutation = useImpersonateWhmAccount();
+  const deleteMutation = useDeleteWhmAccount();
+
+  const onDelete = async (accountId: string, username: string) => {
+    if (confirm(`Are you sure you want to permanently DELETE the account "${username}"? This action cannot be undone.`)) {
+      try {
+        await deleteMutation.mutateAsync(accountId);
+      } catch (error) {
+        console.error(error);
+        alert("Deletion failed: " + (error instanceof Error ? error.message : "Internal Error"));
+      }
+    }
+  };
 
   const filteredAccounts = useMemo(() => {
+
     const term = search.toLowerCase();
     return accounts.filter(acc => 
       acc.username.toLowerCase().includes(term) || 
@@ -148,7 +164,15 @@ export default function WhmAccountsPage() {
                           <span className="material-symbols-outlined text-sm">play_arrow</span>
                         </button>
                      )}
-                  </div>
+                      
+                      <button 
+                        onClick={() => onDelete(account.account_id, account.username)}
+                        className="p-3 rounded-xl bg-white/5 text-red-600 hover:bg-black hover:text-red-500 transition-all shadow-lg border border-red-500/10"
+                        title="Delete Account Permanently"
+                      >
+                        <span className="material-symbols-outlined text-sm">delete</span>
+                      </button>
+                   </div>
                 </td>
               </tr>
             ))}
