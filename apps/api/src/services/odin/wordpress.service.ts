@@ -175,8 +175,9 @@ export const installWordPress = async (input: InstallWpInput) => {
     );
 
     const wpId = created.rows[0].id as string;
-    const siteUrl = `${input.protocol ?? "http://"}${normalizedDomain}${directory ? \`/\${directory}\` : ""}`;
-    const targetPath = \`/home/\${osUsername}/public_html\${directory ? \`/\${directory}\` : ""}\`;
+    const siteDir = directory ? `/${directory}` : "";
+    const siteUrl = `${input.protocol ?? "http://"}${normalizedDomain}${siteDir}`;
+    const targetPath = `/home/${osUsername}/public_html${siteDir}`;
 
     try {
       // 1. Ensure Linux User
@@ -255,7 +256,7 @@ php_admin_flag[log_errors] = on
 server {
     listen 80;
     server_name ${normalizedDomain} www.${normalizedDomain};
-    root /home/${osUsername}/public_html${directory ? \`/\${directory}\` : ""};
+    root /home/${osUsername}/public_html${siteDir};
     index index.php index.html index.htm;
     
     access_log /home/${osUsername}/logs/access.log;
