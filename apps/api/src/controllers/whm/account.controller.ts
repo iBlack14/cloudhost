@@ -1,7 +1,7 @@
 import type { Request, Response } from "express";
 import { z } from "zod";
 
-import { whmCreateAccountSchema } from "@odisea/types";
+import { whmCreateAccountSchema } from "../../../../packages/types/src/index.js";
 import {
   createWhmAccount,
   impersonateWhmAccount,

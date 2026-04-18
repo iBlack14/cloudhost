@@ -6,7 +6,7 @@ import {
   type WhmImpersonationResult,
   type Plan as WhmPlan,
   type WhmAccountRow
-} from "@odisea/types";
+} from "../../../packages/types/src/index.js";
 import { hashPassword } from "../../utils/hash-password.js";
 import { signImpersonationToken } from "../../utils/jwt.js";
 
