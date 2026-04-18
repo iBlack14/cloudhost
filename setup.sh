@@ -280,8 +280,18 @@ echo -e "${GREEN}✅ Node.js $(node -v) installed${NC}"
 # Install PNPM, PM2 & Certbot
 echo -e "${YELLOW}🧹 Cleanup and tool setup...${NC}"
 npm install -g pnpm@9 pm2
-run_apt apt install -y nginx certbot python3-certbot-nginx
-echo -e "${GREEN}✅ pnpm, PM2, Nginx & Certbot installed${NC}"
+run_apt apt install -y software-properties-common
+add-apt-repository -y ppa:ondrej/php
+run_apt apt update
+run_apt apt install -y nginx certbot python3-certbot-nginx unzip php8.3-fpm php8.3-mysql php8.3-curl php8.3-gd php8.3-mbstring php8.3-xml php8.3-zip
+
+if ! command -v wp > /dev/null 2>&1; then
+  curl -O https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
+  chmod +x wp-cli.phar
+  mv wp-cli.phar /usr/local/bin/wp
+fi
+echo -e "${GREEN}✅ pnpm, PM2, Nginx, Certbot, PHP 8.3 & WP-CLI installed${NC}"
+
 
 # 5. Update docker-compose ports if non-default
 echo -e "\n${YELLOW}🗄️  Starting Database Clusters...${NC}"

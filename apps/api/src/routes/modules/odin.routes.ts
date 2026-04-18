@@ -3,6 +3,19 @@ import { installWpHandler, listWpSitesHandler, getWpSiteByIdHandler, deleteWpSit
 import { listDomainsHandler, addDomainHandler, deleteDomainHandler, verifyDomainHandler } from "../../controllers/odin/domain.controller.js";
 import { requireAuth } from "../../middleware/auth.js";
 import { db } from "../../config/db.js";
+import multer from "multer";
+import { 
+  listFilesHandler, 
+  createFolderHandler, 
+  deletePathHandler, 
+  renamePathHandler, 
+  readFileHandler, 
+  writeFileHandler, 
+  compressHandler, 
+  extractHandler, 
+  downloadFileHandler, 
+  uploadFileHandler 
+} from "../../controllers/odin/file.controller.js";
 
 export const odinRouter = Router();
 
@@ -61,3 +74,15 @@ odinRouter.post("/domains", addDomainHandler);
 odinRouter.post("/domains/:id/verify", verifyDomainHandler);
 odinRouter.delete("/domains/:id", deleteDomainHandler);
 
+const upload = multer({ storage: multer.memoryStorage() });
+
+odinRouter.get("/files", listFilesHandler);
+odinRouter.post("/files/folder", createFolderHandler);
+odinRouter.delete("/files", deletePathHandler);
+odinRouter.put("/files/rename", renamePathHandler);
+odinRouter.get("/files/content", readFileHandler);
+odinRouter.put("/files/content", writeFileHandler);
+odinRouter.post("/files/compress", compressHandler);
+odinRouter.post("/files/extract", extractHandler);
+odinRouter.get("/files/download", downloadFileHandler);
+odinRouter.post("/files/upload", upload.array("files"), uploadFileHandler);

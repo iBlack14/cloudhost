@@ -28,6 +28,7 @@ export function Sidebar() {
         <NavItem href="/" icon="dashboard" label="Dashboard" active={pathname === "/"} />
         <NavItem href="/accounts" icon="group" label="Accounts" active={pathname.startsWith("/accounts")} />
         <NavItem href="/wordpress" icon="deployed_code" label="WordPress" active={pathname.startsWith("/wordpress")} />
+        <NavItem href="/files" icon="folder" label="File Manager" active={pathname.startsWith("/files")} />
         <NavItem href="/domains" icon="language" label="Domains" active={pathname.startsWith("/domains")} />
         <NavItem href="/servers" icon="dns" label="Servers" />
         <NavItem href="/apps" icon="cloud" label="Applications" />
