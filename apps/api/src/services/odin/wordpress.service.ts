@@ -226,22 +226,49 @@ export const installWordPress = async (input: InstallWpInput) => {
       await createMysqlResources(dbName, dbUser, dbPassword);
       await runWordPressContainer({ containerName, servicePort, dbName, dbUser, dbPassword });
       
-      // NEW: Automated WP-CLI installation
+      // NEW: Automated WP-CLI installation using wp-cli Docker image
       const siteUrl = `${input.protocol ?? "http://"}${normalizedDomain}${directory ? `/${directory}` : ""}`;
       
       // Delay to let the container start and DB connect
-      await new Promise(r => setTimeout(r, 6000));
+      await new Promise(r => setTimeout(r, 8000));
       
       try {
-        const wpInstallCmd = `docker exec ${containerName} su www-data -s /bin/bash -c "wp core install --url='${siteUrl}' --title='${siteTitle}' --admin_user='${adminUser}' --admin_password='${input.adminPass}' --admin_email='${input.adminEmail}' --skip-email"`;
+        // Use the official wp-cli docker image to run the installer
+        const wpInstallCmd = [
+          "docker run --rm",
+          "--add-host=host.docker.internal:host-gateway",
+          `--volumes-from ${containerName}`,
+          "--user www-data",
+          "wordpress:cli",
+          `wp core install`,
+          `--path=/var/www/html`,
+          `--url='${siteUrl}'`,
+          `--title='${siteTitle}'`,
+          `--admin_user='${adminUser}'`,
+          `--admin_password='${input.adminPass}'`,
+          `--admin_email='${input.adminEmail}'`,
+          `--skip-email`
+        ].join(" ");
+
         await execAsync(wpInstallCmd);
-        
+        console.log(`[odin:wordpress] WP-CLI install completed for ${normalizedDomain}`);
+
         if (input.siteDescription) {
-          await execAsync(`docker exec ${containerName} su www-data -s /bin/bash -c "wp option update blogdescription '${input.siteDescription}'"`);
+          const wpDescCmd = [
+            "docker run --rm",
+            "--add-host=host.docker.internal:host-gateway",
+            `--volumes-from ${containerName}`,
+            "--user www-data",
+            "wordpress:cli",
+            `wp option update blogdescription '${input.siteDescription}'`,
+            "--path=/var/www/html"
+          ].join(" ");
+          await execAsync(wpDescCmd).catch(() => {});
         }
       } catch (wpError) {
-        console.warn("[odin:wordpress:service] Manual WP-CLI install failed, user might need to finish via UI:", wpError);
+        console.warn("[odin:wordpress:service] WP-CLI auto-install failed, user will need to complete setup via wp-admin/install.php:", wpError);
       }
+
       
       // NEW: Automated SSL / Nginx Proxy setup
       try {
