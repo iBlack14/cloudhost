@@ -123,7 +123,7 @@ export default function WordPressManagerPage() {
     try {
       await installMutation.mutateAsync(formData);
       setTimeout(() => {
-        setFormData({ protocol: "https://", domain: "", directory: "", wpVersion: "6.4.3", adminUser: "admin", adminPass: "", adminEmail: "admin@domain.com", siteTitle: "", siteDescription: "" });
+        setFormData({ protocol: "https://", domain: "", directory: "", wpVersion: "6.4.3", phpVersion: "8.4", adminUser: "admin", adminPass: "", adminEmail: "admin@domain.com", siteTitle: "", siteDescription: "" });
       }, 2000);
     } catch (err) {
       if (installIntervalRef.current) clearInterval(installIntervalRef.current);
