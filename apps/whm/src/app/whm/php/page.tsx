@@ -8,7 +8,7 @@ const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001/api/v
 const getWhmToken = () =>
   typeof window !== "undefined" ? window.sessionStorage.getItem("whm-access-token") : null;
 
-const whmHeaders = () => {
+const whmHeaders = (): Record<string, string> => {
   const t = getWhmToken();
   return t ? { Authorization: `Bearer ${t}`, "Content-Type": "application/json" } : { "Content-Type": "application/json" };
 };

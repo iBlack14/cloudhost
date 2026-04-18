@@ -5,7 +5,7 @@ import { useState } from "react";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001/api/v1";
 const getToken = () => typeof window !== "undefined" ? window.sessionStorage.getItem("odin-access-token") : null;
-const authHeaders = () => {
+const authHeaders = (): Record<string, string> => {
   const t = getToken();
   return t ? { Authorization: `Bearer ${t}`, "Content-Type": "application/json" } : { "Content-Type": "application/json" };
 };
