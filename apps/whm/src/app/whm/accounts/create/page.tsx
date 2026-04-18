@@ -223,7 +223,7 @@ export default function CreateWhmAccountPage() {
                 onChange={onInputChange}
                 className="pro-input appearance-none bg-[#0A1221]"
               >
-                {["7.4", "8.0", "8.1", "8.2", "8.3"].map(v => (
+                {["7.4", "8.0", "8.1", "8.2", "8.3", "8.4"].map(v => (
                   <option key={v} value={v}>v{v} High-Performance</option>
                 ))}
               </select>

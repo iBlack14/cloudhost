@@ -212,7 +212,7 @@ export const installWordPress = async (input: InstallWpInput) => {
 
       // 4. Download and Install WordPress using native WP-CLI
       console.log(`[odin:wordpress] Downloading WordPress for ${normalizedDomain}...`);
-      await execAsync(`wp core download --path=${targetPath} --allow-root`);
+      await execAsync(`wp core download --path=${targetPath} --allow-root --force`);
 
       console.log(`[odin:wordpress] Configuring wp-config.php for ${normalizedDomain}...`);
       await execAsync(`wp core config --path=${targetPath} --dbname=${dbName} --dbuser=${dbUser} --dbpass=${dbPassword} --dbhost=127.0.0.1:${env.MYSQL_HOST_PORT} --allow-root`);
@@ -230,12 +230,13 @@ export const installWordPress = async (input: InstallWpInput) => {
       await execAsync(`find ${targetPath} -type f -exec chmod 644 {} \\;`);
 
       // 5. Configure PHP-FPM Pool
-      console.log(`[odin:wordpress] Configuring PHP-FPM for ${osUsername}...`);
+      const phpVer = "8.4"; // User mentioned 8.5/8.4 availability
+      console.log(`[odin:wordpress] Configuring PHP-FPM ${phpVer} for ${osUsername}...`);
       const fpmConfig = `
 [${osUsername}]
 user = ${osUsername}
 group = www-data
-listen = /run/php/php8.3-fpm-${osUsername}.sock
+listen = /run/php/php${phpVer}-fpm-${osUsername}.sock
 listen.owner = www-data
 listen.group = www-data
 pm = dynamic
@@ -246,8 +247,9 @@ pm.max_spare_servers = 3
 php_admin_value[error_log] = /home/${osUsername}/logs/error.log
 php_admin_flag[log_errors] = on
       `.trim();
-      await fs.writeFile(`/etc/php/8.3/fpm/pool.d/${osUsername}.conf`, fpmConfig, "utf8");
-      await execAsync(`systemctl reload php8.3-fpm`);
+      await fs.writeFile(`/etc/php/${phpVer}/fpm/pool.d/${osUsername}.conf`, fpmConfig, "utf8");
+      await execAsync(`systemctl reload php${phpVer}-fpm`);
+
 
       // 6. Configure Nginx and SSL
       console.log(`[odin:wordpress] Configuring Nginx/SSL for ${normalizedDomain}...`);

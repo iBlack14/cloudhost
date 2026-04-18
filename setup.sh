@@ -283,7 +283,7 @@ npm install -g pnpm@9 pm2
 run_apt apt install -y software-properties-common
 add-apt-repository -y ppa:ondrej/php
 run_apt apt update
-run_apt apt install -y nginx certbot python3-certbot-nginx unzip php8.3-fpm php8.3-mysql php8.3-curl php8.3-gd php8.3-mbstring php8.3-xml php8.3-zip
+run_apt apt install -y nginx certbot python3-certbot-nginx unzip php8.4-fpm php8.4-mysql php8.4-curl php8.4-gd php8.4-mbstring php8.4-xml php8.4-zip
 
 if ! command -v wp > /dev/null 2>&1; then
   curl -O https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
