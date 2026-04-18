@@ -3,7 +3,7 @@ import { z } from "zod";
 import { installWordPress, listUserWpSites, getWpSiteById, deleteWordPress } from "../../services/odin/wordpress.service.js";
 import { getUserId } from "../../utils/get-user-id.js";
 
-import { installWpSchema } from "../../../../packages/types/src/index.js";
+import { installWpSchema } from "@odisea/types";
 const siteIdParamSchema = z.object({
   id: z.string().uuid()
 });

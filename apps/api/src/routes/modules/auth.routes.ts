@@ -4,7 +4,7 @@ import { db } from "../../config/db.js";
 import { verifyPassword } from "../../utils/hash-password.js";
 import { signAccessToken, verifyAuthToken, type AuthRole } from "../../utils/jwt.js";
 
-import { loginSchema, exchangeImpersonationSchema } from "../../../../../packages/types/src/index.js";
+import { loginSchema, exchangeImpersonationSchema } from "@odisea/types";
 
 export const authRouter = Router();
 
