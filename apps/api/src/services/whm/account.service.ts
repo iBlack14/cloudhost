@@ -34,6 +34,14 @@ export const createWhmAccount = async (
 
     const userId = userInsert.rows[0].id;
 
+    // Register primary domain as a Domain Asset automatically
+    await client.query(
+      `INSERT INTO domains (user_id, domain_name, status, dns_provider)
+       VALUES ($1, $2, 'active', 'odisea_managed')
+       ON CONFLICT (domain_name) DO NOTHING`,
+      [userId, input.domain.toLowerCase().trim()]
+    );
+
     const accountInsert = await client.query<{ id: string }>(
       `INSERT INTO hosting_accounts (
         user_id, domain, document_root, php_version, shell_access, nodejs_enabled, docker_enabled

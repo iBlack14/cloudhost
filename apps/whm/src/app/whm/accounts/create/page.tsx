@@ -70,6 +70,44 @@ export default function CreateWhmAccountPage() {
     setForm((prev: WhmCreateAccountInput) => ({ ...prev, [name]: value }));
   };
 
+  const generatePassword = () => {
+    const length = 16;
+    const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*";
+    const uppercase = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    const numbers = "0123456789";
+    const special = "!@#$%^&*";
+    
+    let retVal = "";
+    // Ensure requirements are met
+    retVal += uppercase.charAt(Math.floor(Math.random() * uppercase.length));
+    retVal += numbers.charAt(Math.floor(Math.random() * numbers.length));
+    retVal += special.charAt(Math.floor(Math.random() * special.length));
+    
+    for (let i = 3; i < length; i++) {
+      retVal += charset.charAt(Math.floor(Math.random() * charset.length));
+    }
+    
+    // Shuffle the result
+    retVal = retVal.split('').sort(() => 0.5 - Math.random()).join('');
+    
+    setForm(prev => ({ ...prev, password: retVal }));
+  };
+
+  const formatError = (rawError: string) => {
+    try {
+      // Check if it's a JSON array (Zod error stringified)
+      if (rawError.trim().startsWith('[') || rawError.trim().startsWith('{')) {
+        const parsed = JSON.parse(rawError);
+        if (Array.isArray(parsed)) {
+          return parsed.map((e: any) => e.message || e.MESSAGE || "Validation error").join(" • ");
+        }
+      }
+      return rawError;
+    } catch {
+      return rawError;
+    }
+  };
+
   const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setFeedback("");
@@ -80,7 +118,7 @@ export default function CreateWhmAccountPage() {
         planId: form.planId || undefined
       });
 
-      setFeedback(`Node successfully provisioned. ID: ${data.accountId}`);
+      setFeedback(`SUCCESS: Node successfully provisioned. ID: ${data.accountId}`);
       setForm(defaultForm);
     } catch (error) {
       setFeedback(error instanceof Error ? error.message : "Provisioning failed");
@@ -140,15 +178,25 @@ export default function CreateWhmAccountPage() {
               />
             </ProField>
             <ProField label="Access Credentials">
-              <input 
-                name="password"
-                type="password" 
-                placeholder="••••••••••••"
-                value={form.password}
-                onChange={onInputChange}
-                required
-                className="pro-input"
-              />
+              <div className="relative group/pass">
+                <input 
+                  name="password"
+                  type="text" 
+                  placeholder="••••••••••••"
+                  value={form.password}
+                  onChange={onInputChange}
+                  required
+                  className="pro-input pr-12 font-mono"
+                />
+                <button 
+                  type="button"
+                  onClick={generatePassword}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center hover:bg-primary/20 hover:border-primary/40 transition-all text-zinc-400 hover:text-primary active:scale-90"
+                  title="Generate secure password"
+                >
+                  <span className="material-symbols-outlined text-[18px]">key</span>
+                </button>
+              </div>
             </ProField>
           </section>
 
@@ -162,7 +210,7 @@ export default function CreateWhmAccountPage() {
               >
                 <option value="">Select Cluster Tier</option>
                 {(plansQuery.data ?? []).map(plan => (
-                  <option key={plan.id} value={plan.id}>
+                   <option key={plan.id} value={plan.id}>
                     {plan.name} ({plan.disk_quota_mb}MB NVMe)
                   </option>
                 ))}
@@ -234,10 +282,13 @@ export default function CreateWhmAccountPage() {
         </div>
 
         {feedback && (
-          <div className={`p-6 rounded-2xl text-center text-[10px] font-black uppercase tracking-[0.2em] border animate-in fade-in slide-in-from-bottom-2 ${
-            feedback.includes("successfully") ? 'border-primary/40 text-primary bg-primary/5' : 'border-red-500/40 text-red-400 bg-red-400/5'
+          <div className={`p-6 rounded-2xl text-center text-[10px] font-black uppercase tracking-[0.2em] border animate-in fade-in slide-in-from-bottom-2 flex items-center justify-center gap-4 ${
+            feedback.startsWith("SUCCESS") ? 'border-primary/40 text-primary bg-primary/5' : 'border-red-500/40 text-red-100 bg-red-950/20'
           }`}>
-             {feedback}
+             <span className="material-symbols-outlined text-[14px]">
+               {feedback.startsWith("SUCCESS") ? 'verified' : 'warning'}
+             </span>
+             <span>{formatError(feedback.replace("SUCCESS: ", ""))}</span>
           </div>
         )}
       </form>
