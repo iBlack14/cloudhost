@@ -59,6 +59,7 @@ export default function WordPressManagerPage() {
     domain: "",
     directory: "",
     wpVersion: "6.4.3",
+    phpVersion: "8.4",
     adminUser: "admin",
     adminPass: "",
     adminEmail: "admin@domain.com",
@@ -355,15 +356,28 @@ export default function WordPressManagerPage() {
                         </div>
 
                         <div className="space-y-4">
-                          <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1 block mb-2">WordPress Version</label>
-                          <select 
+                           <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1 block mb-2">WordPress Version</label>
+                           <select 
                              value={formData.wpVersion}
                              onChange={(e) => setFormData(prev => ({ ...prev, wpVersion: e.target.value }))}
                              className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-primary/50 transition-all appearance-none cursor-pointer"
                            >
-                             <option value="6.4.3" className="bg-zinc-900">6.4.3</option>
-                             <option value="6.3.2" className="bg-zinc-900">6.3.2</option>
-                             <option value="6.2.2" className="bg-zinc-900">6.2.2</option>
+                             <option value="6.4.3" className="bg-zinc-900">WordPress 6.4.3</option>
+                             <option value="6.3.2" className="bg-zinc-900">WordPress 6.3.2</option>
+                             <option value="6.2.2" className="bg-zinc-900">WordPress 6.2.2</option>
+                           </select>
+
+                           <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1 block mb-2 mt-4">PHP Version</label>
+                           <select 
+                             value={formData.phpVersion}
+                             onChange={(e) => setFormData(prev => ({ ...prev, phpVersion: e.target.value }))}
+                             className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-primary/50 transition-all appearance-none cursor-pointer"
+                           >
+                             <option value="8.1" className="bg-zinc-900">PHP 8.1 (Legacy)</option>
+                             <option value="8.2" className="bg-zinc-900">PHP 8.2 (Stable)</option>
+                             <option value="8.3" className="bg-zinc-900">PHP 8.3 (LTS)</option>
+                             <option value="8.4" className="bg-zinc-900">PHP 8.4 (Latest) ⭐</option>
+                             <option value="8.5" className="bg-zinc-900">PHP 8.5 (Edge)</option>
                            </select>
                         </div>
                       </div>

@@ -1,189 +1,183 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { useParams, useRouter } from "next/navigation";
-import Link from "next/link";
-import { fetchDnsZone, addDnsRecord, deleteDnsRecord } from "../../../../lib/api";
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useRouter } from "next/navigation";
 
-export default function DnsZoneEditorPage() {
-  const { id } = useParams();
+const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001/api/v1";
+const getWhmToken = () => typeof window !== "undefined" ? window.sessionStorage.getItem("whm-access-token") : null;
+const whmHeaders = () => {
+  const t = getWhmToken();
+  return t ? { Authorization: `Bearer ${t}`, "Content-Type": "application/json" } : { "Content-Type": "application/json" };
+};
+
+type RecordType = "A" | "AAAA" | "CNAME" | "MX" | "TXT" | "SRV" | "NS";
+
+interface DnsRecord {
+  id: string;
+  name: string;
+  type: RecordType;
+  content: string;
+  priority: number | null;
+  ttl: number;
+}
+
+export default function DnsZoneEditor({ params }: { params: { id: string } }) {
+  const queryClient = useQueryClient();
   const router = useRouter();
-  const [data, setData] = useState<any>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isAdding, setIsAdding] = useState(false);
   
-  const [newRecord, setNewRecord] = useState({
-    name: "@",
-    type: "A",
-    content: "",
-    priority: 0
+  const [newRec, setNewRec] = useState<{ name: string; type: RecordType; content: string; priority: string }>({
+    name: "", type: "A", content: "", priority: ""
   });
 
-  const loadZone = async () => {
-    try {
-      setIsLoading(true);
-      const zoneData = await fetchDnsZone(id as string);
-      setData(zoneData);
-    } catch (err) {
-      console.error("Failed to load DNS zone", err);
-    } finally {
-      setIsLoading(false);
+  const { data, isLoading } = useQuery({
+    queryKey: ["whm_dns_zone", params.id],
+    queryFn: async () => {
+      const res = await fetch(`${API_BASE}/whm/domains/${params.id}/dns`, { headers: whmHeaders() });
+      if (!res.ok) throw new Error("Error fetching zone");
+      const json = await res.json();
+      return json.data;
     }
-  };
+  });
 
-  useEffect(() => {
-    if (id) loadZone();
-  }, [id]);
-
-  const handleAdd = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      setIsAdding(true);
-      await addDnsRecord(data.zone.id, newRecord);
-      setNewRecord({ name: "@", type: "A", content: "", priority: 0 });
-      await loadZone();
-    } catch (err) {
-      alert("Error adding record");
-    } finally {
-      setIsAdding(false);
+  const addMutation = useMutation({
+    mutationFn: async (payload: object) => {
+      const res = await fetch(`${API_BASE}/whm/dns/zones/${data.zone.id}/records`, {
+        method: "POST",
+        headers: whmHeaders(),
+        body: JSON.stringify(payload)
+      });
+      if (!res.ok) throw new Error("Add failed");
+      return res.json();
+    },
+    onSuccess: () => {
+      setNewRec({ name: "", type: "A", content: "", priority: "" });
+      queryClient.invalidateQueries({ queryKey: ["whm_dns_zone", params.id] });
     }
-  };
+  });
 
-  const handleDelete = async (recordId: string) => {
-    if (!confirm("Are you sure?")) return;
-    try {
-      await deleteDnsRecord(recordId);
-      await loadZone();
-    } catch (err) {
-      alert("Error deleting record");
+  const deleteMutation = useMutation({
+    mutationFn: async (recordId: string) => {
+      const res = await fetch(`${API_BASE}/whm/dns/records/${recordId}`, {
+         method: "DELETE",
+         headers: whmHeaders()
+      });
+      if (!res.ok) throw new Error("Delete failed");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["whm_dns_zone", params.id] });
     }
-  };
+  });
 
-  if (isLoading) return <div className="p-20 text-center uppercase font-black text-zinc-700 tracking-widest animate-pulse">Initializing Zone Authority...</div>;
-  if (!data) return <div className="p-20 text-center text-white">Zone not found</div>;
+  if (isLoading) return <div className="text-white">Cargando Zona DNS...</div>;
+  if (!data) return <div className="text-red-500">No se encontró la zona DNS.</div>;
 
   const { domain, zone, records } = data;
 
   return (
-    <div className="space-y-12">
-      <header className="flex justify-between items-end">
-        <div className="space-y-2">
-          <Link href="/whm/domains" className="flex items-center gap-2 text-primary font-black text-[9px] uppercase tracking-widest hover:opacity-70 transition-all">
-             <span className="material-symbols-outlined text-sm">arrow_back</span>
-             Back to Domain Inventory
-          </Link>
-          <h1 className="text-5xl font-headline font-black text-white tracking-tighter uppercase italic">
-            Zone <span className="text-zinc-600">Editor</span>
-          </h1>
-          <p className="text-zinc-500 text-sm font-mono tracking-widest">
-            Managing authoritative records for <span className="text-white italic">{domain.domain_name}</span>
-          </p>
-        </div>
-        
-        <div className="flex items-center gap-4 p-4 rounded-2xl bg-white/[0.02] border border-white/5">
-           <div className="text-right">
-              <p className="text-[9px] font-black text-zinc-500 uppercase tracking-widest">Zone Serial</p>
-              <p className="text-xs font-mono text-primary">{zone.soa_serial}</p>
-           </div>
-           <div className="w-px h-8 bg-white/5"></div>
-           <div className="text-right">
-              <p className="text-[9px] font-black text-zinc-500 uppercase tracking-widest">Primary NS</p>
-              <p className="text-xs font-mono text-zinc-300">ns1.odisea.cloud</p>
-           </div>
+    <div className="space-y-8 max-w-7xl mx-auto">
+      <button onClick={() => router.back()} className="text-zinc-500 font-bold uppercase text-[10px] tracking-widest hover:text-white flex items-center gap-1">
+         <span className="material-symbols-outlined text-sm">arrow_back</span> Regresar
+      </button>
+
+      <header className="space-y-4">
+        <h1 className="text-5xl font-headline font-black text-white tracking-tighter uppercase italic flex items-center gap-4">
+          {domain.domain_name} <span className="text-primary text-xl">ZONE</span>
+        </h1>
+        <div className="flex gap-4">
+           <span className="px-3 py-1 bg-white/5 border border-white/10 rounded font-mono text-xs text-zinc-400">
+             User: <strong className="text-white">{domain.owner_name}</strong>
+           </span>
+           <span className="px-3 py-1 bg-white/5 border border-white/10 rounded font-mono text-xs text-zinc-400">
+             NS: <strong className="text-white">{zone.soa_mname}</strong>
+           </span>
         </div>
       </header>
 
-      {/* Add Record Row */}
-      <div className="glass-card p-1">
-         <form onSubmit={handleAdd} className="bg-white/[0.02] p-6 grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
-            <div className="space-y-2">
-               <label className="text-[9px] font-black text-zinc-600 uppercase tracking-widest ml-1">Name</label>
-               <input 
-                 value={newRecord.name}
-                 onChange={e => setNewRecord({...newRecord, name: e.target.value})}
-                 placeholder="@"
-                 className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-primary/50 transition-all font-mono text-xs" 
-               />
+      {/* Add Record Form */}
+      <div className="glass-card p-6 rounded-2xl bg-zinc-900 border border-primary/20">
+         <h3 className="text-primary font-black uppercase text-xl italic tracking-tighter mb-4">Add Record</h3>
+         <div className="flex flex-wrap gap-4 items-end">
+            <div className="flex-1 min-w-[150px]">
+               <label className="text-[10px] font-black uppercase text-zinc-500 tracking-widest block mb-1">Name</label>
+               <input type="text" placeholder="@ or www" value={newRec.name} onChange={e => setNewRec({...newRec, name: e.target.value})} className="w-full bg-black/50 border border-white/10 rounded px-3 py-2 text-white font-mono text-sm focus:border-primary outline-none focus:bg-primary/5" />
             </div>
-            <div className="space-y-2">
-               <label className="text-[9px] font-black text-zinc-600 uppercase tracking-widest ml-1">Type</label>
-               <select 
-                 value={newRecord.type}
-                 onChange={e => setNewRecord({...newRecord, type: e.target.value})}
-                 className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-primary/50 transition-all text-xs"
-               >
+            <div className="w-24">
+               <label className="text-[10px] font-black uppercase text-zinc-500 tracking-widest block mb-1">Type</label>
+               <select value={newRec.type} onChange={e => setNewRec({...newRec, type: e.target.value as RecordType})} className="w-full bg-black/50 border border-white/10 rounded px-3 py-2 text-white font-mono text-sm focus:border-primary outline-none appearance-none">
                   <option value="A">A</option>
                   <option value="AAAA">AAAA</option>
                   <option value="CNAME">CNAME</option>
                   <option value="MX">MX</option>
                   <option value="TXT">TXT</option>
-                  <option value="NS">NS</option>
+                  <option value="SRV">SRV</option>
                </select>
             </div>
-            <div className="space-y-2 md:col-span-2">
-               <label className="text-[9px] font-black text-zinc-600 uppercase tracking-widest ml-1">Value / Content</label>
-               <input 
-                 value={newRecord.content}
-                 onChange={e => setNewRecord({...newRecord, content: e.target.value})}
-                 placeholder="1.2.3.4"
-                 className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-primary/50 transition-all font-mono text-xs"
-               />
+            <div className="flex-1 min-w-[200px]">
+               <label className="text-[10px] font-black uppercase text-zinc-500 tracking-widest block mb-1">Record Content</label>
+               <input type="text" placeholder="1.2.3.4 or target.domain.com" value={newRec.content} onChange={e => setNewRec({...newRec, content: e.target.value})} className="w-full bg-black/50 border border-white/10 rounded px-3 py-2 text-white font-mono text-sm focus:border-primary outline-none focus:bg-primary/5" />
             </div>
+            {newRec.type === "MX" && (
+              <div className="w-24">
+                 <label className="text-[10px] font-black uppercase text-zinc-500 tracking-widest block mb-1">Priority</label>
+                 <input type="number" placeholder="10" value={newRec.priority} onChange={e => setNewRec({...newRec, priority: e.target.value})} className="w-full bg-black/50 border border-white/10 rounded px-3 py-2 text-white font-mono text-sm focus:border-primary outline-none" />
+              </div>
+            )}
             <button 
-              disabled={isAdding}
-              className="kinetic-gradient py-3 rounded-xl text-white font-black uppercase text-[10px] tracking-widest shadow-lg shadow-primary/20 hover:scale-[1.02] transition-all"
+              disabled={addMutation.isPending || !newRec.name || !newRec.content}
+              onClick={() => {
+                addMutation.mutate({
+                   name: newRec.name, type: newRec.type, content: newRec.content, priority: newRec.priority ? parseInt(newRec.priority) : undefined
+                });
+              }}
+              className="px-6 py-2 bg-primary text-black font-black uppercase tracking-widest text-[10px] rounded hover:bg-white transition-colors disabled:opacity-50 h-[38px]"
             >
-              {isAdding ? "Saving..." : "+ Add Record"}
+              Add Record
             </button>
-         </form>
+         </div>
       </div>
 
-      {/* Records Table */}
-      <div className="glass-card overflow-hidden">
+      {/* Record List */}
+      <div className="glass-card rounded-2xl overflow-hidden">
          <table className="w-full text-left">
             <thead>
-               <tr className="bg-white/5 border-b border-white/5">
-                  <th className="px-8 py-4 text-[10px] font-black text-zinc-600 uppercase tracking-widest">Name</th>
-                  <th className="px-8 py-4 text-[10px] font-black text-zinc-600 uppercase tracking-widest">Type</th>
-                  <th className="px-8 py-4 text-[10px] font-black text-zinc-600 uppercase tracking-widest">Value</th>
-                  <th className="px-8 py-4 text-[10px] font-black text-zinc-600 uppercase tracking-widest text-right">TTL</th>
-                  <th className="px-8 py-4 text-[10px] font-black text-zinc-600 uppercase tracking-widest text-right">Actions</th>
+               <tr className="bg-black/30 text-[10px] uppercase tracking-widest text-zinc-500 font-black">
+                  <th className="p-4">Name</th>
+                  <th className="p-4 w-20 text-center">Type</th>
+                  <th className="p-4">Content</th>
+                  <th className="p-4 w-24">TTL</th>
+                  <th className="p-4 w-16 text-right">Delete</th>
                </tr>
             </thead>
-            <tbody className="divide-y divide-white/[0.02]">
-               {records.map((record: any) => (
-                 <tr key={record.id} className="hover:bg-white/[0.01] group transition-all">
-                    <td className="px-8 py-5">
-                       <span className="text-zinc-300 font-mono text-xs">{record.name}</span>
-                    </td>
-                    <td className="px-8 py-5">
-                       <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest ${
-                         record.type === 'A' ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20' : 
-                         record.type === 'MX' ? 'bg-purple-500/10 text-purple-400 border border-purple-500/20' :
-                         'bg-zinc-500/10 text-zinc-400 border border-zinc-500/20'
-                       }`}>
-                          {record.type}
-                       </span>
-                    </td>
-                    <td className="px-8 py-5 max-w-md truncate">
-                       <span className="text-zinc-500 font-mono text-xs group-hover:text-zinc-300 transition-colors">
-                          {record.content}
-                          {record.priority !== null && <span className="ml-2 text-primary">[{record.priority}]</span>}
-                       </span>
-                    </td>
-                    <td className="px-8 py-5 text-right font-mono text-[10px] text-zinc-600">
-                       {record.ttl}
-                    </td>
-                    <td className="px-8 py-5 text-right">
-                       <button 
-                         onClick={() => handleDelete(record.id)}
-                         className="p-2 text-zinc-700 hover:text-red-500 transition-all"
-                       >
-                          <span className="material-symbols-outlined text-sm">delete</span>
-                       </button>
-                    </td>
-                 </tr>
+            <tbody>
+               {records.map((r: DnsRecord) => (
+                  <tr key={r.id} className="border-t border-white/5 hover:bg-white/[0.02]">
+                     <td className="p-4 text-white font-bold">{r.name}</td>
+                     <td className="p-4 text-center">
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-widest ${r.type === 'A' || r.type === 'AAAA' ? 'bg-blue-500/20 text-blue-400' : r.type === 'CNAME' ? 'bg-purple-500/20 text-purple-400' : r.type === 'MX' ? 'bg-amber-500/20 text-amber-400' : r.type === 'TXT' ? 'bg-green-500/20 text-green-400' : 'bg-zinc-500/20 text-zinc-400'}`}>
+                          {r.type}
+                        </span>
+                     </td>
+                     <td className="p-4 text-zinc-300 font-mono text-sm">
+                        {r.type === 'MX' ? `[${r.priority}] ` : ''}{r.content}
+                     </td>
+                     <td className="p-4 text-zinc-500 font-mono text-xs">{r.ttl}</td>
+                     <td className="p-4 text-right">
+                        <button 
+                           onClick={() => { if(confirm("Delete record?")) deleteMutation.mutate(r.id) }}
+                           className="text-zinc-600 hover:text-red-500 transition-colors"
+                        >
+                           <span className="material-symbols-outlined text-[18px]">delete</span>
+                        </button>
+                     </td>
+                  </tr>
                ))}
+               {records.length === 0 && (
+                  <tr>
+                     <td colSpan={5} className="p-10 text-center text-zinc-500">No records found.</td>
+                  </tr>
+               )}
             </tbody>
          </table>
       </div>

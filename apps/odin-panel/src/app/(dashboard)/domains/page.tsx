@@ -38,6 +38,25 @@ export default function DomainsPage() {
     }
   });
 
+  const sslMutation = useMutation({
+    mutationFn: async (domainId: string) => {
+      const res = await fetch(`http://localhost:3001/api/v1/odin-panel/domains/${domainId}/ssl/issue`, {
+         method: "POST",
+         headers: { Authorization: `Bearer ${window.sessionStorage.getItem("odin-access-token")}` }
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error?.message ?? "SSL Issue Failed");
+      return data;
+    },
+    onSuccess: () => {
+      alert("Certificado SSL emitido con éxito por Let's Encrypt.");
+      queryClient.invalidateQueries({ queryKey: ["odin", "domains"] });
+    },
+    onError: (err) => {
+      alert(`Error SSL: ${err.message}`);
+    }
+  });
+
   const handleAddDomain = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newDomain) return;
@@ -141,6 +160,23 @@ export default function DomainsPage() {
                       </div>
 
                       <div className="flex gap-2">
+                         <button
+                           onClick={() => window.location.href = `/domains/${domain.id}`}
+                           title="Manage DNS Zone"
+                           className="px-4 py-2 rounded-lg border border-primary/20 bg-primary/10 text-primary font-black uppercase text-[10px] tracking-widest hover:text-white hover:bg-primary transition-all flex items-center gap-2"
+                         >
+                            <span className="material-symbols-outlined text-sm">tune</span> Zone
+                         </button>
+                         {!domain.ssl_enabled && (
+                            <button
+                              onClick={() => { if(confirm("Emite tu certificado SSL con Let's Encrypt. \nRequiere que los DNS apunten a este servidor.")) sslMutation.mutate(domain.id) }}
+                              disabled={sslMutation.isPending}
+                              title="Instalar Auto-SSL (Let's Encrypt)"
+                              className="px-4 py-2 rounded-lg border border-secondary/20 bg-secondary/10 text-secondary font-black uppercase text-[10px] tracking-widest hover:text-black hover:bg-secondary transition-all flex items-center gap-2"
+                            >
+                               <span className="material-symbols-outlined text-sm">lock</span> {sslMutation.isPending ? "Issuing..." : "Auto-SSL"}
+                            </button>
+                         )}
                          <button
                            onClick={() => verifyMutation.mutate(domain.id)}
                            disabled={verifyMutation.isPending}

@@ -1,4 +1,6 @@
 import { Router } from "express";
+import path from "node:path";
+import os from "node:os";
 import { 
   installWpHandler, 
   listWpSitesHandler, 
@@ -25,9 +27,28 @@ import {
   writeFileHandler, 
   compressHandler, 
   extractHandler, 
+  chmodHandler,
   downloadFileHandler, 
   uploadFileHandler 
 } from "../../controllers/odin/file.controller.js";
+import {
+  getVersionsHandler,
+  getCurrentPhpHandler,
+  changeVersionHandler,
+  getPhpIniHandler,
+  updatePhpIniHandler,
+  getExtensionsHandler,
+} from "../../controllers/odin/php.controller.js";
+import { getDomainSslStatusHandler, issueSslHandler } from "../../controllers/odin/ssl.controller.js";
+import {
+  listAppsHandler,
+  createAppHandler,
+  deleteAppHandler,
+  manageAppHandler,
+  getAppLogsHandler,
+  updateAppEnvHandler,
+  runNpmInstallHandler
+} from "../../controllers/odin/nodejs.controller.js";
 
 export const odinRouter = Router();
 
@@ -90,8 +111,17 @@ odinRouter.delete("/domains/:id", deleteDomainHandler);
 odinRouter.get("/databases", listDatabasesHandler);
 odinRouter.post("/databases", createDatabaseHandler);
 
-const upload = multer({ storage: multer.memoryStorage() });
+// ── File upload: disk storage with 500 MB limit ────────────────────────────
+const upload = multer({
+  storage: multer.diskStorage({
+    destination: (_req, _file, cb) => cb(null, os.tmpdir()),
+    filename: (_req, file, cb) =>
+      cb(null, `${Date.now()}-${file.originalname.replace(/[^\w.\-]/g, "_")}`),
+  }),
+  limits: { fileSize: 500 * 1024 * 1024 }, // 500 MB per file
+});
 
+// ── File Manager routes ──────────────────────────────────────────────────────
 odinRouter.get("/files", listFilesHandler);
 odinRouter.post("/files/folder", createFolderHandler);
 odinRouter.delete("/files", deletePathHandler);
@@ -99,6 +129,29 @@ odinRouter.put("/files/rename", renamePathHandler);
 odinRouter.get("/files/content", readFileHandler);
 odinRouter.put("/files/content", writeFileHandler);
 odinRouter.post("/files/compress", compressHandler);
-odinRouter.post("/files/extract", extractHandler);
+odinRouter.post("/files/extract", extractHandler);            // ZIP + TAR
+odinRouter.patch("/files/chmod", chmodHandler);               // chmod
 odinRouter.get("/files/download", downloadFileHandler);
 odinRouter.post("/files/upload", upload.array("files"), uploadFileHandler);
+
+// ── Multi-PHP routes ─────────────────────────────────────────────────────────
+odinRouter.get("/php/versions",   getVersionsHandler);         // Versiones en el servidor
+odinRouter.get("/php/current",    getCurrentPhpHandler);       // Config actual del usuario
+odinRouter.patch("/php/version",  changeVersionHandler);       // Cambiar versión
+odinRouter.get("/php/ini",        getPhpIniHandler);           // Leer php.ini
+odinRouter.patch("/php/ini",      updatePhpIniHandler);        // Actualizar php.ini
+odinRouter.get("/php/extensions", getExtensionsHandler);       // Extensiones disponibles
+
+// ── Auto SSL ─────────────────────────────────────────────────────────────────
+odinRouter.get("/domains/:domainId/ssl", getDomainSslStatusHandler);
+odinRouter.post("/domains/:domainId/ssl/issue", issueSslHandler);
+
+// ── Node.js / PM2 Integrations ──────────────────────────────────────────────
+odinRouter.get("/nodejs", listAppsHandler);
+odinRouter.post("/nodejs", createAppHandler);
+odinRouter.delete("/nodejs/:id", deleteAppHandler);
+odinRouter.post("/nodejs/:id/:action(start|stop|restart)", manageAppHandler);
+odinRouter.get("/nodejs/:id/logs", getAppLogsHandler);
+odinRouter.put("/nodejs/:id/env", updateAppEnvHandler);
+odinRouter.post("/nodejs/:id/npm-install", runNpmInstallHandler);
+

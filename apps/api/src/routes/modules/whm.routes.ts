@@ -12,8 +12,34 @@ import {
   deleteWhmAccountHandler
 } from "../../controllers/whm/account.controller.js";
 import { listAllDomainsHandler } from "../../controllers/odin/domain.controller.js";
-
 import { getDnsZoneHandler, addDnsRecordHandler, deleteDnsRecordHandler } from "../../controllers/odin/dns.controller.js";
+import {
+  getServerStatsHandler,
+  getProcessesHandler,
+  killProcessHandler,
+  getServicesHandler,
+  manageServiceHandler,
+  getLogsHandler
+} from "../../controllers/whm/server.controller.js";
+import {
+  listAllDatabasesHandler,
+  repairDatabaseHandler,
+  optimizeDatabaseHandler,
+  generateDbSsoHandler,
+  resetPasswordHandler
+} from "../../controllers/whm/database.controller.js";
+import {
+  exportAccountHandler,
+  downloadMigrationHandler,
+  importAccountHandler,
+  sshMigrateHandler
+} from "../../controllers/whm/migration.controller.js";
+import {
+  whmPhpStatusHandler,
+  whmPhpAccountsHandler,
+  whmChangeAccountPhpHandler,
+  whmReloadFpmHandler,
+} from "../../controllers/odin/php.controller.js";
 import { requireAuth } from "../../middleware/auth.js";
 import { db } from "../../config/db.js";
 
@@ -124,3 +150,42 @@ whmRouter.get("/domains", listAllDomainsHandler);
 whmRouter.get("/domains/:id/dns", getDnsZoneHandler);
 whmRouter.post("/dns/zones/:zoneId/records", addDnsRecordHandler);
 whmRouter.delete("/dns/records/:recordId", deleteDnsRecordHandler);
+
+// ── Multi-PHP WHM routes ───────────────────────────────────────────────────────
+whmRouter.get("/php/status", whmPhpStatusHandler);                           // FPM pools status
+whmRouter.get("/php/accounts", whmPhpAccountsHandler);                       // PHP version per account
+whmRouter.patch("/php/accounts/:accountId", whmChangeAccountPhpHandler);     // Change any account PHP
+whmRouter.post("/php/reload/:version", whmReloadFpmHandler);                 // Reload specific FPM pool
+
+// ── Server Live Monitor ────────────────────────────────────────────────────────
+whmRouter.get("/server/stats", getServerStatsHandler);
+whmRouter.get("/server/processes", getProcessesHandler);
+whmRouter.delete("/server/processes/:pid", killProcessHandler);
+whmRouter.get("/server/services", getServicesHandler);
+whmRouter.post("/server/services/:name/:action", manageServiceHandler);
+whmRouter.get("/server/logs/:type", getLogsHandler);
+
+// ── Database Admin Routes ──────────────────────────────────────────────────────
+whmRouter.get("/databases", listAllDatabasesHandler);
+whmRouter.post("/databases/:dbName/repair", repairDatabaseHandler);
+whmRouter.post("/databases/:dbName/optimize", optimizeDatabaseHandler);
+whmRouter.get("/databases/:dbName/sso", generateDbSsoHandler);
+whmRouter.post("/databases/:dbUser/password", resetPasswordHandler);
+
+// ── Migration & Backups Routes ─────────────────────────────────────────────────
+import os from "node:os";
+import multer from "multer";
+
+const whmUpload = multer({
+  storage: multer.diskStorage({
+    destination: (_req, _file, cb) => cb(null, os.tmpdir()),
+    filename: (_req, file, cb) => cb(null, `whm_import_${Date.now()}.tar.gz`),
+  }),
+  limits: { fileSize: 5000 * 1024 * 1024 }, // 5GB max for migrations
+});
+
+whmRouter.post("/migrations/export/:username", exportAccountHandler);
+whmRouter.get("/migrations/download", downloadMigrationHandler);
+whmRouter.post("/migrations/import", whmUpload.single("backup"), importAccountHandler);
+whmRouter.post("/migrations/ssh", sshMigrateHandler);
+

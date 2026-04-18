@@ -5,6 +5,7 @@ import { getUserId } from "../../utils/get-user-id.js";
 import { db } from "../../config/db.js";
 import path from "node:path";
 import fs from "node:fs/promises";
+import { createReadStream } from "node:fs";
 
 // We require multer for file uploads if needed, but for simplicity we can do raw byte upload or base64 
 // if it's small, but typical file managers use multipart. Let's assume multer in the router.
@@ -117,12 +118,36 @@ export const extractHandler = async (req: Request, res: Response): Promise<Respo
   try {
     const userId = await getUserId(req);
     const basePath = await getBaseUserPath(userId);
-    const { zipPath, destPath } = req.body;
+    // Accept both 'zipPath' (legacy) and 'archivePath'
+    const archivePath = req.body.archivePath ?? req.body.zipPath;
+    const destPath    = req.body.destPath ?? req.body.destUserDir;
     
-    await fileService.extractZip(basePath, zipPath, destPath);
+    await fileService.extractArchive(basePath, archivePath, destPath);
     return res.status(200).json({ success: true });
   } catch (error) {
-    return res.status(500).json({ success: false, error: { message: "Error al extraer" }});
+    return res.status(500).json({ success: false, error: { message: error instanceof Error ? error.message : "Error al extraer" }});
+  }
+};
+
+export const chmodHandler = async (req: Request, res: Response): Promise<Response> => {
+  const schema = z.object({
+    path:      z.string().min(1),
+    octal:     z.string().regex(/^[0-7]{3,4}$/, "Permisos octales inválidos (ej: 644, 755)"),
+    recursive: z.boolean().optional().default(false),
+  });
+
+  const parse = schema.safeParse(req.body);
+  if (!parse.success) {
+    return res.status(422).json({ success: false, error: { code: "VALIDATION_ERROR", message: parse.error.issues[0]?.message } });
+  }
+
+  try {
+    const userId   = await getUserId(req);
+    const basePath = await getBaseUserPath(userId);
+    await fileService.changePermissions(basePath, parse.data.path, parse.data.octal, parse.data.recursive);
+    return res.status(200).json({ success: true });
+  } catch (error) {
+    return res.status(500).json({ success: false, error: { message: "Error al cambiar permisos" }});
   }
 };
 
@@ -147,25 +172,37 @@ export const uploadFileHandler = async (req: Request, res: Response): Promise<Re
   try {
     const userId = await getUserId(req);
     const basePath = await getBaseUserPath(userId);
-    const p = req.body.path as string || "/";
+    const destUserDir = req.body.path as string || "/";
+    const autoExtract = req.body.autoExtract === "true" || req.body.autoExtract === true;
     const files = req.files as Express.Multer.File[];
-    
+
     if (!files || files.length === 0) {
-      return res.status(400).json({ success: false, error: { message: "No se proporcionaron archivos" }});
+      return res.status(400).json({ success: false, error: { message: "No se proporcionaron archivos" } });
     }
 
-    const targetDir = path.resolve(basePath, p.replace(/^\//, ""));
-    if (!targetDir.startsWith(basePath)) throw new Error("Acceso denegado");
-
-    await fs.mkdir(targetDir, { recursive: true }).catch(() => {});
+    const results: { name: string; extracted: boolean }[] = [];
 
     for (const file of files) {
-      const destFile = path.join(targetDir, file.originalname);
-      await fs.writeFile(destFile, file.buffer);
+      // multer diskStorage writes to a tmp path — read it as buffer, then hand off to service
+      const buffer = await fs.readFile(file.path);
+      const result = await fileService.saveUploadedFile(
+        basePath,
+        destUserDir,
+        file.originalname,
+        buffer,
+        autoExtract
+      );
+      // Clean up tmp file
+      await fs.rm(file.path, { force: true }).catch(() => {});
+      results.push({ name: file.originalname, extracted: result.extracted });
     }
-    
-    return res.status(200).json({ success: true });
+
+    return res.status(200).json({ success: true, data: results });
   } catch (error) {
-    return res.status(500).json({ success: false, error: { message: error instanceof Error ? error.message : "Error al subir" }});
+    return res.status(500).json({
+      success: false,
+      error: { message: error instanceof Error ? error.message : "Error al subir" },
+    });
   }
 };
+

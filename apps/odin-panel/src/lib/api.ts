@@ -266,4 +266,37 @@ export const uploadFiles = async (path: string, files: FileList): Promise<void> 
   await parsePayload(response);
 };
 
+export const readFileContent = async (filePath: string): Promise<string> => {
+  const response = await fetch(`${API_BASE}/odin-panel/files/content?path=${encodeURIComponent(filePath)}`, {
+    headers: withOdinAuth(),
+    cache: "no-store"
+  });
+  return parsePayload<string>(response);
+};
 
+export const writeFileContent = async (filePath: string, content: string): Promise<void> => {
+  const response = await fetch(`${API_BASE}/odin-panel/files/content`, {
+    method: "PUT",
+    headers: withOdinAuth({ "Content-Type": "application/json" }),
+    body: JSON.stringify({ path: filePath, content })
+  });
+  await parsePayload(response);
+};
+
+export const renameFile = async (oldPath: string, newPath: string): Promise<void> => {
+  const response = await fetch(`${API_BASE}/odin-panel/files/rename`, {
+    method: "PUT",
+    headers: withOdinAuth({ "Content-Type": "application/json" }),
+    body: JSON.stringify({ oldPath, newPath })
+  });
+  await parsePayload(response);
+};
+
+export const extractArchive = async (zipPath: string, destPath: string): Promise<void> => {
+  const response = await fetch(`${API_BASE}/odin-panel/files/extract`, {
+    method: "POST",
+    headers: withOdinAuth({ "Content-Type": "application/json" }),
+    body: JSON.stringify({ zipPath, destPath })
+  });
+  await parsePayload(response);
+};

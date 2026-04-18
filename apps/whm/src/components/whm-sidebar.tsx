@@ -41,8 +41,12 @@ export function WhmSidebar() {
         <NavItem icon="settings_suggest" label="Packages & Tiers" href="/whm/plans" active={pathname === "/whm/plans"} />
         <NavItem icon="dns" label="Server Config" href="/whm/config" active={pathname === "/whm/config"} />
         <NavItem icon="language" label="DNS Zone Manager" href="/whm/domains" active={pathname.startsWith("/whm/domains")} />
+        <NavItem icon="verified_user" label="SSL / TLS Security" href="/whm/ssl" active={pathname.startsWith("/whm/ssl")} />
+        <NavItem icon="developer_board" label="Multi-PHP Manager" href="/whm/php" active={pathname.startsWith("/whm/php")} />
+        <NavItem icon="database" label="MySQL Database Center" href="/whm/databases" active={pathname.startsWith("/whm/databases")} />
+        <NavItem icon="move_up" label="Migration Center" href="/whm/migrations" active={pathname.startsWith("/whm/migrations")} />
         <NavItem icon="security" label="Security Center" />
-        <NavItem icon="monitoring" label="Resource Monitor" />
+        <NavItem icon="monitoring" label="Resource Monitor" href="/whm/monitoring" active={pathname.startsWith("/whm/monitoring")} />
       </nav>
 
       <div className="mt-auto pt-6 border-t border-white/5 space-y-4 font-headline uppercase tracking-tighter">

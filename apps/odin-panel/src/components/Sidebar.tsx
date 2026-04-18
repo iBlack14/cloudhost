@@ -31,8 +31,9 @@ export function Sidebar() {
         <NavItem href="/files" icon="folder" label="File Manager" active={pathname.startsWith("/files")} />
         <NavItem href="/databases" icon="database" label="Databases" active={pathname.startsWith("/databases")} />
         <NavItem href="/domains" icon="language" label="Domains" active={pathname.startsWith("/domains")} />
+        <NavItem href="/php" icon="developer_board" label="Multi-PHP" active={pathname.startsWith("/php")} />
         <NavItem href="/servers" icon="dns" label="Servers" />
-        <NavItem href="/apps" icon="cloud" label="Applications" />
+        <NavItem href="/nodejs" icon="javascript" label="Node.js Engine" active={pathname.startsWith("/nodejs")} />
         <NavItem href="/storage" icon="storage" label="Volumes" />
         <NavItem href="/networks" icon="lan" label="Networks" />
         <NavItem href="/security" icon="shield" label="Security" />

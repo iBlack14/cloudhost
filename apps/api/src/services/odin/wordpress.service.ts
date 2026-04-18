@@ -8,6 +8,8 @@ import { probeDomainRuntime } from "./runtime-probe.service.js";
 
 const execAsync = promisify(exec);
 
+export type PhpVersion = "8.1" | "8.2" | "8.3" | "8.4" | "8.5";
+
 export interface InstallWpInput {
   userId: string;
   accountId?: string;
@@ -19,6 +21,7 @@ export interface InstallWpInput {
   adminPass: string;
   adminEmail: string;
   wpVersion?: string;
+  phpVersion?: PhpVersion;
   protocol?: string;
 }
 
@@ -230,7 +233,7 @@ export const installWordPress = async (input: InstallWpInput) => {
       await execAsync(`find ${targetPath} -type f -exec chmod 644 {} \\;`);
 
       // 5. Configure PHP-FPM Pool
-      const phpVer = "8.4"; // User mentioned 8.5/8.4 availability
+      const phpVer: string = input.phpVersion ?? "8.4"; // Multi-PHP: use selected version
       console.log(`[odin:wordpress] Configuring PHP-FPM ${phpVer} for ${osUsername}...`);
       const fpmConfig = `
 [${osUsername}]
@@ -270,7 +273,7 @@ server {
 
     location ~ \\.php$ {
         include snippets/fastcgi-php.conf;
-        fastcgi_pass unix:/run/php/php8.3-fpm-${osUsername}.sock;
+        fastcgi_pass unix:/run/php/php${phpVer}-fpm-${osUsername}.sock;
         fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
         include fastcgi_params;
     }
@@ -411,26 +414,25 @@ export const generateSsoUrl = async (id: string, userId: string): Promise<string
 
   // 2. Ensure the SSO handler plugin exists
   const ssoPluginPath = `${muPluginsDir}/odin-sso.php`;
+  // IMPORTANT: Must use 'init' hook so WordPress auth functions are loaded
   const ssoPluginContent = `<?php
 /*
 Plugin Name: Odin SSO
 Description: Secure auto-login for Odisea Cloud
 */
-if (isset($_GET['odin_sso'])) {
-    require_once(ABSPATH . 'wp-includes/pluggable.php');
-    $token = $_GET['odin_sso'];
+add_action('init', function () {
+    if (!isset($_GET['odin_sso'])) return;
+    $token = sanitize_text_field($_GET['odin_sso']);
     $stored = get_transient('odin_sso_' . $token);
-    if ($stored) {
-        delete_transient('odin_sso_' . $token);
-        $user = get_user_by('login', $stored);
-        if ($user) {
-            wp_set_current_user($user->ID);
-            wp_set_auth_cookie($user->ID);
-            wp_redirect(admin_url());
-            exit;
-        }
-    }
-}
+    if (!$stored) return;
+    delete_transient('odin_sso_' . $token);
+    $user = get_user_by('login', $stored);
+    if (!$user) return;
+    wp_set_current_user($user->ID);
+    wp_set_auth_cookie($user->ID, true);
+    wp_safe_redirect(admin_url());
+    exit;
+});
 `;
   await fs.writeFile(ssoPluginPath, ssoPluginContent, "utf8");
   await execAsync(`chown ${osUsername}:www-data ${ssoPluginPath} && chmod 644 ${ssoPluginPath}`);
