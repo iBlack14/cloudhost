@@ -139,3 +139,19 @@ export const deleteWpSiteHandler = async (req: Request, res: Response): Promise<
     });
   }
 };
+
+
+export const generateSsoUrlHandler = async (req: Request, res: Response): Promise<Response> => {
+  const parsedParams = siteIdParamSchema.safeParse(req.params);
+  if (!parsedParams.success) return res.status(400).json({ success: false, error: { message: "ID no válido" } });
+
+  try {
+    const userId = await getUserId(req);
+    const { generateSsoUrl } = await import("../../services/odin/wordpress.service.js");
+    const ssoUrl = await generateSsoUrl(parsedParams.data.id, userId);
+    
+    return res.status(200).json({ success: true, data: { url: ssoUrl } });
+  } catch (error) {
+    return res.status(500).json({ success: false, error: { message: error instanceof Error ? error.message : "Error al generar SSO" } });
+  }
+};

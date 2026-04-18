@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { fetchWpSites, installWordPress, fetchDomains, deleteWordPress } from "../../../lib/api";
+import { fetchWpSites, installWordPress, fetchDomains, deleteWordPress, fetchWpSsoUrl } from "../../../lib/api";
 
 export default function WordPressManagerPage() {
   const [isWizardOpen, setIsWizardOpen] = useState(false);
@@ -40,6 +40,16 @@ export default function WordPressManagerPage() {
     },
     onError: (error: any) => {
       alert("Error eliminando el sitio: " + error.message);
+    }
+  });
+
+  const ssoMutation = useMutation({
+    mutationFn: fetchWpSsoUrl,
+    onSuccess: (url) => {
+      window.open(url, '_blank');
+    },
+    onError: (error: any) => {
+      alert("Error al generar acceso directo: " + error.message);
     }
   });
 
@@ -223,11 +233,12 @@ export default function WordPressManagerPage() {
                       <span className="material-symbols-outlined">settings</span>
                    </Link>
                    <button 
-                     onClick={() => window.open(site.admin_url ?? `https://${site.domain}/wp-admin`, '_blank')}
-                     className="flex items-center gap-3 px-6 py-4 rounded-xl bg-primary text-black font-black text-[10px] uppercase tracking-widest hover:brightness-110 active:scale-95 transition-all"
+                     onClick={() => ssoMutation.mutate(site.id)}
+                     disabled={ssoMutation.isPending}
+                     className="flex items-center gap-3 px-6 py-4 rounded-xl bg-primary text-black font-black text-[10px] uppercase tracking-widest hover:brightness-110 active:scale-95 transition-all disabled:opacity-50"
                    >
-                      <span>Admin Login</span>
-                      <span className="material-symbols-outlined text-sm">open_in_new</span>
+                      <span>{ssoMutation.isPending ? "Generating..." : "Admin Login"}</span>
+                      <span className="material-symbols-outlined text-sm">rocket_launch</span>
                    </button>
                 </div>
               </div>

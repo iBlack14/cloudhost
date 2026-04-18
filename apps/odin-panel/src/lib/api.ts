@@ -178,3 +178,92 @@ export const exchangeImpersonationToken = async (token: string): Promise<{ token
 
   return parsePayload<{ token: string; role: string }>(response);
 };
+
+export const fetchWpSsoUrl = async (id: string): Promise<string> => {
+  const response = await fetch(`${API_BASE}/odin-panel/wordpress/${id}/sso`, {
+    method: "POST",
+    headers: withOdinAuth()
+  });
+  const data = await parsePayload<{ url: string }>(response);
+  return data.url;
+};
+
+// --- DATABASE API ---
+
+export interface UserDatabase {
+  name: string;
+  user: string;
+  type: "wordpress" | "custom";
+}
+
+export const fetchDatabases = async (): Promise<UserDatabase[]> => {
+  const response = await fetch(`${API_BASE}/odin-panel/databases`, {
+    headers: withOdinAuth(),
+    cache: "no-store"
+  });
+  return parsePayload<UserDatabase[]>(response);
+};
+
+export const createDatabase = async (name: string, password: string): Promise<void> => {
+  const response = await fetch(`${API_BASE}/odin-panel/databases`, {
+    method: "POST",
+    headers: withOdinAuth({ "Content-Type": "application/json" }),
+    body: JSON.stringify({ name, password })
+  });
+  await parsePayload(response);
+};
+
+// --- FILE MANAGER API ---
+
+export interface FileItem {
+  name: string;
+  path: string;
+  isDirectory: boolean;
+  size: number;
+  lastModified: string;
+  mimeType?: string;
+  permissions: string;
+}
+
+export const fetchFiles = async (path: string = "/"): Promise<FileItem[]> => {
+  const response = await fetch(`${API_BASE}/odin-panel/files?path=${encodeURIComponent(path)}`, {
+    headers: withOdinAuth(),
+    cache: "no-store"
+  });
+  return parsePayload<FileItem[]>(response);
+};
+
+export const createFolder = async (path: string): Promise<void> => {
+  const response = await fetch(`${API_BASE}/odin-panel/files/folder`, {
+    method: "POST",
+    headers: withOdinAuth({ "Content-Type": "application/json" }),
+    body: JSON.stringify({ path })
+  });
+  await parsePayload(response);
+};
+
+export const deleteFile = async (path: string): Promise<void> => {
+  const response = await fetch(`${API_BASE}/odin-panel/files?path=${encodeURIComponent(path)}`, {
+    method: "DELETE",
+    headers: withOdinAuth()
+  });
+  await parsePayload(response);
+};
+
+export const uploadFiles = async (path: string, files: FileList): Promise<void> => {
+  const formData = new FormData();
+  formData.append("path", path);
+  for (let i = 0; i < files.length; i++) {
+    formData.append("files", files[i]);
+  }
+
+  const response = await fetch(`${API_BASE}/odin-panel/files/upload`, {
+    method: "POST",
+    headers: withOdinAuth(), // Do not set Content-Type, browser will set it with boundary
+    body: formData
+  });
+  
+  await parsePayload(response);
+};
+
+

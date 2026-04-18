@@ -1,6 +1,18 @@
 import { Router } from "express";
-import { installWpHandler, listWpSitesHandler, getWpSiteByIdHandler, deleteWpSiteHandler } from "../../controllers/odin/wordpress.controller.js";
-import { listDomainsHandler, addDomainHandler, deleteDomainHandler, verifyDomainHandler } from "../../controllers/odin/domain.controller.js";
+import { 
+  installWpHandler, 
+  listWpSitesHandler, 
+  getWpSiteByIdHandler, 
+  deleteWpSiteHandler,
+  generateSsoUrlHandler 
+} from "../../controllers/odin/wordpress.controller.js";
+import { 
+  listDomainsHandler, 
+  addDomainHandler, 
+  deleteDomainHandler, 
+  verifyDomainHandler 
+} from "../../controllers/odin/domain.controller.js";
+import { listDatabasesHandler, createDatabaseHandler } from "../../controllers/odin/database.controller.js";
 import { requireAuth } from "../../middleware/auth.js";
 import { db } from "../../config/db.js";
 import multer from "multer";
@@ -54,7 +66,7 @@ odinRouter.get("/dashboard", async (req, res) => {
         services: { 
           domains: parseInt(services?.domains || "0"), 
           emails: 0, 
-          databases: 1, // At least the default one
+          databases: 1, 
           apps: parseInt(services?.apps || "0") 
         }
       }
@@ -66,6 +78,7 @@ odinRouter.get("/dashboard", async (req, res) => {
 
 odinRouter.get("/wordpress", listWpSitesHandler);
 odinRouter.get("/wordpress/:id", getWpSiteByIdHandler);
+odinRouter.post("/wordpress/:id/sso", generateSsoUrlHandler);
 odinRouter.delete("/wordpress/:id", deleteWpSiteHandler);
 odinRouter.post("/wordpress/install", installWpHandler);
 
@@ -73,6 +86,9 @@ odinRouter.get("/domains", listDomainsHandler);
 odinRouter.post("/domains", addDomainHandler);
 odinRouter.post("/domains/:id/verify", verifyDomainHandler);
 odinRouter.delete("/domains/:id", deleteDomainHandler);
+
+odinRouter.get("/databases", listDatabasesHandler);
+odinRouter.post("/databases", createDatabaseHandler);
 
 const upload = multer({ storage: multer.memoryStorage() });
 

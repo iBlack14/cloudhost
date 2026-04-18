@@ -63,7 +63,7 @@ export default function DashboardPage() {
         </BentoSection>
 
         <BentoSection title="Archivos & Almacenamiento" icon="folder_special">
-          <BentoItem label="Administrador de Archivos" icon="folder_open" desc="Explorador cloud nativo" />
+          <BentoItem href="/files" label="Administrador de Archivos" icon="folder_open" desc="Explorador cloud nativo" />
           <BentoItem label="Imágenes" icon="image" />
           <BentoItem label="Uso del Disco" icon="bar_chart" desc="Analizar espacio ocupado" />
           <BentoItem label="Copias de Seguridad" icon="history" />
@@ -72,8 +72,8 @@ export default function DashboardPage() {
         </BentoSection>
 
         <BentoSection title="Bases de Datos" icon="database" accent="cyan">
-          <BentoItem label="phpMyAdmin" icon="settings_ethernet" desc="Administración SQL web" />
-          <BentoItem label="Manage My Databases" icon="table_rows" />
+          <BentoItem href="/databases" label="phpMyAdmin" icon="settings_ethernet" desc="Administración SQL web" />
+          <BentoItem href="/databases" label="Manage My Databases" icon="table_rows" />
           <BentoItem label="Database Wizard" icon="auto_fix" />
           <BentoItem label="Remote Database Access" icon="on_device_training" />
         </BentoSection>

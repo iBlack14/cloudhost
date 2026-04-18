@@ -394,3 +394,50 @@ export const deleteWordPress = async (id: string, userId: string) => {
   
   return { success: true };
 };
+
+export const generateSsoUrl = async (id: string, userId: string): Promise<string> => {
+  const site = await getWpSiteById(id, userId);
+  if (!site) throw new Error("Sitio no encontrado");
+
+  const userResult = await db.query("SELECT username FROM users WHERE id = $1", [userId]);
+  const osUsername = sanitize(userResult.rows[0]?.username ?? "");
+  const targetPath = `/home/${osUsername}/public_html/${site.install_path.split("/").slice(1).join("/")}`;
+
+  // 1. Ensure mu-plugins directory exists
+  const muPluginsDir = `${targetPath}/wp-content/mu-plugins`;
+  await execAsync(`mkdir -p ${muPluginsDir} && chown ${osUsername}:www-data ${muPluginsDir} && chmod 755 ${muPluginsDir}`);
+
+  // 2. Ensure the SSO handler plugin exists
+  const ssoPluginPath = `${muPluginsDir}/odin-sso.php`;
+  const ssoPluginContent = `<?php
+/*
+Plugin Name: Odin SSO
+Description: Secure auto-login for Odisea Cloud
+*/
+if (isset($_GET['odin_sso'])) {
+    require_once(ABSPATH . 'wp-includes/pluggable.php');
+    $token = $_GET['odin_sso'];
+    $stored = get_transient('odin_sso_' . $token);
+    if ($stored) {
+        delete_transient('odin_sso_' . $token);
+        $user = get_user_by('login', $stored);
+        if ($user) {
+            wp_set_current_user($user->ID);
+            wp_set_auth_cookie($user->ID);
+            wp_redirect(admin_url());
+            exit;
+        }
+    }
+}
+`;
+  await fs.writeFile(ssoPluginPath, ssoPluginContent, "utf8");
+  await execAsync(`chown ${osUsername}:www-data ${ssoPluginPath} && chmod 644 ${ssoPluginPath}`);
+
+  // 3. Generate token and save as transient
+  const token = randomBytes(32).toString("hex");
+  // We use wp-cli to set the transient. We store the username to login as.
+  await execAsync(`wp transient set odin_sso_${token} ${site.admin_user} 300 --path=${targetPath} --allow-root`);
+
+  const protocol = site.runtime?.endpoint?.startsWith("https") ? "https" : "http";
+  return `${protocol}://${site.domain}/?odin_sso=${token}`;
+};
