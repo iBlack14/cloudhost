@@ -36,6 +36,14 @@ export const requireAuth =
     try {
       const payload = verifyAuthToken(bearerToken);
 
+      if (payload.tokenType !== "access" && payload.tokenType !== "impersonation") {
+        res.status(401).json({
+          success: false,
+          error: { code: "AUTH_INVALID", message: "Token inválido o expirado" }
+        });
+        return;
+      }
+
       req.auth = payload;
 
       if (roles && !roles.includes(payload.role)) {

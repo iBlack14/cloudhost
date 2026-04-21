@@ -122,6 +122,43 @@ importers:
         specifier: ^5.6.2
         version: 5.9.3
 
+  apps/webmail:
+    dependencies:
+      '@odisea/types':
+        specifier: workspace:*
+        version: link:../../packages/types
+      next:
+        specifier: 14.2.15
+        version: 14.2.15(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      react:
+        specifier: 18.3.1
+        version: 18.3.1
+      react-dom:
+        specifier: 18.3.1
+        version: 18.3.1(react@18.3.1)
+    devDependencies:
+      '@types/node':
+        specifier: ^22.7.5
+        version: 22.19.17
+      '@types/react':
+        specifier: ^18.3.9
+        version: 18.3.28
+      '@types/react-dom':
+        specifier: ^18.3.0
+        version: 18.3.7(@types/react@18.3.28)
+      autoprefixer:
+        specifier: ^10.4.20
+        version: 10.4.27(postcss@8.5.9)
+      postcss:
+        specifier: ^8.4.47
+        version: 8.5.9
+      tailwindcss:
+        specifier: ^3.4.13
+        version: 3.4.19(tsx@4.21.0)
+      typescript:
+        specifier: ^5.6.2
+        version: 5.9.3
+
   apps/whm:
     dependencies:
       '@odisea/types':

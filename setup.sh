@@ -114,9 +114,8 @@ prompt_with_default() {
 DEFAULT_VPS_IP=$(detect_public_ip)
 DEFAULT_API_PORT=3001
 DEFAULT_WHM_PORT=3002
-DEFAULT_ODIN_PORT=3003
-DEFAULT_PG_PORT=5434
-DEFAULT_MYSQL_PORT=3307
+DEFAULT_WEBMAIL_PORT=3007
+DEFAULT_PMA_PORT=8080
 AUTO_MODE="${AUTO_MODE:-1}"
 
 if [ -z "${VPS_IP:-}" ] && [ -z "$DEFAULT_VPS_IP" ]; then
@@ -140,6 +139,8 @@ WHM_PORT="${WHM_PORT:-$DEFAULT_WHM_PORT}"
 ODIN_PORT="${ODIN_PORT:-$DEFAULT_ODIN_PORT}"
 PG_PORT="${PG_PORT:-$DEFAULT_PG_PORT}"
 MYSQL_HOST_PORT="${MYSQL_HOST_PORT:-$DEFAULT_MYSQL_PORT}"
+WEBMAIL_PORT="${WEBMAIL_PORT:-$DEFAULT_WEBMAIL_PORT}"
+PMA_PORT="${PMA_PORT:-$DEFAULT_PMA_PORT}"
 
 echo -e "${GREEN}🌐 Selected VPS IP: ${VPS_IP}${NC}"
 echo -e "${CYAN}Tip:${NC} By default everything runs automatic. You only choose ports if needed."
@@ -222,6 +223,7 @@ echo "  VPS IP:     $VPS_IP"
 echo "  API Port:   $API_PORT"
 echo "  WHM Port:   $WHM_PORT"
 echo "  ODIN Port:  $ODIN_PORT"
+echo "  Webmail:    $WEBMAIL_PORT"
 echo "  PG Port:    $PG_PORT"
 echo "  PG Pass:    [auto-generated]"
 echo "  Admin User: $ADMIN_USER"
@@ -249,6 +251,7 @@ ufw allow 443/tcp > /dev/null 2>&1
 ufw allow $API_PORT/tcp > /dev/null 2>&1
 ufw allow $WHM_PORT/tcp > /dev/null 2>&1
 ufw allow $ODIN_PORT/tcp > /dev/null 2>&1
+ufw allow $WEBMAIL_PORT/tcp > /dev/null 2>&1
 ufw --force enable > /dev/null 2>&1
 echo -e "${GREEN}✅ Firewall configured${NC}"
 
@@ -351,6 +354,8 @@ PORT=$API_PORT
 JWT_SECRET=$JWT_SECRET
 DATABASE_URL=postgresql://postgres:${PG_PASS}@127.0.0.1:${PG_PORT}/odisea_cloud
 ODIN_PANEL_URL=http://$VPS_IP:$ODIN_PORT
+WEBMAIL_URL=http://$VPS_IP:$WEBMAIL_PORT/mail
+PHPMYADMIN_URL=http://$VPS_IP:$PMA_PORT
 IMPERSONATE_EXPIRES_IN=2h
 MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASS}
 EOT
@@ -368,7 +373,13 @@ cat <<EOT > apps/odin-panel/.env.local
 NEXT_PUBLIC_API_URL=http://$VPS_IP:$API_PORT/api/v1
 PORT=$ODIN_PORT
 EOT
-echo -e "  ${GREEN}✅ apps/odin-panel/.env.local${NC}"
+
+# Webmail .env.local
+cat <<EOT > apps/webmail/.env.local
+NEXT_PUBLIC_API_URL=http://$VPS_IP:$API_PORT/api/v1
+PORT=$WEBMAIL_PORT
+EOT
+echo -e "  ${GREEN}✅ apps/webmail/.env.local${NC}"
 
 # 7. Install & Build
 echo -e "\n${YELLOW}🏗️  Installing dependencies & building...${NC}"
@@ -390,11 +401,15 @@ echo -e "${YELLOW}  Building ODIN Panel...${NC}"
 pnpm --filter @odisea/odin-panel build
 echo -e "${GREEN}  ✅ ODIN Panel built${NC}"
 
+echo -e "${YELLOW}  Building Webmail...${NC}"
+pnpm --filter @odisea/webmail build
+echo -e "${GREEN}  ✅ Webmail built${NC}"
+
 # 8. Launch with PM2
 echo -e "\n${YELLOW}🛰️  Launching services with PM2...${NC}"
 
 # Cleanup old processes
-pm2 delete odisea-api odisea-whm odisea-odin 2>/dev/null || true
+pm2 delete odisea-api odisea-whm odisea-odin odisea-webmail 2>/dev/null || true
 # Start API (compiled JS) with app cwd so dotenv reads apps/api/.env
 pm2 start dist/server.js --name odisea-api --cwd apps/api --env production
 echo -e "  ${GREEN}✅ odisea-api started on :$API_PORT${NC}"
@@ -407,6 +422,10 @@ echo -e "  ${GREEN}✅ odisea-whm started on :$WHM_PORT${NC}"
 pm2 start "pnpm --filter @odisea/odin-panel exec next start -p $ODIN_PORT" --name odisea-odin
 echo -e "  ${GREEN}✅ odisea-odin started on :$ODIN_PORT${NC}"
 
+# Start Webmail (Next.js - workspace local version)
+pm2 start "pnpm --filter @odisea/webmail exec next start -p $WEBMAIL_PORT" --name odisea-webmail
+echo -e "  ${GREEN}✅ odisea-webmail started on :$WEBMAIL_PORT${NC}"
+
 pm2 save
 pm2 startup systemd -u root --hp /root 2>/dev/null || true
 
@@ -417,6 +436,8 @@ sleep 3
 API_STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:$API_PORT/health 2>/dev/null || echo "000")
 WHM_STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:$WHM_PORT 2>/dev/null || echo "000")
 ODIN_STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:$ODIN_PORT 2>/dev/null || echo "000")
+MAIL_STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:$WEBMAIL_PORT/mail/login 2>/dev/null || echo "000")
+
 if [ "$API_STATUS" = "200" ]; then
   echo -e "  ${GREEN}✅ API health: OK (200)${NC}"
 else
@@ -431,6 +452,11 @@ if [ "$ODIN_STATUS" = "200" ]; then
   echo -e "  ${GREEN}✅ ODIN health: OK (200)${NC}"
 else
   echo -e "  ${YELLOW}⚠️  ODIN health: $ODIN_STATUS${NC}"
+fi
+if [ "$MAIL_STATUS" = "200" ] || [ "$MAIL_STATUS" = "302" ]; then
+  echo -e "  ${GREEN}✅ Webmail health: OK ($MAIL_STATUS)${NC}"
+else
+  echo -e "  ${YELLOW}⚠️  Webmail health: $MAIL_STATUS${NC}"
 fi
 
 # 10. Summary

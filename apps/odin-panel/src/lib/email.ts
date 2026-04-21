@@ -1,5 +1,14 @@
 "use client";
 
+import {
+  createMailAccount as createMailAccountRequest,
+  fetchDomains,
+  fetchMailAccountById,
+  fetchMailAccounts,
+  issueMailSsoLink
+} from "./api";
+import type { MailAccountSummary } from "@odisea/types";
+
 export type EmailAccountStatus = "active" | "restricted" | "system" | "quota-exceeded";
 
 export interface EmailAccountActionResult {
@@ -53,91 +62,52 @@ export type EmailAccountFilter = "all" | EmailAccountStatus;
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const makeAccount = (
-  id: string,
-  address: string,
-  status: EmailAccountStatus,
-  usedMb: number,
-  allocatedMb: number | null,
-  devicesConnected: number,
-  lastSync: string
+  account: MailAccountSummary
 ): EmailAccount => {
-  const [username, domain] = address.split("@");
+  const [username, domain] = account.address.split("@");
   return {
-    id,
-    address,
+    id: account.id,
+    address: account.address,
     username,
     domain,
-    status,
-    usedMb,
-    allocatedMb,
-    devicesConnected,
-    lastSync
+    status: account.status,
+    usedMb: account.usedMb,
+    allocatedMb: account.allocatedMb,
+    devicesConnected: account.devicesConnected,
+    lastSync: account.lastSync
   };
 };
 
-let emailAccountsStore: EmailAccount[] = [];
-const mailboxStore = new Map<string, EmailMailboxMessage[]>();
-
-let emailDomainsStore: EmailDomainOption[] = [
-  { domain: "ciard.pe", used: 0, capacity: null },
-  { domain: "odiseacloud.com", used: 0, capacity: 80 },
-  { domain: "blxkstudio.com", used: 0, capacity: 20 }
-];
-
 export const fetchEmailAccounts = async (): Promise<EmailAccount[]> => {
-  await wait(180);
-  return [...emailAccountsStore];
+  await wait(80);
+  const accounts = await fetchMailAccounts();
+  return accounts.map(makeAccount);
 };
 
 export const fetchEmailAccountById = async (accountId: string): Promise<EmailAccount> => {
-  await wait(140);
-  const account = emailAccountsStore.find((item) => item.id === accountId);
-  if (!account) {
-    throw new Error("No se encontró la cuenta de correo.");
-  }
-  return account;
+  await wait(80);
+  return makeAccount(await fetchMailAccountById(accountId));
 };
 
 export const fetchEmailDomains = async (): Promise<EmailDomainOption[]> => {
   await wait(120);
-  return [...emailDomainsStore];
+  const [domains, accounts] = await Promise.all([fetchDomains(), fetchMailAccounts()]);
+
+  return domains.map((domain) => ({
+    domain: domain.domain_name,
+    used: accounts.filter((account) => account.domain === domain.domain_name).length,
+    capacity: 80
+  }));
 };
 
 export const createEmailAccount = async (
   input: CreateEmailAccountInput
 ): Promise<{ created: EmailAccount; result: EmailAccountActionResult }> => {
-  await wait(220);
-
-  const address = `${input.username}@${input.domain}`.toLowerCase();
-  const exists = emailAccountsStore.some((account) => account.address === address);
-  if (exists) {
-    throw new Error("La cuenta de correo ya existe en este dominio.");
-  }
-
-  const created = makeAccount(
-    `mail_${Date.now()}`,
-    address,
-    "active",
-    0,
-    input.quotaMb,
-    0,
-    "just now"
-  );
-
-  emailAccountsStore = [created, ...emailAccountsStore];
-  mailboxStore.set(created.id, createMailboxSeed(created));
-  emailDomainsStore = emailDomainsStore.map((domain) =>
-    domain.domain === input.domain
-      ? { ...domain, used: domain.used + 1 }
-      : domain
-  );
-
+  await wait(80);
+  const result = await createMailAccountRequest(input);
   return {
-    created,
-    result: {
-      success: true,
-      message: `Cuenta ${address} aprovisionada en modo mock.`
-    }
+    created: makeAccount(result.created),
+    result: result.result
   };
 };
 
@@ -146,15 +116,11 @@ export const runEmailAccountAction = async (
   action: "check-email" | "manage" | "connect-devices"
 ): Promise<EmailAccountActionResult> => {
   await wait(140);
-
-  const target = emailAccountsStore.find((account) => account.id === accountId);
-  if (!target) {
-    throw new Error("No se encontró la cuenta seleccionada.");
-  }
+  const target = await fetchEmailAccountById(accountId);
 
   const messages: Record<typeof action, string> = {
-    "check-email": `Se abriría Webmail para ${target.address} en la integración real.`,
-    manage: `El panel de administración para ${target.address} quedará conectado al backend futuro.`,
+    "check-email": `Webmail listo para ${target.address}.`,
+    manage: `La consola de administración para ${target.address} quedará conectada en la siguiente fase.`,
     "connect-devices": `Se mostraría el asistente IMAP/SMTP para ${target.address} en la integración real.`
   };
 
@@ -166,20 +132,14 @@ export const runEmailAccountAction = async (
 
 export const fetchMailboxMessages = async (accountId: string): Promise<EmailMailboxMessage[]> => {
   await wait(200);
+  const account = await fetchEmailAccountById(accountId);
+  return createMailboxSeed(account);
+};
 
-  const account = emailAccountsStore.find((item) => item.id === accountId);
-  if (!account) {
-    throw new Error("No se encontró la cuenta seleccionada.");
-  }
-
-  const existing = mailboxStore.get(accountId);
-  if (existing) {
-    return [...existing];
-  }
-
-  const seeded = createMailboxSeed(account);
-  mailboxStore.set(accountId, seeded);
-  return [...seeded];
+export const fetchEmailWebmailSsoLink = async (accountId: string): Promise<string> => {
+  await wait(60);
+  const link = await issueMailSsoLink(accountId);
+  return link.url;
 };
 
 const createMailboxSeed = (account: EmailAccount): EmailMailboxMessage[] => {

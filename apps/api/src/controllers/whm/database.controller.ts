@@ -1,5 +1,6 @@
 import type { Request, Response } from "express";
 import * as dbService from "../../services/whm/database.service.js";
+import { issueDatabaseSsoLink } from "../../services/database-sso.service.js";
 import { z } from "zod";
 
 export const listAllDatabasesHandler = async (_req: Request, res: Response): Promise<Response> => {
@@ -31,10 +32,17 @@ export const optimizeDatabaseHandler = async (req: Request, res: Response): Prom
 
 export const generateDbSsoHandler = async (req: Request, res: Response): Promise<Response> => {
   try {
-    const url = await dbService.generateSsoUrl(req.params.dbName as string);
-    return res.status(200).json({ success: true, data: { url } });
+    const protocol = req.get("x-forwarded-proto") ?? req.protocol;
+    const host = req.get("host");
+    const publicBaseUrl = `${protocol}://${host}${req.baseUrl.replace(/\/whm$/, "")}`;
+    const data = await issueDatabaseSsoLink({
+      dbName: req.params.dbName as string,
+      publicBaseUrl
+    });
+    return res.status(200).json({ success: true, data });
   } catch (error) {
-    return res.status(500).json({ success: false, error: { message: "Error starting SSO session" }});
+    const message = error instanceof Error ? error.message : "Error starting SSO session";
+    return res.status(400).json({ success: false, error: { message }});
   }
 };
 

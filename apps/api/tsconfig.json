@@ -7,8 +7,8 @@
     "moduleResolution": "NodeNext",
     "types": ["node"],
     "paths": {
-      "@odisea/types": ["../../packages/types/dist/index.d.ts"],
-      "@odisea/types/*": ["../../packages/types/dist/*"]
+      "@odisea/types": ["../../packages/types/src/index.ts"],
+      "@odisea/types/*": ["../../packages/types/src/*"]
     }
   },
   "include": ["src/**/*.ts", "src/**/*.d.ts"]

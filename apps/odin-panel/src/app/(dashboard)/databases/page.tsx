@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { fetchDatabases, createDatabase, type UserDatabase } from "../../../lib/api";
+import { fetchDatabases, createDatabase, issueDatabaseSsoLink } from "../../../lib/api";
 
 export default function DatabasesPage() {
   const queryClient = useQueryClient();
@@ -29,13 +29,15 @@ export default function DatabasesPage() {
     }
   });
 
-  const handleOpenPMA = (dbUser: string) => {
-    // For now, we open the portal. 
-    // In a production setup, we would implement a Signon script.
-    // As a placeholder for "no authentication", we can open the link.
-    const pmaUrl = `${window.location.protocol}//${window.location.hostname}:8080`;
-    window.open(pmaUrl, "_blank");
-  };
+  const databaseSsoMutation = useMutation({
+    mutationFn: (dbName: string) => issueDatabaseSsoLink(dbName),
+    onSuccess: (data) => {
+      window.open(data.url, "_blank", "noopener,noreferrer");
+    },
+    onError: (err: any) => {
+      alert("No se pudo abrir phpMyAdmin con token: " + err.message);
+    }
+  });
 
   return (
     <div className="space-y-12">
@@ -94,10 +96,10 @@ export default function DatabasesPage() {
 
                <div className="mt-8 pt-6 border-t border-white/5 flex gap-2">
                   <button 
-                    onClick={() => handleOpenPMA(db.user)}
+                    onClick={() => databaseSsoMutation.mutate(db.name)}
                     className="flex-1 bg-white/5 border border-white/5 py-3 rounded-xl text-white text-[10px] font-black uppercase tracking-widest hover:bg-white/10 transition-all"
                   >
-                    phpMyAdmin
+                    {databaseSsoMutation.isPending ? "Opening..." : "phpMyAdmin"}
                   </button>
                   <button className="p-3 bg-red-500/5 text-red-500 rounded-xl border border-red-500/10 hover:bg-red-500 hover:text-white transition-all">
                      <span className="material-symbols-outlined text-sm">delete</span>

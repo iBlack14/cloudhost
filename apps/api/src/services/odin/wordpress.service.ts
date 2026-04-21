@@ -5,6 +5,7 @@ import { promisify } from "node:util";
 import { randomBytes } from "node:crypto";
 import fs from "node:fs/promises";
 import { probeDomainRuntime } from "./runtime-probe.service.js";
+import { encryptSecret } from "../../utils/secret.js";
 
 const execAsync = promisify(exec);
 
@@ -53,6 +54,7 @@ const ensureWordPressTable = async () => {
     ALTER TABLE wordpress_sites ADD COLUMN IF NOT EXISTS runtime JSONB;
     ALTER TABLE wordpress_sites ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'provisioning';
     ALTER TABLE wordpress_sites ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP;
+    ALTER TABLE wordpress_sites ADD COLUMN IF NOT EXISTS db_password_ciphertext TEXT;
   `);
 };
 
@@ -162,8 +164,8 @@ export const installWordPress = async (input: InstallWpInput) => {
     const created = await client.query(
       `INSERT INTO wordpress_sites (
         user_id, account_id, site_title, domain, install_path,
-        wp_version, php_version, db_name, db_user, admin_user, status
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'provisioning')
+        wp_version, php_version, db_name, db_user, db_password_ciphertext, admin_user, status
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'provisioning')
       RETURNING id`,
       [
         userId,
@@ -175,6 +177,7 @@ export const installWordPress = async (input: InstallWpInput) => {
         "8.3",
         dbName,
         dbUser,
+        encryptSecret(dbPassword),
         adminUser
       ]
     );
@@ -278,6 +281,19 @@ server {
 
     location / {
         try_files $uri $uri/ /index.php?$args;
+    }
+
+    location = /mail {
+        return 301 /mail/;
+    }
+
+    location /mail/ {
+        proxy_pass http://127.0.0.1:${env.WEBMAIL_INTERNAL_PORT}/mail/;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
     }
 
     location ~ \\.php$ {

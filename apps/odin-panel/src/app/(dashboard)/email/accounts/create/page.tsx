@@ -30,7 +30,7 @@ export default function CreateEmailAccountPage() {
     alternateEmail: string;
     stayOnPage: boolean;
   }>({
-    domain: "ciard.pe",
+    domain: "",
     username: "",
     password: generatePassword(),
     quotaMb: 250,
@@ -43,7 +43,26 @@ export default function CreateEmailAccountPage() {
     () => domains.find((item) => item.domain === form.domain) ?? domains[0],
     [domains, form.domain]
   );
-  const composedEmail = form.username ? `${form.username}@${form.domain}` : `username@${form.domain}`;
+  const activeDomain = selectedDomain?.domain ?? form.domain;
+  const composedEmail = activeDomain
+    ? form.username
+      ? `${form.username}@${activeDomain}`
+      : `username@${activeDomain}`
+    : "username@dominio.com";
+
+  React.useEffect(() => {
+    if (domains.length === 0) {
+      if (form.domain) {
+        setForm((current) => ({ ...current, domain: "" }));
+      }
+      return;
+    }
+
+    const domainExists = domains.some((item) => item.domain === form.domain);
+    if (!domainExists) {
+      setForm((current) => ({ ...current, domain: domains[0].domain }));
+    }
+  }, [domains, form.domain]);
 
   const updateField = <K extends keyof typeof form>(field: K, value: (typeof form)[K]) => {
     setForm((current) => ({ ...current, [field]: value }));
@@ -131,8 +150,14 @@ export default function CreateEmailAccountPage() {
               <select
                 value={form.domain}
                 onChange={(event) => updateField("domain", event.target.value)}
+                disabled={domains.length === 0}
                 className="w-full rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-white outline-none transition-colors focus:border-primary/35"
               >
+                {domains.length === 0 ? (
+                  <option value="" className="bg-[#0A1221]">
+                    No hay dominios disponibles
+                  </option>
+                ) : null}
                 {domains.map((domain) => (
                   <option key={domain.domain} value={domain.domain} className="bg-[#0A1221]">
                     {domain.domain}
@@ -154,7 +179,7 @@ export default function CreateEmailAccountPage() {
                   className="bg-transparent px-4 py-3 text-white outline-none placeholder:text-zinc-600"
                 />
                 <div className="border-l border-white/10 bg-white/[0.02] px-4 py-3 text-sm text-zinc-400">
-                  @{form.domain}
+                  @{activeDomain || "dominio.com"}
                 </div>
               </div>
             </EmailField>
@@ -273,7 +298,7 @@ export default function CreateEmailAccountPage() {
               </Link>
               <button
                 type="submit"
-                disabled={createMutation.isPending}
+                disabled={createMutation.isPending || domains.length === 0}
                 className="kinetic-gradient rounded-2xl px-6 py-3 text-sm font-black uppercase tracking-[0.16em] text-white shadow-lg shadow-primary/25 transition-transform active:scale-95 disabled:opacity-60"
               >
                 {createMutation.isPending ? "Provisioning..." : "+ Crear"}
@@ -311,7 +336,7 @@ export default function CreateEmailAccountPage() {
               <div className="text-[10px] font-black uppercase tracking-[0.16em] text-zinc-500">
                 Dominio activo
               </div>
-              <div className="mt-2 text-lg font-headline font-black text-white">{form.domain}</div>
+              <div className="mt-2 text-lg font-headline font-black text-white">{activeDomain || "Sin dominio"}</div>
               <div className="mt-2 text-xs text-zinc-500">
                 Alias resultante: <span className="text-primary">{composedEmail}</span>
               </div>

@@ -64,7 +64,7 @@ export default function EmailAccountsPage() {
   };
 
   const description =
-    "Gestiona buzones, restricciones y cuotas desde una vista compacta inspirada en cPanel. Esta fase usa datos mock para dejar el flujo listo para backend real.";
+    "Gestiona buzones, restricciones y cuotas desde una vista compacta inspirada en cPanel. El acceso al buzón ya se resuelve en el webmail independiente de Odisea.";
 
   return (
     <div className="space-y-8">

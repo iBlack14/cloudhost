@@ -2,6 +2,7 @@ import { exec } from "node:child_process";
 import { promisify } from "node:util";
 import fs from "node:fs/promises";
 import path from "node:path";
+import { env } from "../../config/env.js";
 
 const execAsync = promisify(exec);
 
@@ -199,6 +200,19 @@ server {
 
     location / {
         try_files $uri $uri/ =404;
+    }
+
+    location = /mail {
+        return 301 /mail/;
+    }
+
+    location /mail/ {
+        proxy_pass http://127.0.0.1:${env.WEBMAIL_INTERNAL_PORT}/mail/;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
     }
 
     location ~ /\\.ht {

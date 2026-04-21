@@ -2,8 +2,26 @@ import { db } from "../../config/db.js";
 import { exec } from "node:child_process";
 import { promisify } from "node:util";
 import { env } from "../../config/env.js";
+import { encryptSecret } from "../../utils/secret.js";
 
 const execAsync = promisify(exec);
+
+const ensureUserDatabasesTable = async () => {
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS user_databases (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+      db_name VARCHAR(128) NOT NULL,
+      db_user VARCHAR(128) NOT NULL,
+      db_password_hash VARCHAR(255) NOT NULL,
+      db_password_ciphertext TEXT,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    );
+
+    ALTER TABLE user_databases
+      ADD COLUMN IF NOT EXISTS db_password_ciphertext TEXT;
+  `);
+};
 
 export const createMysqlDatabase = async (dbName: string, dbUser: string, dbPassword: string) => {
   const rootPass = env.MYSQL_ROOT_PASSWORD;
@@ -22,6 +40,8 @@ export const createMysqlDatabase = async (dbName: string, dbUser: string, dbPass
 };
 
 export const listUserDatabases = async (userId: string) => {
+  await ensureUserDatabasesTable();
+
   // Query custom user databases
   const userResult = await db.query("SELECT db_name as name, db_user as user, 'custom' as type FROM user_databases WHERE user_id = $1", [userId]);
   
@@ -32,6 +52,8 @@ export const listUserDatabases = async (userId: string) => {
 };
 
 export const createCustomDatabase = async (userId: string, dbNameRaw: string, dbPassword: string) => {
+  await ensureUserDatabasesTable();
+
   const userQuery = await db.query("SELECT username FROM users WHERE id = $1", [userId]);
   if (userQuery.rowCount === 0) throw new Error("User not found");
   
@@ -45,8 +67,11 @@ export const createCustomDatabase = async (userId: string, dbNameRaw: string, db
   await createMysqlDatabase(dbName, dbUser, dbPassword);
   
   await db.query(
-    "INSERT INTO user_databases (user_id, db_name, db_user, db_password_hash) VALUES ($1, $2, $3, $4)",
-    [userId, dbName, dbUser, "managed"] // For security we don't store plain text pass.
+    `
+      INSERT INTO user_databases (user_id, db_name, db_user, db_password_hash, db_password_ciphertext)
+      VALUES ($1, $2, $3, $4, $5)
+    `,
+    [userId, dbName, dbUser, "managed", encryptSecret(dbPassword)]
   );
   
   return { dbName, dbUser };

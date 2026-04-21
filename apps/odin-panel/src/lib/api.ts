@@ -2,6 +2,9 @@ import {
   type Plan, 
   type WhmAccountRow as WhmAccount, 
   type WhmImpersonationResult as WhmImpersonation,
+  type MailAccountSummary,
+  type MailSsoLink,
+  type DatabaseSsoLink,
   type DomainRecord,
   type WordPressSite
 } from "@odisea/types";
@@ -10,6 +13,9 @@ export {
   type Plan, 
   WhmAccount, 
   WhmImpersonation,
+  type MailAccountSummary,
+  type MailSsoLink,
+  type DatabaseSsoLink,
   type DomainRecord,
   type WordPressSite
 };
@@ -224,6 +230,50 @@ export interface OdinDashboardStats {
   };
 }
 
+export const fetchMailAccounts = async (): Promise<MailAccountSummary[]> => {
+  const response = await fetch(`${API_BASE}/odin-panel/mail/accounts`, {
+    cache: "no-store",
+    headers: withOdinAuth()
+  });
+  return parsePayload<MailAccountSummary[]>(response);
+};
+
+export const fetchMailAccountById = async (accountId: string): Promise<MailAccountSummary> => {
+  const response = await fetch(`${API_BASE}/odin-panel/mail/accounts/${accountId}`, {
+    cache: "no-store",
+    headers: withOdinAuth()
+  });
+  return parsePayload<MailAccountSummary>(response);
+};
+
+export const createMailAccount = async (input: {
+  domain: string;
+  username: string;
+  password: string;
+  quotaMb: number | null;
+  sendLoginLink: boolean;
+  alternateEmail: string;
+  stayOnPage: boolean;
+}): Promise<{
+  created: MailAccountSummary;
+  result: { success: boolean; message: string };
+}> => {
+  const response = await fetch(`${API_BASE}/odin-panel/mail/accounts`, {
+    method: "POST",
+    headers: withOdinAuth({ "Content-Type": "application/json" }),
+    body: JSON.stringify(input)
+  });
+  return parsePayload(response);
+};
+
+export const issueMailSsoLink = async (accountId: string): Promise<MailSsoLink> => {
+  const response = await fetch(`${API_BASE}/odin-panel/mail/accounts/${accountId}/sso`, {
+    method: "POST",
+    headers: withOdinAuth()
+  });
+  return parsePayload<MailSsoLink>(response);
+};
+
 export const fetchOdinDashboard = async (): Promise<OdinDashboardStats> => {
   const response = await fetch(`${API_BASE}/odin-panel/dashboard`, {
     cache: "no-store",
@@ -247,6 +297,14 @@ export const createDatabase = async (name: string, password: string): Promise<vo
     body: JSON.stringify({ name, password })
   });
   await parsePayload(response);
+};
+
+export const issueDatabaseSsoLink = async (dbName: string): Promise<DatabaseSsoLink> => {
+  const response = await fetch(`${API_BASE}/odin-panel/databases/${encodeURIComponent(dbName)}/sso`, {
+    method: "POST",
+    headers: withOdinAuth()
+  });
+  return parsePayload<DatabaseSsoLink>(response);
 };
 
 // --- FILE MANAGER API ---

@@ -88,7 +88,7 @@ export default function MailboxPage() {
             {loadingAccount ? "Cargando buzón..." : account?.address}
           </h1>
           <p className="text-sm leading-6 text-zinc-400 max-w-3xl">
-            Inbox profesional tipo webmail, con lectura rápida, categorías, búsqueda y panel de contexto. Es una experiencia UI propia lista para una integración futura con IMAP/SMTP real.
+            Inbox interno del panel, con lectura rápida, categorías, búsqueda y panel de contexto. Se renderiza en el mismo frontend de ODIN sobre `:3003`; no es un portal separado.
           </p>
         </div>
 

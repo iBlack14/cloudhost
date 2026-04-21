@@ -4,6 +4,7 @@ import React from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 
+import { fetchEmailWebmailSsoLink } from "../../../../../../lib/email";
 import { useEmailAccount } from "../../../../../../lib/hooks/use-email-accounts";
 import { EmailBreadcrumbs } from "../../../../../../components/email/EmailUI";
 
@@ -12,17 +13,28 @@ export default function WebmailLaunchPage() {
   const params = useParams<{ accountId: string }>();
   const accountId = typeof params?.accountId === "string" ? params.accountId : "";
   const { data: account, isLoading, isError } = useEmailAccount(accountId);
+  const [launchError, setLaunchError] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     if (!accountId || isError) return;
+
+    const launch = async () => {
+      try {
+        const nextUrl = await fetchEmailWebmailSsoLink(accountId);
+        window.location.href = nextUrl;
+      } catch (error) {
+        setLaunchError(error instanceof Error ? error.message : "No se pudo abrir el webmail.");
+      }
+    };
+
     const timer = window.setTimeout(() => {
-      router.replace(`/email/accounts/${accountId}/mailbox`);
-    }, 1800);
+      void launch();
+    }, 900);
 
     return () => window.clearTimeout(timer);
   }, [accountId, isError, router]);
 
-  if (isError) {
+  if (isError || launchError) {
     return (
       <div className="space-y-8">
         <EmailBreadcrumbs
@@ -34,7 +46,9 @@ export default function WebmailLaunchPage() {
         />
         <div className="glass-card p-10 text-center space-y-4">
           <h1 className="text-3xl font-headline font-black text-white uppercase italic">No pudimos abrir WebMail</h1>
-          <p className="text-zinc-400">La cuenta solicitada no existe o aún no fue provisionada.</p>
+          <p className="text-zinc-400">
+            {launchError ?? "La cuenta solicitada no existe o aún no fue provisionada."}
+          </p>
           <Link href="/email/accounts" className="inline-flex rounded-xl border border-primary/20 bg-primary/10 px-4 py-3 text-sm font-black uppercase tracking-[0.14em] text-primary">
             Volver a cuentas
           </Link>
@@ -68,7 +82,7 @@ export default function WebmailLaunchPage() {
             <p className="max-w-2xl text-base leading-7 text-zinc-400">
               {isLoading
                 ? "Validando credenciales del buzón y preparando la sesión segura..."
-                : `Abriendo la bandeja de ${account?.address} con una experiencia tipo webmail profesional dentro de ODIN.`}
+                : `Abriendo el webmail independiente de ${account?.address} con SSO desde ODIN.`}
             </p>
           </div>
 

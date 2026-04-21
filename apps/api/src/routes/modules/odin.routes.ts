@@ -15,7 +15,7 @@ import {
   deleteDomainHandler, 
   verifyDomainHandler 
 } from "../../controllers/odin/domain.controller.js";
-import { listDatabasesHandler, createDatabaseHandler } from "../../controllers/odin/database.controller.js";
+import { listDatabasesHandler, createDatabaseHandler, issueDatabaseSsoHandler } from "../../controllers/odin/database.controller.js";
 import { requireAuth } from "../../middleware/auth.js";
 import { db } from "../../config/db.js";
 import multer from "multer";
@@ -50,6 +50,12 @@ import {
   updateAppEnvHandler,
   runNpmInstallHandler
 } from "../../controllers/odin/nodejs.controller.js";
+import {
+  createMailAccountHandler,
+  getMailAccountHandler,
+  issueMailSsoHandler,
+  listMailAccountsHandler
+} from "../../controllers/odin/mail.controller.js";
 
 export const odinRouter = Router();
 
@@ -185,8 +191,14 @@ odinRouter.post("/domains", addDomainHandler);
 odinRouter.post("/domains/:id/verify", verifyDomainHandler);
 odinRouter.delete("/domains/:id", deleteDomainHandler);
 
+odinRouter.get("/mail/accounts", listMailAccountsHandler);
+odinRouter.post("/mail/accounts", createMailAccountHandler);
+odinRouter.get("/mail/accounts/:accountId", getMailAccountHandler);
+odinRouter.post("/mail/accounts/:accountId/sso", issueMailSsoHandler);
+
 odinRouter.get("/databases", listDatabasesHandler);
 odinRouter.post("/databases", createDatabaseHandler);
+odinRouter.post("/databases/:dbName/sso", issueDatabaseSsoHandler);
 
 // ── File upload: disk storage with 500 MB limit ────────────────────────────
 const upload = multer({

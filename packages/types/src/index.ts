@@ -132,3 +132,58 @@ export interface WordPressSite {
   service_port?: number;
   container_name?: string;
 }
+
+export type MailFolder = "INBOX" | "SENT" | "TRASH" | "STARRED";
+
+export interface MailAccountSummary {
+  id: string;
+  address: string;
+  username: string;
+  domain: string;
+  status: "active" | "restricted" | "system" | "quota-exceeded";
+  usedMb: number;
+  allocatedMb: number | null;
+  devicesConnected: number;
+  lastSync: string;
+  alternateEmail: string;
+}
+
+export interface MailSsoLink {
+  url: string;
+  mailboxId: string;
+}
+
+export interface DatabaseSsoLink {
+  url: string;
+  dbName: string;
+}
+
+export interface MailFolderSummary {
+  folder: MailFolder;
+  label: string;
+  count: number;
+}
+
+export interface MailMessageSummary {
+  id: string;
+  folder: MailFolder;
+  from: string;
+  fromAddress: string;
+  subject: string;
+  preview: string;
+  receivedAt: string;
+  read: boolean;
+  starred: boolean;
+  to: string[];
+}
+
+export interface MailMessageDetail extends MailMessageSummary {
+  body: string;
+}
+
+export interface MailIdentity {
+  mailboxId: string;
+  address: string;
+  username: string;
+  domain: string;
+}
