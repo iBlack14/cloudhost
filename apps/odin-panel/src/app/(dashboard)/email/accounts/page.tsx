@@ -10,6 +10,7 @@ import {
 } from "../../../../lib/hooks/use-email-accounts";
 import {
   EmailActionButton,
+  EmailActionLink,
   EmailBreadcrumbs,
   EmailPageIntro,
   EmailStatusBadge,
@@ -190,7 +191,7 @@ export default function EmailAccountsPage() {
                 <StorageMeter usedMb={account.usedMb} allocatedMb={account.allocatedMb} />
                 <div className="text-xs text-zinc-500">Último sync: {account.lastSync}</div>
                 <div className="flex flex-wrap gap-2">
-                  <EmailActionButton icon="open_in_new" label="Check Email" onClick={() => runAction(account.id, "check-email")} />
+                  <EmailActionLink icon="open_in_new" label="Check Email" href={`/email/accounts/${account.id}/webmail`} />
                   <EmailActionButton icon="tune" label="Administrar" onClick={() => runAction(account.id, "manage")} />
                   <EmailActionButton icon="devices" label="Connect Devices" onClick={() => runAction(account.id, "connect-devices")} />
                 </div>
@@ -251,7 +252,7 @@ function renderRows({
       <td className="px-6 py-5 text-sm text-zinc-400">{account.lastSync}</td>
       <td className="px-6 py-5">
         <div className="flex flex-wrap justify-end gap-2">
-          <EmailActionButton icon="open_in_new" label="Check Email" onClick={() => onAction(account.id, "check-email")} />
+          <EmailActionLink icon="open_in_new" label="Check Email" href={`/email/accounts/${account.id}/webmail`} />
           <EmailActionButton icon="tune" label="Administrar" onClick={() => onAction(account.id, "manage")} />
           <EmailActionButton icon="devices" label="Connect Devices" onClick={() => onAction(account.id, "connect-devices")} />
         </div>

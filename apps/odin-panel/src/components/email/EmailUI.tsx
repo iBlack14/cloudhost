@@ -210,6 +210,26 @@ export function EmailActionButton({
   );
 }
 
+export function EmailActionLink({
+  icon,
+  label,
+  href
+}: {
+  icon: string;
+  label: string;
+  href: string;
+}) {
+  return (
+    <Link
+      href={href}
+      className="inline-flex items-center gap-2 rounded-xl border border-primary/20 bg-primary/10 px-3 py-2 text-[10px] font-black uppercase tracking-[0.14em] text-primary transition-all hover:border-primary/35 hover:bg-primary/15 hover:text-white"
+    >
+      <span className="material-symbols-outlined text-[16px]">{icon}</span>
+      {label}
+    </Link>
+  );
+}
+
 export function EmailField({
   label,
   hint,

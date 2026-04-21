@@ -4,7 +4,9 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {
   createEmailAccount,
+  fetchEmailAccountById,
   fetchEmailAccounts,
+  fetchMailboxMessages,
   fetchEmailDomains,
   runEmailAccountAction
 } from "../email";
@@ -24,6 +26,22 @@ export const useEmailDomains = () => {
   return useQuery({
     queryKey: ["email-domains"],
     queryFn: fetchEmailDomains
+  });
+};
+
+export const useEmailAccount = (accountId: string) => {
+  return useQuery({
+    queryKey: ["email-account", accountId],
+    queryFn: () => fetchEmailAccountById(accountId),
+    enabled: Boolean(accountId)
+  });
+};
+
+export const useMailboxMessages = (accountId: string) => {
+  return useQuery({
+    queryKey: ["email-mailbox", accountId],
+    queryFn: () => fetchMailboxMessages(accountId),
+    enabled: Boolean(accountId)
   });
 };
 
