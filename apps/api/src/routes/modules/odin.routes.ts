@@ -1,6 +1,7 @@
 import { Router } from "express";
 import path from "node:path";
 import os from "node:os";
+import { execSync } from "node:child_process";
 import { 
   installWpHandler, 
   listWpSitesHandler, 
@@ -54,11 +55,29 @@ export const odinRouter = Router();
 
 odinRouter.use(requireAuth({ roles: ["user"] }));
 
+const toPercent = (value: number): number => {
+  if (!Number.isFinite(value)) return 0;
+  return Math.max(0, Math.min(100, Math.round(value)));
+};
+
+const getDiskUsagePercent = (): number => {
+  try {
+    const output = execSync("df -P /", { encoding: "utf-8" });
+    const lines = output.trim().split("\n");
+    if (lines.length < 2) return 0;
+    const columns = lines[1].trim().split(/\s+/);
+    const usePercent = columns[4] ?? "0%";
+    return toPercent(Number(usePercent.replace("%", "")));
+  } catch {
+    return 0;
+  }
+};
+
 odinRouter.get("/dashboard", async (req, res) => {
   try {
     const userId = req.auth?.userId;
     
-    const [accountRes, servicesRes] = await Promise.all([
+    const [accountRes, servicesRes, databasesRes] = await Promise.all([
       db.query(`
         SELECT ha.disk_used_mb, p.name as plan_name, p.disk_quota_mb
         FROM hosting_accounts ha
@@ -71,24 +90,82 @@ odinRouter.get("/dashboard", async (req, res) => {
           (SELECT COUNT(*) FROM domains WHERE user_id = $1) as domains,
           (SELECT COUNT(*) FROM wordpress_sites WHERE user_id = $1) as apps
       `, [userId])
+      ,
+      db.query(
+        `
+          SELECT
+            (
+              (SELECT COUNT(*) FROM user_databases WHERE user_id = $1) +
+              (SELECT COUNT(*) FROM wordpress_sites WHERE user_id = $1)
+            )::text AS databases
+        `,
+        [userId]
+      )
     ]);
 
     const account = accountRes.rows[0];
     const services = servicesRes.rows[0];
+    const databaseSummary = databasesRes.rows[0];
+
+    const diskUsed = Number(account?.disk_used_mb || 0);
+    const diskLimit = Number(account?.disk_quota_mb || 1024);
+    const diskPercent = diskLimit > 0 ? toPercent((diskUsed / diskLimit) * 100) : 0;
+
+    const cores = os.cpus().length || 1;
+    const loadAvgs = os.loadavg();
+    const loadAverage1m = loadAvgs[0] ?? 0;
+    const cpuPercent = toPercent((loadAverage1m / cores) * 100);
+
+    let ramTotal = os.totalmem();
+    let ramFree = os.freemem();
+    let ramPercent = toPercent(((ramTotal - ramFree) / ramTotal) * 100);
+
+    try {
+      if (os.platform() === "linux") {
+        const memInfo = execSync("cat /proc/meminfo", { encoding: "utf-8" });
+        const totalMatch = memInfo.match(/MemTotal:\s+(\d+)/);
+        const availableMatch = memInfo.match(/MemAvailable:\s+(\d+)/);
+        if (totalMatch && availableMatch) {
+          const total = parseInt(totalMatch[1], 10) * 1024;
+          const available = parseInt(availableMatch[1], 10) * 1024;
+          ramPercent = toPercent(((total - available) / total) * 100);
+          ramTotal = total;
+          ramFree = available;
+        }
+      }
+    } catch {
+      // Fall back to node:os values above.
+    }
+
+    const serverDiskPercent = getDiskUsagePercent();
 
     res.status(200).json({
       success: true,
       data: {
         account: { 
           plan: account?.plan_name || "Free", 
-          diskUsed: account?.disk_used_mb || 0, 
-          diskLimit: account?.disk_quota_mb || 1024 
+          diskUsed,
+          diskLimit,
+          diskPercent
         },
         services: { 
           domains: parseInt(services?.domains || "0"), 
           emails: 0, 
-          databases: 1, 
+          databases: parseInt(databaseSummary?.databases || "0"),
           apps: parseInt(services?.apps || "0") 
+        },
+        server: {
+          cpu: cpuPercent,
+          ram: ramPercent,
+          disk: serverDiskPercent,
+          loadAverage1m: Number(loadAverage1m.toFixed(2)),
+          loadAvgs: loadAvgs.map((avg) => Number(avg.toFixed(2))),
+          cores,
+          uptimeSeconds: Math.floor(os.uptime()),
+          ramDetails: {
+            total: ramTotal,
+            free: ramFree
+          }
         }
       }
     });
@@ -154,4 +231,3 @@ odinRouter.post("/nodejs/:id/:action(start|stop|restart)", manageAppHandler);
 odinRouter.get("/nodejs/:id/logs", getAppLogsHandler);
 odinRouter.put("/nodejs/:id/env", updateAppEnvHandler);
 odinRouter.post("/nodejs/:id/npm-install", runNpmInstallHandler);
-

@@ -2,8 +2,26 @@
 
 import React from "react";
 import Link from "next/link";
+import { useOdinDashboard } from "../../lib/hooks/use-odin-dashboard";
+
+const formatBytesToGb = (bytes: number): string => `${(bytes / 1024 / 1024 / 1024).toFixed(1)} GB`;
+
+const formatUptime = (seconds?: number): string => {
+  if (!seconds || seconds <= 0) return "UPTIME: N/A";
+  const days = Math.floor(seconds / 86400);
+  const hours = Math.floor((seconds % 86400) / 3600);
+  if (days > 0) return `UPTIME: ${days}D ${hours}H`;
+  const mins = Math.floor((seconds % 3600) / 60);
+  return `UPTIME: ${hours}H ${mins}M`;
+};
 
 export default function DashboardPage() {
+  const { data: dashboard, isLoading } = useOdinDashboard();
+
+  const server = dashboard?.server;
+  const account = dashboard?.account;
+  const services = dashboard?.services;
+
   return (
     <div className="space-y-16">
       <header className="flex justify-between items-center">
@@ -32,24 +50,45 @@ export default function DashboardPage() {
       <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <StatCard 
           label="Compute Load" 
-          value="12.4%" 
-          detail="Delta: -0.2% (Steady)" 
+          value={isLoading ? "..." : `${server?.cpu ?? 0}%`}
+          detail={isLoading ? "SYNCING TELEMETRY" : `LOAD 1M: ${server?.loadAverage1m ?? 0} · ${formatUptime(server?.uptimeSeconds)}`}
           icon="memory"
           variant="azure"
         />
         <StatCard 
-          label="Storage Velocity" 
-          value="892 MB/s" 
-          detail="NVMe Gen 5 Active" 
+          label="Storage Allocation" 
+          value={isLoading ? "..." : `${account?.diskPercent ?? 0}%`}
+          detail={isLoading ? "LOADING ACCOUNT DISK" : `${account?.diskUsed ?? 0} MB / ${account?.diskLimit ?? 0} MB · PLAN ${account?.plan ?? "N/A"}`}
           icon="speed"
           variant="cyan"
         />
         <StatCard 
-          label="Active Connections" 
-          value="42,019" 
-          detail="Global Edge Traffic" 
+          label="Active Services" 
+          value={isLoading ? "..." : `${(services?.domains ?? 0) + (services?.apps ?? 0) + (services?.databases ?? 0)}`}
+          detail={isLoading ? "COUNTING RUNTIMES" : `DOM ${services?.domains ?? 0} · DB ${services?.databases ?? 0} · APPS ${services?.apps ?? 0}`}
           icon="hub"
           variant="azure"
+        />
+      </section>
+
+      <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <TelemetryCard
+          title="RAM Residency"
+          value={isLoading ? "..." : `${server?.ram ?? 0}%`}
+          detail={isLoading ? "COLLECTING MEMORY" : `${formatBytesToGb((server?.ramDetails.total ?? 0) - (server?.ramDetails.free ?? 0))} used of ${formatBytesToGb(server?.ramDetails.total ?? 0)}`}
+          accent="azure"
+        />
+        <TelemetryCard
+          title="Server Disk"
+          value={isLoading ? "..." : `${server?.disk ?? 0}%`}
+          detail={isLoading ? "PROBING ROOT VOLUME" : `ROOT FS · ${server?.cores ?? 1} CORES AVAILABLE`}
+          accent="cyan"
+        />
+        <TelemetryCard
+          title="Service Matrix"
+          value={isLoading ? "..." : `${services?.emails ?? 0} MAIL`}
+          detail={isLoading ? "BACKEND LINK PENDING" : `EMAILS ${services?.emails ?? 0} · DOMAINS ${services?.domains ?? 0}`}
+          accent="azure"
         />
       </section>
 
@@ -154,6 +193,33 @@ function StatCard({ label, value, detail, icon, variant }: { label: string; valu
       </div>
       {/* Background Glow */}
       <div className={`absolute -bottom-10 -right-10 w-32 h-32 blur-[60px] opacity-20 rounded-full transition-all duration-700 group-hover:scale-150 ${variant === 'azure' ? 'bg-primary' : 'bg-secondary'}`}></div>
+    </div>
+  );
+}
+
+function TelemetryCard({
+  title,
+  value,
+  detail,
+  accent
+}: {
+  title: string;
+  value: string;
+  detail: string;
+  accent: "azure" | "cyan";
+}) {
+  return (
+    <div className="glass-card p-6 relative overflow-hidden">
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <div className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">{title}</div>
+          <div className="mt-4 text-3xl font-headline font-black tracking-tighter italic text-white">{value}</div>
+          <div className="mt-2 text-[10px] font-mono uppercase tracking-[0.18em] text-zinc-600">{detail}</div>
+        </div>
+        <div className={`h-12 w-12 rounded-2xl border flex items-center justify-center ${accent === "azure" ? "border-primary/20 text-primary bg-primary/10" : "border-secondary/20 text-secondary bg-secondary/10"}`}>
+          <span className="material-symbols-outlined">{accent === "azure" ? "monitoring" : "storage"}</span>
+        </div>
+      </div>
     </div>
   );
 }

@@ -27,6 +27,7 @@ export function Sidebar() {
       <nav className="flex-1 space-y-2">
         <NavItem href="/" icon="dashboard" label="Dashboard" active={pathname === "/"} />
         <NavItem href="/accounts" icon="group" label="Accounts" active={pathname.startsWith("/accounts")} />
+        <NavItem href="/email/accounts" icon="alternate_email" label="Email" active={pathname.startsWith("/email")} />
         <NavItem href="/wordpress" icon="deployed_code" label="WordPress" active={pathname.startsWith("/wordpress")} />
         <NavItem href="/files" icon="folder" label="File Manager" active={pathname.startsWith("/files")} />
         <NavItem href="/databases" icon="database" label="Databases" active={pathname.startsWith("/databases")} />

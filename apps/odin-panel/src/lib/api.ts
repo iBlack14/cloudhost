@@ -196,6 +196,42 @@ export interface UserDatabase {
   type: "wordpress" | "custom";
 }
 
+export interface OdinDashboardStats {
+  account: {
+    plan: string;
+    diskUsed: number;
+    diskLimit: number;
+    diskPercent: number;
+  };
+  services: {
+    domains: number;
+    emails: number;
+    databases: number;
+    apps: number;
+  };
+  server: {
+    cpu: number;
+    ram: number;
+    disk: number;
+    loadAverage1m: number;
+    loadAvgs: number[];
+    cores: number;
+    uptimeSeconds: number;
+    ramDetails: {
+      total: number;
+      free: number;
+    };
+  };
+}
+
+export const fetchOdinDashboard = async (): Promise<OdinDashboardStats> => {
+  const response = await fetch(`${API_BASE}/odin-panel/dashboard`, {
+    cache: "no-store",
+    headers: withOdinAuth()
+  });
+  return parsePayload<OdinDashboardStats>(response);
+};
+
 export const fetchDatabases = async (): Promise<UserDatabase[]> => {
   const response = await fetch(`${API_BASE}/odin-panel/databases`, {
     headers: withOdinAuth(),

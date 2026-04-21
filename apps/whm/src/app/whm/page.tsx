@@ -17,6 +17,8 @@ export default function WhmDashboardPage() {
   const { data: dashboard } = useWhmDashboard();
   const server = dashboard?.server;
   const accounts = dashboard?.accounts;
+  const loadBars = server?.loadAvgs?.length ? server.loadAvgs : [0, 0, 0, server?.loadAverage1m ?? 0];
+  const peakLoad = Math.max(...loadBars, 0);
 
   return (
     <>
@@ -120,14 +122,21 @@ export default function WhmDashboardPage() {
             </div>
             <div className="relative z-10 space-y-6">
                <div className="flex items-end gap-3 h-32 px-4">
-                  <div className="flex-1 h-1/2 bg-white/5 rounded-lg hover:bg-primary/20 transition-all"></div>
-                  <div className="flex-1 h-3/4 bg-white/5 rounded-lg hover:bg-primary/30 transition-all"></div>
-                  <div className="flex-1 h-2/3 bg-white/5 rounded-lg hover:bg-primary/25 transition-all"></div>
-                  <div className="flex-1 h-full kinetic-gradient rounded-lg shadow-[0_0_15px_rgba(0,163,255,0.2)]"></div>
-                  <div className="flex-1 h-4/5 bg-white/5 rounded-lg hover:bg-primary/20 transition-all"></div>
-                  <div className="flex-1 h-1/2 bg-white/5 rounded-lg hover:bg-primary/10 transition-all"></div>
+                  {loadBars.map((value, index) => {
+                    const normalized = peakLoad > 0 ? Math.max(18, Math.round((value / peakLoad) * 100)) : 18;
+                    const active = index === loadBars.length - 1;
+                    return (
+                      <div
+                        key={`${value}-${index}`}
+                        className={`flex-1 rounded-lg transition-all ${active ? "kinetic-gradient shadow-[0_0_15px_rgba(0,163,255,0.2)]" : "bg-white/5 hover:bg-primary/20"}`}
+                        style={{ height: `${normalized}%` }}
+                      />
+                    );
+                  })}
                </div>
-               <p className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.3em] text-center">Peak Velocity: 1.2 GB/S</p>
+               <p className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.3em] text-center">
+                 Load avgs: {loadBars.map((value) => value.toFixed(2)).join(" · ")}
+               </p>
             </div>
             {/* Absctract Blur Decor */}
             <div className="absolute -bottom-20 -right-20 w-64 h-64 bg-primary/10 blur-[100px] rounded-full pointer-events-none group-hover:bg-primary/20 transition-all duration-1000"></div>

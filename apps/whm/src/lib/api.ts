@@ -107,6 +107,7 @@ export interface DashboardStats {
     ram: number;
     disk: number;
     loadAverage1m?: number;
+    loadAvgs?: number[];
     cores?: number;
     uptimeSeconds?: number;
   };

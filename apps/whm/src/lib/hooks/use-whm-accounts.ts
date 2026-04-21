@@ -18,7 +18,8 @@ import { whmCreateAccountSchema, type WhmCreateAccountInput } from "../schemas/w
 export const useWhmDashboard = () => {
   return useQuery({
     queryKey: ["whm-dashboard"],
-    queryFn: fetchDashboard
+    queryFn: fetchDashboard,
+    refetchInterval: 15000
   });
 };
 
