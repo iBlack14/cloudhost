@@ -16,22 +16,22 @@ export function WhmSidebar() {
 
   return (
     <aside className="w-72 glass-sidebar fixed inset-y-0 left-0 z-50 p-6 flex flex-col border-r border-[#00A3FF]/10">
-      <div className="mb-10">
-        <Link href="/whm" className="flex items-center gap-4 group">
+      <div className="mb-8">
+        <Link href="/whm" className="flex flex-col items-center gap-1 group text-center">
           <div className="relative flex-shrink-0">
-             <div className="absolute inset-0 bg-primary/20 rounded-full blur-xl group-hover:bg-primary/40 transition-all duration-700 opacity-50"></div>
+             <div className="absolute inset-0 bg-primary/10 rounded-full blur-xl group-hover:bg-primary/20 transition-all duration-700 opacity-50"></div>
              <img 
                src="/logo.png" 
                alt="Odisea Cloud Logo" 
-               className="w-10 h-10 object-contain relative z-10 drop-shadow-[0_0_8px_rgba(0,163,255,0.3)] group-hover:scale-110 transition-transform" 
+               className="w-32 h-32 object-contain relative z-10 group-hover:scale-110 transition-transform" 
              />
           </div>
-          <div className="flex flex-col">
+          <div className="flex flex-col items-center">
             <h2 className="text-xl font-black tracking-tighter text-white font-headline italic leading-none">
               ODISEA <span className="text-primary tracking-normal">CLOUD</span>
             </h2>
-            <div className="flex items-center gap-1.5 mt-1">
-              <span className="w-1 h-1 rounded-full bg-primary animate-pulse shadow-[0_0_5px_#00A3FF]"></span>
+            <div className="flex items-center gap-1.5 mt-2">
+              <span className="w-1 h-1 rounded-full bg-primary animate-pulse"></span>
               <span className="text-[8px] text-zinc-600 uppercase font-black tracking-[0.2em]">System Root</span>
             </div>
           </div>
@@ -78,9 +78,9 @@ export function WhmSidebar() {
 function NavItem({ icon, label, active = false, href }: { icon: string; label: string; active?: boolean; href?: string }) {
   const content = (
     <div className={`flex items-center gap-5 px-5 py-3.5 rounded-2xl transition-all duration-300 cursor-pointer group ${
-      active ? 'bg-primary/10 text-primary border-r-4 border-primary font-black shadow-[inset_0_0_20px_rgba(0,163,255,0.05)]' : 'text-zinc-500 hover:text-white hover:bg-white/5'
+      active ? 'bg-primary/5 text-primary border border-primary/20 font-black' : 'text-zinc-500 hover:text-white hover:bg-white/5'
     }`}>
-      <span className={`material-symbols-outlined text-[24px] ${active ? 'neon-text' : 'group-hover:text-primary transition-colors'}`}>{icon}</span>
+      <span className={`material-symbols-outlined text-[24px] ${active ? '' : 'group-hover:text-primary transition-colors'}`}>{icon}</span>
       <span className="font-headline tracking-tighter text-sm uppercase font-black">{label}</span>
     </div>
   );

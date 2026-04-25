@@ -99,6 +99,7 @@ export interface WhmAccountRow {
   plan_name: string | null;
   status: "active" | "suspended" | "terminated";
   disk_used_mb: number;
+  disk_quota_mb: number | null;
   created_at: string;
 }
 

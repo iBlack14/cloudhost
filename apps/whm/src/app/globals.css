@@ -36,24 +36,19 @@
 
 @layer components {
   .glass-sidebar {
-    @apply bg-[#0A1221]/60 backdrop-blur-3xl border-r border-[#00A3FF]/10;
+    @apply bg-[oklch(0.2_0.02_250_/_0.7)] backdrop-blur-xl border-r border-white/5;
   }
   
   .glass-card {
-    @apply bg-[#111B2F]/40 backdrop-blur-md border border-[#00A3FF]/10 rounded-2xl;
+    @apply bg-[oklch(0.15_0.02_250_/_0.4)] backdrop-blur-lg border border-white/5 rounded-2xl;
   }
 
   .pro-input {
     @apply w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-primary/50 transition-all font-body text-sm;
   }
 
-  .neon-text {
-    text-shadow: 0 0 10px rgba(0, 163, 255, 0.5);
-  }
-
   .kinetic-gradient {
-    /* Blue-to-Azure-to-Cyan gradient matching the logo's cloud and ring */
-    background: linear-gradient(135deg, #00A3FF 0%, #00E5FF 100%);
+    background: linear-gradient(135deg, oklch(0.7_0.2_250) 0%, oklch(0.8_0.15_190) 100%);
   }
 
   .italic-header thead th {
@@ -61,11 +56,11 @@
   }
 
   .pulse-glow {
-    animation: pulse-glow 2.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    animation: pulse-glow 3s ease-in-out infinite;
   }
 
   @keyframes pulse-glow {
-    0%, 100% { opacity: 1; filter: brightness(1) drop-shadow(0 0 5px rgba(0, 163, 255, 0.5)); }
-    50% { opacity: 0.8; filter: brightness(1.3) drop-shadow(0 0 15px rgba(0, 229, 255, 0.8)); }
+    0%, 100% { opacity: 1; filter: brightness(1); }
+    50% { opacity: 0.8; filter: brightness(1.2); }
   }
 }

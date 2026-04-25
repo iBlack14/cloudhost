@@ -84,17 +84,19 @@ export default function WhmAccountsPage() {
         <div className="overflow-x-auto">
           <table className="w-full text-left">
             <thead>
-              <tr className="text-[9px] font-black uppercase tracking-[0.2em] text-zinc-600 border-b border-white/5 bg-white/[0.01]">
-                <th className="px-8 py-4">Instance / Admin</th>
-                <th className="px-8 py-4">Root Domain</th>
-                <th className="px-8 py-4">Status</th>
-                <th className="px-8 py-4 text-right">Operations</th>
+              <tr className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 border-b border-white/5 bg-white/[0.01]">
+                <th className="px-8 py-5">Instance / Admin</th>
+                <th className="px-8 py-5">Root Domain</th>
+                <th className="px-8 py-5">Package / Quota</th>
+                <th className="px-8 py-5">Disk Usage</th>
+                <th className="px-8 py-5">Status</th>
+                <th className="px-8 py-5 text-right">Operations</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5">
               {isLoading ? (
                  <tr>
-                   <td colSpan={4} className="p-20 text-center">
+                   <td colSpan={6} className="p-20 text-center">
                       <div className="flex flex-col items-center gap-3">
                          <div className="w-8 h-8 border-2 border-primary/20 border-t-primary rounded-full animate-spin"></div>
                          <span className="text-[10px] font-black uppercase tracking-widest text-zinc-600">Syncing Nodes...</span>
@@ -103,30 +105,51 @@ export default function WhmAccountsPage() {
                  </tr>
               ) : isError ? (
                   <tr>
-                     <td colSpan={4} className="p-20 text-center text-red-500/60 font-black uppercase text-[10px] tracking-widest">
+                     <td colSpan={6} className="p-20 text-center text-red-500/60 font-black uppercase text-[10px] tracking-widest">
                         Critical Error: Failed to reach API cluster.
                      </td>
                   </tr>
               ) : filteredAccounts.length === 0 ? (
                   <tr>
-                    <td colSpan={4} className="p-20 text-center text-zinc-700 italic text-sm">
+                    <td colSpan={6} className="p-20 text-center text-zinc-700 italic text-sm">
                       No matching infrastructure units found.
                     </td>
                   </tr>
               ) : filteredAccounts.map((account) => (
-                <tr key={account.account_id} className="hover:bg-primary/[0.02] transition-all group duration-300">
+                <tr key={account.account_id} className="hover:bg-primary/[0.01] transition-all group duration-300">
                   <td className="px-8 py-5">
                     <div className="font-bold text-white tracking-tight group-hover:text-primary transition-colors text-sm">{account.username}</div>
                     <div className="text-[10px] text-zinc-600 font-mono mt-0.5">{account.email}</div>
                   </td>
                   <td className="px-8 py-5">
                      <div className="flex items-center gap-2">
-                        <div className="w-1 h-1 rounded-full bg-zinc-800"></div>
-                        <span className="font-mono text-zinc-500 text-xs tracking-tight">{account.domain}</span>
+                        <span className="font-mono text-zinc-400 text-xs tracking-tight">{account.domain}</span>
                      </div>
                   </td>
                   <td className="px-8 py-5">
-                    <span className={`px-3 py-1 rounded-lg text-[8px] font-black uppercase tracking-widest border transition-all ${
+                    <div className="text-xs font-bold text-zinc-300 uppercase tracking-tight">{account.plan_name || "Unlimited"}</div>
+                    <div className="text-[10px] text-zinc-600 font-mono mt-0.5">
+                      {account.disk_quota_mb ? `${account.disk_quota_mb} MB` : "∞ MB"}
+                    </div>
+                  </td>
+                  <td className="px-8 py-5">
+                    <div className="flex flex-col gap-2 min-w-[120px]">
+                      <div className="flex justify-between text-[10px] font-mono font-bold text-zinc-500">
+                        <span>{account.disk_used_mb} MB</span>
+                        {account.disk_quota_mb && (
+                          <span>{Math.round((account.disk_used_mb / account.disk_quota_mb) * 100)}%</span>
+                        )}
+                      </div>
+                      <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
+                        <div 
+                          className="h-full kinetic-gradient transition-all duration-1000" 
+                          style={{ width: `${account.disk_quota_mb ? Math.min(100, (account.disk_used_mb / account.disk_quota_mb) * 100) : 0}%` }}
+                        />
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-8 py-5">
+                    <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest border transition-all ${
                       account.status === 'active' 
                         ? 'border-primary/20 text-primary bg-primary/5' 
                         : 'border-red-500/20 text-red-400 bg-red-400/5'
@@ -135,37 +158,37 @@ export default function WhmAccountsPage() {
                     </span>
                   </td>
                   <td className="px-8 py-5 text-right">
-                    <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-all translate-x-2 group-hover:translate-x-0">
+                    <div className="flex justify-end gap-2 transition-all">
                        <button 
                           onClick={() => onImpersonate(account.account_id)}
-                          className="w-8 h-8 rounded-lg bg-white/[0.03] border border-white/5 text-primary hover:bg-primary hover:text-black transition-all flex items-center justify-center"
+                          className="w-9 h-9 rounded-lg bg-white/5 border border-white/5 text-primary hover:bg-primary hover:text-black transition-all flex items-center justify-center"
                           title="Delegate Login"
                         >
-                         <span className="material-symbols-outlined text-[16px]">login</span>
+                         <span className="material-symbols-outlined text-[18px]">login</span>
                        </button>
                        {account.status === 'active' ? (
                           <button 
                             onClick={() => suspendMutation.mutate(account.account_id)}
-                            className="w-8 h-8 rounded-lg bg-white/[0.03] border border-white/5 text-red-500 hover:bg-red-500 hover:text-black transition-all flex items-center justify-center"
+                            className="w-9 h-9 rounded-lg bg-white/5 border border-white/5 text-red-500 hover:bg-red-500 hover:text-black transition-all flex items-center justify-center"
                             title="Suspend"
                           >
-                            <span className="material-symbols-outlined text-[16px]">block</span>
+                            <span className="material-symbols-outlined text-[18px]">block</span>
                           </button>
                        ) : (
                           <button 
                             onClick={() => resumeMutation.mutate(account.account_id)}
-                            className="w-8 h-8 rounded-lg bg-white/[0.03] border border-white/5 text-emerald-400 hover:bg-emerald-400 hover:text-black transition-all flex items-center justify-center"
+                            className="w-9 h-9 rounded-lg bg-white/5 border border-white/5 text-emerald-400 hover:bg-emerald-400 hover:text-black transition-all flex items-center justify-center"
                             title="Restore"
                           >
-                            <span className="material-symbols-outlined text-[16px]">play_arrow</span>
+                            <span className="material-symbols-outlined text-[18px]">play_arrow</span>
                           </button>
                        )}
                         <button 
                           onClick={() => onDelete(account.account_id, account.username)}
-                          className="w-8 h-8 rounded-lg bg-white/[0.03] border border-red-500/10 text-zinc-600 hover:bg-red-500/20 hover:text-red-500 transition-all flex items-center justify-center"
+                          className="w-9 h-9 rounded-lg bg-white/5 border border-white/5 text-zinc-500 hover:bg-red-500 hover:text-black transition-all flex items-center justify-center"
                           title="Delete"
                         >
-                          <span className="material-symbols-outlined text-[16px]">delete</span>
+                          <span className="material-symbols-outlined text-[18px]">delete</span>
                         </button>
                      </div>
                   </td>

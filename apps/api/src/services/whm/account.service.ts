@@ -108,6 +108,7 @@ export const listWhmAccounts = async (): Promise<WhmAccountRow[]> => {
       p.name AS plan_name,
       u.status,
       ha.disk_used_mb,
+      p.disk_quota_mb,
       ha.created_at::text
     FROM hosting_accounts ha
     INNER JOIN users u ON u.id = ha.user_id

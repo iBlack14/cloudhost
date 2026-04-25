@@ -25,26 +25,26 @@ export default function WhmDashboardPage() {
       <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 relative z-10 border-b border-white/5 pb-8">
         <div className="flex items-center gap-6">
           <div className="relative flex-shrink-0 group">
-             <div className="absolute inset-0 bg-primary/10 rounded-full blur-2xl group-hover:bg-primary/30 transition-all duration-700 opacity-40"></div>
+             <div className="absolute inset-0 bg-primary/5 rounded-full blur-2xl group-hover:bg-primary/10 transition-all duration-700 opacity-40"></div>
              <img 
                src="/logo.png" 
                alt="Odisea Cloud Logo" 
-               className="w-16 h-16 object-contain relative z-10 drop-shadow-[0_0_10px_rgba(0,163,255,0.3)] group-hover:scale-105 transition-transform" 
+               className="w-16 h-16 object-contain relative z-10 group-hover:scale-105 transition-transform" 
              />
           </div>
           <div className="space-y-1.5">
             <div className="flex items-center gap-2 mb-0.5">
-               <span className="px-1.5 py-0.5 bg-primary/10 text-primary text-[8px] font-black uppercase rounded border border-primary/20 tracking-tighter">System Admin</span>
+               <span className="px-1.5 py-0.5 bg-white/5 text-zinc-400 text-[8px] font-black uppercase rounded border border-white/10 tracking-tighter">System Admin</span>
                <span className="text-zinc-600 text-[9px] font-mono tracking-widest font-bold opacity-40">X-ROOT-CORE</span>
             </div>
-            <h1 className="text-3xl font-black text-white tracking-tighter uppercase italic font-headline">
-              Web Host <span className="text-primary not-italic">Manager</span>
+            <h1 className="text-4xl font-black text-white tracking-tighter uppercase font-headline">
+              Web Host <span className="text-primary">Manager</span>
             </h1>
           </div>
         </div>
         <div className="flex gap-3">
            <Link href="/whm/accounts/create">
-              <button className="px-5 py-2.5 kinetic-gradient text-white rounded-xl font-black text-[10px] tracking-widest uppercase shadow-lg shadow-primary/20 hover:translate-y-[-1px] active:translate-y-0 transition-all border border-white/10">
+              <button className="px-5 py-2.5 bg-primary text-black rounded-lg font-black text-[10px] tracking-widest uppercase hover:bg-white transition-all">
                  Provision Node
               </button>
            </Link>
@@ -152,21 +152,18 @@ export default function WhmDashboardPage() {
 }
 
 function StatCard({ label, value, desc, icon, variant }: { label: string; value: string; desc: string; icon: string; variant: 'azure' | 'cyan' }) {
-  const colorClass = variant === 'azure' ? 'text-primary' : 'text-secondary';
   return (
-    <div className="bg-[#0A1221]/40 backdrop-blur-xl p-6 rounded-2xl border border-white/5 group hover:border-primary/20 transition-all duration-500 overflow-hidden relative">
-      <div className="flex justify-between items-start mb-6 relative z-10">
-        <span className="text-[9px] font-black text-zinc-600 uppercase tracking-[0.2em]">{label}</span>
-        <div className={`p-2 rounded-lg bg-white/[0.03] ${colorClass} group-hover:scale-110 transition-transform duration-500`}>
-           <span className="material-symbols-outlined text-[18px]">{icon}</span>
-        </div>
+    <div className="bg-white/[0.03] p-6 rounded-2xl border border-white/5 group hover:border-primary/30 transition-all duration-500 relative overflow-hidden">
+      <div className="flex justify-between items-start mb-4 relative z-10">
+        <span className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">{label}</span>
+        <span className="material-symbols-outlined text-zinc-600 text-xl group-hover:text-primary transition-colors">{icon}</span>
       </div>
       <div className="relative z-10">
-        <div className="text-3xl font-black text-white tracking-tighter italic group-hover:text-primary transition-colors duration-500 font-headline">{value}</div>
-        <div className="text-[9px] text-zinc-500 mt-2 font-bold tracking-widest uppercase opacity-40">{desc}</div>
+        <div className="text-4xl font-black text-white tracking-tighter font-headline">{value}</div>
+        <div className="text-[10px] text-zinc-500 mt-1 font-bold tracking-tight uppercase opacity-60">{desc}</div>
       </div>
-      {/* Micro-glow on hover */}
-      <div className="absolute inset-0 bg-primary/[0.02] opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>
+      {/* Subtle brand tint */}
+      <div className="absolute -right-4 -bottom-4 w-24 h-24 bg-primary/5 blur-3xl rounded-full group-hover:bg-primary/10 transition-all"></div>
     </div>
   );
 }
