@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
-export const MAIL_BASE_PATH = "/mail";
+export const MAIL_BASE_PATH = "";
 export const MAIL_SESSION_COOKIE = "odisea-webmail-session";
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001/api/v1";
 
@@ -10,7 +10,7 @@ export const setMailSessionCookie = (token: string) => {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
-    path: MAIL_BASE_PATH,
+    path: "/",
     maxAge: 60 * 60 * 12
   });
 };
@@ -20,7 +20,7 @@ export const clearMailSessionCookie = () => {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
-    path: MAIL_BASE_PATH,
+    path: "/",
     maxAge: 0
   });
 };

@@ -7,7 +7,7 @@ const envSchema = z.object({
   JWT_SECRET: z.string().min(32), // FIX: Aumentado de 16 a 32 por seguridad
   DATABASE_URL: z.string().url(),
   ODIN_PANEL_URL: z.string().url().default("http://localhost:3003"),
-  WEBMAIL_URL: z.string().url().default("http://localhost:3007/mail"),
+  WEBMAIL_URL: z.string().url().default("http://localhost:3007"),
   WEBMAIL_INTERNAL_PORT: z.coerce.number().int().positive().default(3007),
   PHPMYADMIN_URL: z.string().url().default("http://localhost:8080"),
   IMPERSONATE_EXPIRES_IN: z.string().default("2h"),

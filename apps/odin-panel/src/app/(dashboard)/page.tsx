@@ -23,31 +23,35 @@ export default function DashboardPage() {
   const services = dashboard?.services;
 
   return (
-    <div className="space-y-16">
-      <header className="flex justify-between items-center">
-        <div className="space-y-1">
-          <h1 className="text-5xl font-headline font-black text-white tracking-tighter uppercase italic">
-            SYSTEM CONSOLE
+    <div className="space-y-12">
+      <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 relative z-10 border-b border-white/5 pb-8">
+        <div className="space-y-1.5">
+          <div className="flex items-center gap-2 mb-1">
+             <span className="px-1.5 py-0.5 bg-primary/10 text-primary text-[8px] font-black uppercase rounded border border-primary/20 tracking-tighter">Odin Cloud Node</span>
+             <span className="text-zinc-600 text-[9px] font-mono tracking-widest font-bold opacity-40">OD-CLOUD-01</span>
+          </div>
+          <h1 className="text-3xl font-black text-white tracking-tighter uppercase italic font-headline">
+            System <span className="text-primary not-italic">Console</span>
           </h1>
           <div className="flex items-center gap-3">
-             <span className="text-primary font-mono text-[10px] tracking-[0.2em]">NODE: OD-CLOUD-01</span>
-             <div className="h-px w-12 bg-white/10"></div>
-             <span className="text-zinc-500 font-mono text-[10px] tracking-[0.2em]">REGION: US-BLUE-EAST</span>
+             <span className="text-zinc-500 font-mono text-[9px] tracking-[0.2em] uppercase">Region: US-BLUE-EAST</span>
+             <div className="h-px w-8 bg-white/10"></div>
+             <span className="text-zinc-600 font-mono text-[9px] tracking-[0.2em] uppercase">V2.4.0-Stable</span>
           </div>
         </div>
-        <div className="flex items-center gap-6">
-          <div className="flex items-center gap-3 bg-primary/5 border border-primary/20 px-4 py-2 rounded-full">
-            <span className="w-2 h-2 rounded-full bg-primary pulse-glow"></span>
-            <span className="text-[10px] font-black text-primary uppercase tracking-widest">Core Status: Stable</span>
+        <div className="flex items-center gap-4">
+          <div className="hidden sm:flex items-center gap-3 bg-primary/5 border border-primary/10 px-4 py-2 rounded-xl">
+            <span className="w-1.5 h-1.5 rounded-full bg-primary pulse-glow"></span>
+            <span className="text-[9px] font-black text-primary uppercase tracking-widest">Core Status: Stable</span>
           </div>
-          <div className="w-10 h-10 rounded-full border border-white/10 bg-surface flex items-center justify-center text-primary overflow-hidden">
-             <span className="material-symbols-outlined">account_circle</span>
+          <div className="w-10 h-10 rounded-xl border border-white/10 bg-[#0A1221] flex items-center justify-center text-primary overflow-hidden hover:border-primary/40 transition-colors cursor-pointer group">
+             <span className="material-symbols-outlined text-[24px] group-hover:scale-110 transition-transform">account_circle</span>
           </div>
         </div>
       </header>
 
       {/* Stats Quick Glance */}
-      <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <section className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <StatCard 
           label="Compute Load" 
           value={isLoading ? "..." : `${server?.cpu ?? 0}%`}
@@ -71,7 +75,7 @@ export default function DashboardPage() {
         />
       </section>
 
-      <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <section className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <TelemetryCard
           title="RAM Residency"
           value={isLoading ? "..." : `${server?.ram ?? 0}%`}
@@ -93,7 +97,7 @@ export default function DashboardPage() {
       </section>
 
       {/* Bento Sections Inspired by cPanel but elevated */}
-      <div className="space-y-12">
+      <div className="space-y-10">
         <BentoSection title="Correo Electrónico" icon="mail">
           <BentoItem href="/email/accounts" label="Cuentas de Correo" icon="alternate_email" desc="Gestionar MX, quotas y spam" />
           <BentoItem label="Reenviadores" icon="forward_to_inbox" />
@@ -134,9 +138,9 @@ export default function DashboardPage() {
         </BentoSection>
       </div>
 
-      <footer className="pt-12 pb-8 border-t border-white/5 flex justify-between items-center text-[10px] font-black text-zinc-600 uppercase tracking-[0.4em]">
-         <span>Odin Panel v2.4.0-Stable</span>
-         <span className="text-primary italic">Odisea Cloud Infrastructure</span>
+      <footer className="pt-8 pb-4 border-t border-white/5 flex justify-between items-center text-[8px] font-black text-zinc-600 uppercase tracking-[0.4em]">
+         <span>Node v2.4.0-Stable</span>
+         <span className="text-primary italic opacity-40">Odisea Cloud Infrastructure</span>
       </footer>
     </div>
   );
@@ -144,15 +148,15 @@ export default function DashboardPage() {
 
 function BentoSection({ title, icon, children, accent = "azure" }: { title: string; icon: string; children: React.ReactNode, accent?: "azure" | "cyan" }) {
   return (
-    <section className="space-y-6">
-      <div className="flex items-center gap-4 ml-2">
-         <div className={`w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center ${accent === "azure" ? "text-primary border border-primary/20" : "text-secondary border border-secondary/20"}`}>
-            <span className="material-symbols-outlined text-lg">{icon}</span>
+    <section className="space-y-5">
+      <div className="flex items-center gap-3 ml-1">
+         <div className={`w-7 h-7 rounded-lg bg-white/[0.03] flex items-center justify-center ${accent === "azure" ? "text-primary border border-primary/10" : "text-secondary border border-secondary/10"}`}>
+            <span className="material-symbols-outlined text-[16px]">{icon}</span>
          </div>
-         <h2 className="text-xl font-headline font-black text-white italic tracking-tighter uppercase">{title}</h2>
+         <h2 className="text-lg font-black text-white italic tracking-tighter uppercase font-headline">{title}</h2>
          <div className="h-px flex-1 bg-gradient-to-r from-white/10 to-transparent"></div>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {children}
       </div>
     </section>
@@ -162,16 +166,16 @@ function BentoSection({ title, icon, children, accent = "azure" }: { title: stri
 function BentoItem({ label, icon, desc, href = "#" }: { label: string; icon: string; desc?: string; href?: string }) {
   return (
     <Link href={href} className="group">
-      <div className="glass-card p-5 flex items-center gap-4 hover:border-primary/40 hover:bg-white/[0.04] transition-all duration-300 h-full relative overflow-hidden">
-        <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center text-zinc-400 group-hover:bg-primary/20 group-hover:text-primary transition-all duration-500 shadow-xl">
-           <span className="material-symbols-outlined text-[22px]">{icon}</span>
+      <div className="bg-[#0A1221]/40 backdrop-blur-xl border border-white/5 rounded-2xl p-4 flex items-center gap-4 hover:border-primary/20 hover:bg-primary/[0.02] transition-all duration-300 h-full relative overflow-hidden">
+        <div className="w-9 h-9 rounded-xl bg-white/[0.03] flex items-center justify-center text-zinc-500 group-hover:bg-primary/10 group-hover:text-primary transition-all duration-500">
+           <span className="material-symbols-outlined text-[20px]">{icon}</span>
         </div>
-        <div>
-           <h4 className="text-[11px] font-black text-white uppercase tracking-wider group-hover:text-primary transition-colors">{label}</h4>
-           {desc && <p className="text-[9px] text-zinc-500 font-bold uppercase tracking-tighter mt-0.5 opacity-60 group-hover:opacity-100 transition-opacity">{desc}</p>}
+        <div className="flex-1">
+           <h4 className="text-[10px] font-black text-zinc-300 uppercase tracking-wide group-hover:text-white transition-colors">{label}</h4>
+           {desc && <p className="text-[8px] text-zinc-600 font-bold uppercase tracking-tight mt-0.5 group-hover:text-zinc-400 transition-colors">{desc}</p>}
         </div>
         {/* Subtle dynamic glow */}
-        <div className="absolute -bottom-4 -right-4 w-12 h-12 bg-primary/5 blur-xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity"></div>
+        <div className="absolute -bottom-4 -right-4 w-10 h-10 bg-primary/5 blur-xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity"></div>
       </div>
     </Link>
   );
@@ -180,19 +184,19 @@ function BentoItem({ label, icon, desc, href = "#" }: { label: string; icon: str
 function StatCard({ label, value, detail, icon, variant }: { label: string; value: string; detail: string; icon: string; variant: 'azure' | 'cyan' }) {
   const colorClass = variant === 'azure' ? 'text-primary' : 'text-secondary';
   return (
-    <div className="glass-card p-6 group hover:translate-y-[-4px] hover:border-primary/30 transition-all duration-500 overflow-hidden relative">
+    <div className="bg-[#0A1221]/40 backdrop-blur-xl p-5 rounded-2xl border border-white/5 group hover:border-primary/20 transition-all duration-500 overflow-hidden relative">
       <div className="flex justify-between items-start mb-6 relative z-10">
-        <span className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.2em]">{label}</span>
-        <div className={`p-2 rounded-lg bg-white/5 ${colorClass}`}>
-           <span className="material-symbols-outlined text-[22px]">{icon}</span>
+        <span className="text-[9px] font-black text-zinc-600 uppercase tracking-[0.2em]">{label}</span>
+        <div className={`p-1.5 rounded-lg bg-white/[0.03] ${colorClass} group-hover:scale-110 transition-transform duration-500`}>
+           <span className="material-symbols-outlined text-[18px]">{icon}</span>
         </div>
       </div>
       <div className="relative z-10">
-        <div className="text-4xl font-headline font-black text-white tracking-tighter italic group-hover:neon-text transition-all duration-500">{value}</div>
-        <div className="text-[10px] text-zinc-600 mt-2 font-mono tracking-widest uppercase opacity-70">{detail}</div>
+        <div className="text-3xl font-black text-white tracking-tighter italic group-hover:text-primary transition-colors duration-500 font-headline">{value}</div>
+        <div className="text-[9px] text-zinc-600 mt-2 font-mono tracking-widest uppercase opacity-40">{detail}</div>
       </div>
       {/* Background Glow */}
-      <div className={`absolute -bottom-10 -right-10 w-32 h-32 blur-[60px] opacity-20 rounded-full transition-all duration-700 group-hover:scale-150 ${variant === 'azure' ? 'bg-primary' : 'bg-secondary'}`}></div>
+      <div className={`absolute -bottom-8 -right-8 w-24 h-24 blur-[40px] opacity-10 rounded-full transition-all duration-700 group-hover:opacity-20 ${variant === 'azure' ? 'bg-primary' : 'bg-secondary'}`}></div>
     </div>
   );
 }
@@ -209,15 +213,15 @@ function TelemetryCard({
   accent: "azure" | "cyan";
 }) {
   return (
-    <div className="glass-card p-6 relative overflow-hidden">
+    <div className="bg-[#0A1221]/40 backdrop-blur-xl p-5 rounded-2xl border border-white/5 relative overflow-hidden group hover:border-white/10 transition-colors">
       <div className="flex items-center justify-between gap-4">
         <div>
-          <div className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">{title}</div>
-          <div className="mt-4 text-3xl font-headline font-black tracking-tighter italic text-white">{value}</div>
-          <div className="mt-2 text-[10px] font-mono uppercase tracking-[0.18em] text-zinc-600">{detail}</div>
+          <div className="text-[9px] font-black uppercase tracking-[0.2em] text-zinc-600">{title}</div>
+          <div className="mt-3 text-2xl font-black tracking-tighter italic text-white font-headline group-hover:text-primary transition-colors">{value}</div>
+          <div className="mt-1.5 text-[8px] font-mono uppercase tracking-[0.15em] text-zinc-600 opacity-60">{detail}</div>
         </div>
-        <div className={`h-12 w-12 rounded-2xl border flex items-center justify-center ${accent === "azure" ? "border-primary/20 text-primary bg-primary/10" : "border-secondary/20 text-secondary bg-secondary/10"}`}>
-          <span className="material-symbols-outlined">{accent === "azure" ? "monitoring" : "storage"}</span>
+        <div className={`h-10 w-10 rounded-xl border flex items-center justify-center ${accent === "azure" ? "border-primary/10 text-primary bg-primary/5" : "border-secondary/10 text-secondary bg-secondary/5"}`}>
+          <span className="material-symbols-outlined text-[18px]">{accent === "azure" ? "monitoring" : "storage"}</span>
         </div>
       </div>
     </div>

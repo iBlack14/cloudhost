@@ -1,9 +1,38 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Sidebar } from "../../components/Sidebar";
 
+const ODIN_ACCESS_TOKEN_KEY = "odin-access-token";
+
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+  const router = useRouter();
+  const [authChecked, setAuthChecked] = useState(false);
+
+  useEffect(() => {
+    const token = window.sessionStorage.getItem(ODIN_ACCESS_TOKEN_KEY);
+    if (!token) {
+      router.replace("/auth/login");
+    } else {
+      setAuthChecked(true);
+    }
+  }, [router]);
+
+  // Show nothing while auth is being checked — no flash of protected content
+  if (!authChecked) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#050B14]">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-10 h-10 border-2 border-primary/20 border-t-primary rounded-full animate-spin" />
+          <p className="text-[10px] font-black text-zinc-600 uppercase tracking-[0.3em]">
+            Verificando sesión...
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex min-h-screen">
       <Sidebar />

@@ -174,9 +174,9 @@ export function StorageMeter({
   return (
     <div className="space-y-2 min-w-[190px]">
       <div className="text-sm font-medium text-zinc-200">
-        {usedMb.toFixed(2)} MB / {allocatedMb === null ? "∞" : `${allocatedMb} MB`}
+        {Number(usedMb).toFixed(2)} MB / {allocatedMb === null ? "∞" : `${allocatedMb} MB`}
         {allocatedMb !== null ? (
-          <span className="ml-2 text-zinc-500">{ratio.toFixed(2)}%</span>
+          <span className="ml-2 text-zinc-500">{Number(ratio).toFixed(2)}%</span>
         ) : null}
       </div>
       <div className="h-2 w-full overflow-hidden rounded-full bg-white/5">

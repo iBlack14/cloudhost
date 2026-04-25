@@ -1,0 +1,44 @@
+
+> @odisea/whm@0.1.0 build C:\Users\huanc\Downloads\cloudhost\apps\whm
+> next build
+
+  ▲ Next.js 14.2.15
+  - Environments: .env
+
+   Creating an optimized production build ...
+ ✓ Compiled successfully
+   Linting and checking validity of types ...
+   Collecting page data ...
+   Generating static pages (0/16) ...
+   Generating static pages (4/16) 
+   Generating static pages (8/16) 
+   Generating static pages (12/16) 
+ ✓ Generating static pages (16/16)
+   Finalizing page optimization ...
+   Collecting build traces ...
+
+Route (app)                              Size     First Load JS
+┌ ○ /                                    1.95 kB         102 kB
+├ ○ /_not-found                          872 B            88 kB
+├ ○ /auth/login                          2.36 kB         102 kB
+├ ○ /whm                                 2.46 kB         121 kB
+├ ○ /whm/accounts                        2.16 kB         121 kB
+├ ○ /whm/accounts/create                 2.96 kB         122 kB
+├ ○ /whm/config                          2.15 kB         114 kB
+├ ○ /whm/databases                       3.97 kB        99.5 kB
+├ ○ /whm/domains                         1.26 kB         104 kB
+├ ƒ /whm/domains/[id]                    4 kB           99.5 kB
+├ ○ /whm/migrations                      4.4 kB         99.9 kB
+├ ○ /whm/monitoring                      4.63 kB         100 kB
+├ ○ /whm/php                             3.87 kB        99.4 kB
+├ ○ /whm/plans                           1.75 kB         114 kB
+└ ○ /whm/ssl                             1.7 kB         97.2 kB
++ First Load JS shared by all            87.1 kB
+  ├ chunks/796-9b4454bd4180ffbb.js       31.6 kB
+  ├ chunks/b4553ad9-0280e30c57b01d1a.js  53.6 kB
+  └ other shared chunks (total)          1.9 kB
+
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+

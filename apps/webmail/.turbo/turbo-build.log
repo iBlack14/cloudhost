@@ -1,0 +1,47 @@
+
+> @odisea/webmail@0.1.0 build C:\Users\huanc\Downloads\cloudhost\apps\webmail
+> next build
+
+  ▲ Next.js 14.2.15
+
+   Creating an optimized production build ...
+ ✓ Compiled successfully
+   Linting and checking validity of types ...
+   Collecting page data ...
+   Generating static pages (0/16) ...
+   Generating static pages (4/16) 
+   Generating static pages (8/16) 
+   Generating static pages (12/16) 
+ ✓ Generating static pages (16/16)
+   Finalizing page optimization ...
+   Collecting build traces ...
+
+Route (app)                              Size     First Load JS
+┌ ƒ /                                    138 B          87.3 kB
+├ ○ /_not-found                          872 B            88 kB
+├ ƒ /api/auth/login                      0 B                0 B
+├ ƒ /api/auth/logout                     0 B                0 B
+├ ƒ /api/auth/sso                        0 B                0 B
+├ ƒ /api/folders                         0 B                0 B
+├ ƒ /api/me                              0 B                0 B
+├ ƒ /api/messages                        0 B                0 B
+├ ƒ /api/messages/[messageId]            0 B                0 B
+├ ƒ /api/messages/[messageId]/move       0 B                0 B
+├ ƒ /api/messages/[messageId]/read       0 B                0 B
+├ ƒ /api/messages/[messageId]/star       0 B                0 B
+├ ○ /auth/sso                            1.5 kB         95.5 kB
+├ ○ /compose                             2.36 kB        96.4 kB
+├ ○ /inbox                               3.07 kB        97.1 kB
+├ ○ /login                               2.04 kB        89.2 kB
+├ ○ /logout                              1.17 kB        88.3 kB
+├ ƒ /message/[messageId]                 2.14 kB        96.2 kB
+└ ○ /settings                            1.9 kB         95.9 kB
++ First Load JS shared by all            87.1 kB
+  ├ chunks/796-30e84ccec342dcdd.js       31.6 kB
+  ├ chunks/b4553ad9-1d4137220537ee47.js  53.6 kB
+  └ other shared chunks (total)          1.9 kB
+
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+

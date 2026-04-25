@@ -2,26 +2,37 @@
 
 import React from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { clearOdinSession } from "../lib/api";
 
 export function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
+
+  const handleLogout = () => {
+    clearOdinSession();
+    router.replace("/auth/login");
+  };
 
   return (
     <aside className="w-64 glass-sidebar fixed inset-y-0 left-0 z-50 p-6 flex flex-col">
       <div className="mb-10">
-        <Link href="/" className="flex items-center gap-2">
-          <div className="w-8 h-8 relative flex-shrink-0">
-             <div className="absolute inset-0 bg-primary/20 rounded-lg blur-md"></div>
-             <img src="/logo.png" alt="Odisea Cloud Logo" className="w-full h-full object-contain relative z-10" />
+        <Link href="/" className="flex items-center gap-4 group">
+          <div className="relative flex-shrink-0">
+             <div className="absolute inset-0 bg-primary/20 rounded-full blur-xl group-hover:bg-primary/40 transition-all duration-700 opacity-50"></div>
+             <img 
+               src="/logo.png" 
+               alt="Odisea Cloud Logo" 
+               className="w-10 h-10 object-contain relative z-10 drop-shadow-[0_0_8px_rgba(0,163,255,0.3)] group-hover:scale-110 transition-transform" 
+             />
           </div>
-          <h2 className="text-2xl font-black tracking-tighter text-white font-headline italic">
-            ODISEA <span className="text-primary tracking-normal">CLOUD</span>
-          </h2>
+          <div className="flex flex-col">
+            <h2 className="text-xl font-black tracking-tighter text-white font-headline italic leading-none">
+              ODISEA <span className="text-primary tracking-normal">CLOUD</span>
+            </h2>
+            <span className="text-[8px] text-zinc-600 uppercase tracking-[0.3em] mt-1 font-bold">Infrastucture</span>
+          </div>
         </Link>
-        <p className="text-[10px] text-primary/60 uppercase tracking-widest mt-2 ml-10 font-bold">
-          Cloud Infrastructure
-        </p>
       </div>
 
       <nav className="flex-1 space-y-2">
@@ -33,21 +44,21 @@ export function Sidebar() {
         <NavItem href="/databases" icon="database" label="Databases" active={pathname.startsWith("/databases")} />
         <NavItem href="/domains" icon="language" label="Domains" active={pathname.startsWith("/domains")} />
         <NavItem href="/php" icon="developer_board" label="Multi-PHP" active={pathname.startsWith("/php")} />
-        <NavItem href="/servers" icon="dns" label="Servers" />
         <NavItem href="/nodejs" icon="javascript" label="Node.js Engine" active={pathname.startsWith("/nodejs")} />
-        <NavItem href="/storage" icon="storage" label="Volumes" />
-        <NavItem href="/networks" icon="lan" label="Networks" />
-        <NavItem href="/security" icon="shield" label="Security" />
       </nav>
 
-      <div className="mt-auto pt-6 border-t border-white/5 space-y-4">
+      <div className="mt-auto pt-6 border-t border-white/5 space-y-2">
         <button className="kinetic-gradient w-full py-3 rounded-xl text-white font-black font-headline tracking-tight active:scale-95 transition-all shadow-lg shadow-primary/30 uppercase text-xs">
           Provision Cluster
         </button>
-        <div className="flex items-center gap-3 px-4 py-2 text-zinc-400 hover:text-primary transition-all cursor-pointer text-sm font-headline tracking-tight">
-          <span className="material-symbols-outlined text-sm">settings</span>
-          <span>Configurations</span>
-        </div>
+        <button
+          id="odin-logout-btn"
+          onClick={handleLogout}
+          className="flex items-center gap-3 w-full px-4 py-2.5 rounded-xl text-zinc-500 hover:text-red-400 hover:bg-red-500/5 transition-all cursor-pointer text-sm font-headline tracking-tight group"
+        >
+          <span className="material-symbols-outlined text-sm group-hover:text-red-400 transition-colors">logout</span>
+          <span>Cerrar Sesión</span>
+        </button>
       </div>
     </aside>
   );

@@ -17,36 +17,40 @@ export function WhmSidebar() {
   return (
     <aside className="w-72 glass-sidebar fixed inset-y-0 left-0 z-50 p-6 flex flex-col border-r border-[#00A3FF]/10">
       <div className="mb-10">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 relative flex-shrink-0 group">
-             <div className="absolute inset-0 bg-primary/20 rounded-full blur-xl group-hover:bg-primary/40 transition-all"></div>
-             <img src="/logo.png" alt="Odisea Cloud Logo" className="w-full h-full object-contain relative z-10" />
+        <Link href="/whm" className="flex items-center gap-4 group">
+          <div className="relative flex-shrink-0">
+             <div className="absolute inset-0 bg-primary/20 rounded-full blur-xl group-hover:bg-primary/40 transition-all duration-700 opacity-50"></div>
+             <img 
+               src="/logo.png" 
+               alt="Odisea Cloud Logo" 
+               className="w-10 h-10 object-contain relative z-10 drop-shadow-[0_0_8px_rgba(0,163,255,0.3)] group-hover:scale-110 transition-transform" 
+             />
           </div>
-          <div>
-            <h2 className="text-xl font-black tracking-tighter text-white font-headline">
-              ODISEA <span className="text-primary italic font-black">CLOUD</span>
+          <div className="flex flex-col">
+            <h2 className="text-xl font-black tracking-tighter text-white font-headline italic leading-none">
+              ODISEA <span className="text-primary tracking-normal">CLOUD</span>
             </h2>
-            <div className="flex items-center gap-2">
-              <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse shadow-[0_0_8px_#00A3FF]"></span>
-              <span className="text-[9px] text-zinc-500 uppercase font-black tracking-[0.2em]">Service: Active</span>
+            <div className="flex items-center gap-1.5 mt-1">
+              <span className="w-1 h-1 rounded-full bg-primary animate-pulse shadow-[0_0_5px_#00A3FF]"></span>
+              <span className="text-[8px] text-zinc-600 uppercase font-black tracking-[0.2em]">System Root</span>
             </div>
           </div>
-        </div>
+        </Link>
       </div>
 
       <nav className="flex-1 space-y-1">
-        <NavItem icon="dashboard" label="Console Overview" href="/whm" active={pathname === "/whm" || pathname === "/"} />
-        <NavItem icon="group" label="Account Manager" href="/whm/accounts" active={pathname.startsWith("/whm/accounts")} />
+        <NavItem icon="dashboard" label="Console Overview" href="/whm" active={pathname === "/whm"} />
+        <NavItem icon="group" label="Account Manager" href="/whm/accounts" active={pathname === "/whm/accounts"} />
         <NavItem icon="person_add" label="Create New Account" href="/whm/accounts/create" active={pathname === "/whm/accounts/create"} />
         <NavItem icon="settings_suggest" label="Packages & Tiers" href="/whm/plans" active={pathname === "/whm/plans"} />
         <NavItem icon="dns" label="Server Config" href="/whm/config" active={pathname === "/whm/config"} />
-        <NavItem icon="language" label="DNS Zone Manager" href="/whm/domains" active={pathname.startsWith("/whm/domains")} />
-        <NavItem icon="verified_user" label="SSL / TLS Security" href="/whm/ssl" active={pathname.startsWith("/whm/ssl")} />
-        <NavItem icon="developer_board" label="Multi-PHP Manager" href="/whm/php" active={pathname.startsWith("/whm/php")} />
-        <NavItem icon="database" label="MySQL Database Center" href="/whm/databases" active={pathname.startsWith("/whm/databases")} />
-        <NavItem icon="move_up" label="Migration Center" href="/whm/migrations" active={pathname.startsWith("/whm/migrations")} />
+        <NavItem icon="language" label="DNS Zone Manager" href="/whm/domains" active={pathname === "/whm/domains"} />
+        <NavItem icon="verified_user" label="SSL / TLS Security" href="/whm/ssl" active={pathname === "/whm/ssl"} />
+        <NavItem icon="developer_board" label="Multi-PHP Manager" href="/whm/php" active={pathname === "/whm/php"} />
+        <NavItem icon="database" label="MySQL Database Center" href="/whm/databases" active={pathname === "/whm/databases"} />
+        <NavItem icon="move_up" label="Migration Center" href="/whm/migrations" active={pathname === "/whm/migrations"} />
         <NavItem icon="security" label="Security Center" />
-        <NavItem icon="monitoring" label="Resource Monitor" href="/whm/monitoring" active={pathname.startsWith("/whm/monitoring")} />
+        <NavItem icon="monitoring" label="Resource Monitor" href="/whm/monitoring" active={pathname === "/whm/monitoring"} />
       </nav>
 
       <div className="mt-auto pt-6 border-t border-white/5 space-y-4 font-headline uppercase tracking-tighter">

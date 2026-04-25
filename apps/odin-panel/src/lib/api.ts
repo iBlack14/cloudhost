@@ -23,10 +23,43 @@ export {
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001/api/v1";
 const ODIN_ACCESS_TOKEN_KEY = "odin-access-token";
 
+export const clearOdinSession = (): void => {
+  if (typeof window !== "undefined") {
+    window.sessionStorage.removeItem(ODIN_ACCESS_TOKEN_KEY);
+  }
+};
+
+export const hasOdinSession = (): boolean => {
+  if (typeof window === "undefined") return false;
+  return Boolean(window.sessionStorage.getItem(ODIN_ACCESS_TOKEN_KEY));
+};
+
+export const loginOdin = async (username: string, password: string): Promise<void> => {
+  const res = await fetch(`${API_BASE}/auth/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ username, password }),
+  });
+  const payload = await res.json();
+  if (!res.ok || !payload.success) {
+    throw new Error(payload?.error?.message ?? "Credenciales incorrectas");
+  }
+  if (typeof window !== "undefined") {
+    window.sessionStorage.setItem(ODIN_ACCESS_TOKEN_KEY, payload.data.token);
+  }
+};
+
 const parsePayload = async <T>(response: Response): Promise<T> => {
   const payload = await response.json();
 
   if (!response.ok || !payload.success) {
+    // Redirect to login on auth failures
+    if ((response.status === 401 || response.status === 403) && typeof window !== "undefined") {
+      clearOdinSession();
+      if (!window.location.pathname.startsWith("/auth/")) {
+        window.location.href = "/auth/login";
+      }
+    }
     throw new Error(payload?.error?.message ?? "Error en la petición");
   }
 

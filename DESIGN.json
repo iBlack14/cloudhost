@@ -1,0 +1,57 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-04-25T03:08:00Z",
+  "title": "Design System: Odisea Cloud",
+  "extensions": {
+    "colorMeta": {
+      "primary": { "role": "primary", "displayName": "Odisea Azure", "canonical": "#00A3FF" },
+      "secondary": { "role": "secondary", "displayName": "Hyper Cyan", "canonical": "#00E5FF" },
+      "background": { "role": "background", "displayName": "Deep Space", "canonical": "#050B14" }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display Hero", "purpose": "Branding and section headings." },
+      "body": { "displayName": "Main Body", "purpose": "General UI text." }
+    },
+    "shadows": [
+      { "name": "neon-glow", "value": "0 0 15px rgba(0, 163, 255, 0.4)", "purpose": "Focus states and active accents." }
+    ],
+    "motion": [
+      { "name": "standard-ease", "value": "cubic-bezier(0.4, 0, 0.2, 1)", "purpose": "Smooth UI transitions." }
+    ]
+  },
+  "components": [
+    {
+      "name": "Kinetic Button",
+      "kind": "button",
+      "refersTo": "button-kinetic",
+      "description": "Primary action button with brand gradient.",
+      "html": "<button class=\"ds-btn-kinetic\">PROVISION CLUSTER</button>",
+      "css": ".ds-btn-kinetic { background: linear-gradient(135deg, #00A3FF 0%, #00E5FF 100%); color: #fff; padding: 12px 24px; border-radius: 12px; font-weight: 900; border: none; text-transform: uppercase; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; font-family: 'Inter', sans-serif; letter-spacing: -0.02em; } .ds-btn-kinetic:hover { transform: scale(1.02); box-shadow: 0 0 20px rgba(0, 163, 255, 0.3); }"
+    },
+    {
+      "name": "Glass Card",
+      "kind": "card",
+      "refersTo": "card-glass",
+      "description": "Transparent surface for content.",
+      "html": "<div class=\"ds-card-glass\"><h3>Server Stats</h3><p>Operational</p></div>",
+      "css": ".ds-card-glass { background: rgba(17, 27, 47, 0.4); backdrop-filter: blur(12px); border: 1px solid rgba(0, 163, 255, 0.1); border-radius: 16px; padding: 24px; color: #F8FAFC; font-family: 'Inter', sans-serif; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Celestial Voyager",
+    "overview": "Odisea Cloud es un sistema de diseño inmersivo y futurista diseñado para la gestión de infraestructura crítica.",
+    "keyCharacteristics": [
+      "Estética OLED",
+      "Energía Kinetic",
+      "Estructura Cristalina"
+    ],
+    "dos": [
+      "Do usar gradientes cinéticos solo en elementos interactivos principales.",
+      "Do mantener el fondo en #050B14 o más oscuro."
+    ],
+    "donts": [
+      "Don't usar bordes de colores sólidos y opacos.",
+      "Don't usar sombras paralelas oscuras."
+    ]
+  }
+}

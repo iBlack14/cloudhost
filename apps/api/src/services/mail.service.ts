@@ -59,16 +59,18 @@ const ensureMailSchema = async () => {
       address TEXT NOT NULL UNIQUE,
       username TEXT NOT NULL,
       password_hash TEXT NOT NULL,
-      quota_mb INTEGER,
-      used_mb INTEGER NOT NULL DEFAULT 0,
+      quota_mb NUMERIC,
+      used_mb NUMERIC NOT NULL DEFAULT 0,
       status TEXT NOT NULL DEFAULT 'active',
       alternate_email TEXT NOT NULL DEFAULT '',
       created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
       updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
     );
 
-    ALTER TABLE mail_accounts ADD COLUMN IF NOT EXISTS quota_mb INTEGER;
-    ALTER TABLE mail_accounts ADD COLUMN IF NOT EXISTS used_mb INTEGER NOT NULL DEFAULT 0;
+    ALTER TABLE mail_accounts ALTER COLUMN quota_mb TYPE NUMERIC;
+    ALTER TABLE mail_accounts ALTER COLUMN used_mb TYPE NUMERIC;
+    ALTER TABLE mail_accounts ADD COLUMN IF NOT EXISTS quota_mb NUMERIC;
+    ALTER TABLE mail_accounts ADD COLUMN IF NOT EXISTS used_mb NUMERIC NOT NULL DEFAULT 0;
     ALTER TABLE mail_accounts ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'active';
     ALTER TABLE mail_accounts ADD COLUMN IF NOT EXISTS alternate_email TEXT NOT NULL DEFAULT '';
     ALTER TABLE mail_accounts ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP;
@@ -163,8 +165,8 @@ const getPublicMailBaseUrl = (domain: string): string => {
     return env.WEBMAIL_URL;
   }
 
-  // In production with a real domain, we assume the webmail is at https://domain/mail
-  return `https://${domain}/mail`;
+  // In production with a real domain, we assume the webmail is at https://domain
+  return `https://${domain}`;
 };
 
 const seedMailboxMessages = (mailbox: MailAccountRow) => {

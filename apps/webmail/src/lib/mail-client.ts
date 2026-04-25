@@ -8,7 +8,7 @@ import type {
   MailMessageSummary
 } from "@odisea/types";
 
-export const MAIL_BASE_PATH = "/mail";
+export const MAIL_BASE_PATH = "";
 
 const parsePayload = async <T>(response: Response): Promise<T> => {
   const payload = await response.json();
