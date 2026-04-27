@@ -1,3 +1,5 @@
+import { execSync } from "node:child_process";
+import os from "node:os";
 import { env } from "../../config/env.js";
 import { db } from "../../config/db.js";
 import {
@@ -212,6 +214,7 @@ export const impersonateWhmAccount = async (
   };
 };
 
+
 export const deleteWhmAccount = async (accountId: string): Promise<void> => {
   const client = await db.connect();
 
@@ -244,6 +247,40 @@ export const deleteWhmAccount = async (accountId: string): Promise<void> => {
     throw error;
   } finally {
     client.release();
+  }
+};
+
+/**
+ * Calculates real disk usage for all active accounts and updates the DB.
+ */
+export const syncAllWhmAccountsDiskUsage = async (): Promise<void> => {
+  const accounts = await db.query<{ id: string; username: string }>(
+    `SELECT ha.id, u.username
+     FROM hosting_accounts ha
+     INNER JOIN users u ON u.id = ha.user_id
+     WHERE u.status = 'active'`
+  );
+
+  for (const acc of accounts.rows) {
+    try {
+      let sizeMb = 0;
+      if (os.platform() !== "win32") {
+        const homePath = `/home/${acc.username}`;
+        // -s (summary), -m (megabytes)
+        const output = execSync(`du -sm "${homePath}" 2>/dev/null`, { encoding: "utf-8" });
+        sizeMb = parseInt(output.split(/\s+/)[0], 10) || 0;
+      } else {
+        // Mock data for Windows dev environment
+        sizeMb = Math.floor(Math.random() * 100);
+      }
+
+      await db.query(
+        "UPDATE hosting_accounts SET disk_used_mb = $1, updated_at = NOW() WHERE id = $2",
+        [sizeMb, acc.id]
+      );
+    } catch (err) {
+      console.error(`[sync:disk:error] Failed for ${acc.username}:`, err);
+    }
   }
 };
 

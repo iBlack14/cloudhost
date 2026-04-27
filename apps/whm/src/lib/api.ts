@@ -203,3 +203,11 @@ export const deleteAccount = async (accountId: string): Promise<void> => {
   });
   await parsePayload(response);
 };
+
+export const syncDiskUsage = async (): Promise<void> => {
+  const response = await fetch(`${API_BASE}/whm/accounts/sync-disk`, {
+    method: "POST",
+    headers: withWhmAuth()
+  });
+  await parsePayload(response);
+};

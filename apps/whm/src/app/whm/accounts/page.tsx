@@ -7,7 +7,8 @@ import {
   useSuspendWhmAccount, 
   useResumeWhmAccount, 
   useImpersonateWhmAccount,
-  useDeleteWhmAccount
+  useDeleteWhmAccount,
+  useSyncWhmDiskUsage
 } from "../../../lib/hooks/use-whm-accounts";
 
 export default function WhmAccountsPage() {
@@ -17,6 +18,7 @@ export default function WhmAccountsPage() {
   const resumeMutation = useResumeWhmAccount();
   const impersonateMutation = useImpersonateWhmAccount();
   const deleteMutation = useDeleteWhmAccount();
+  const syncDiskMutation = useSyncWhmDiskUsage();
 
   const onDelete = async (accountId: string, username: string) => {
     if (confirm(`Are you sure you want to permanently DELETE the account "${username}"? This action cannot be undone.`)) {
@@ -62,11 +64,21 @@ export default function WhmAccountsPage() {
             Cluster Nodes: {accounts.length} | Status: Nominal
           </p>
         </div>
-        <Link href="/whm/accounts/create">
-          <button className="kinetic-gradient px-6 py-2.5 rounded-xl text-white font-black text-[10px] tracking-widest uppercase shadow-lg shadow-primary/20 hover:translate-y-[-1px] transition-all">
-            + Provision Node
+        <div className="flex gap-4">
+          <button 
+            onClick={() => syncDiskMutation.mutate()}
+            disabled={syncDiskMutation.isPending}
+            className="px-6 py-2.5 rounded-xl border border-white/10 text-white font-black text-[10px] tracking-widest uppercase hover:bg-white/5 transition-all flex items-center gap-2 disabled:opacity-50"
+          >
+            <span className={`material-symbols-outlined text-[16px] ${syncDiskMutation.isPending ? 'animate-spin' : ''}`}>sync</span>
+            {syncDiskMutation.isPending ? 'Syncing...' : 'Sync Disk'}
           </button>
-        </Link>
+          <Link href="/whm/accounts/create">
+            <button className="kinetic-gradient px-6 py-2.5 rounded-xl text-white font-black text-[10px] tracking-widest uppercase shadow-lg shadow-primary/20 hover:translate-y-[-1px] transition-all">
+              + Provision Node
+            </button>
+          </Link>
+        </div>
       </header>
 
       <div className="bg-[#0A1221]/40 backdrop-blur-xl border border-white/5 rounded-2xl overflow-hidden">

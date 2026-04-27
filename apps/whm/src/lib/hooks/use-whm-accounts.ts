@@ -10,7 +10,8 @@ import {
   impersonateAccount,
   resumeAccount,
   suspendAccount,
-  deleteAccount
+  deleteAccount,
+  syncDiskUsage
 } from "../api";
 
 import { whmCreateAccountSchema, type WhmCreateAccountInput } from "../schemas/whm-create-account";
@@ -90,3 +91,13 @@ export const useDeleteWhmAccount = () => {
   });
 };
 
+export const useSyncWhmDiskUsage = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: syncDiskUsage,
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["whm-accounts"] });
+    }
+  });
+};

@@ -9,7 +9,8 @@ import {
   listWhmPlans,
   resumeWhmAccount,
   suspendWhmAccount,
-  deleteWhmAccount
+  deleteWhmAccount,
+  syncAllWhmAccountsDiskUsage
 } from "../../services/whm/account.service.js";
 
 const accountIdParamSchema = z.object({
@@ -196,6 +197,19 @@ export const deleteWhmAccountHandler = async (req: Request, res: Response): Prom
     return res.status(500).json({
       success: false,
       error: { code: "INTERNAL_ERROR", message: "No se pudo eliminar la cuenta" }
+    });
+  }
+};
+
+export const syncWhmAccountsDiskUsageHandler = async (_req: Request, res: Response): Promise<Response> => {
+  try {
+    await syncAllWhmAccountsDiskUsage();
+    return res.status(200).json({ success: true, data: { message: "Sincronización de disco completada" } });
+  } catch (error) {
+    console.error("[whm:sync-disk:error]", error);
+    return res.status(500).json({
+      success: false,
+      error: { code: "INTERNAL_ERROR", message: "No se pudo sincronizar el uso de disco" }
     });
   }
 };
