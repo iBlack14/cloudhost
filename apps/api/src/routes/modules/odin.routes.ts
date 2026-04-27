@@ -50,6 +50,16 @@ import {
   updateAppEnvHandler,
   runNpmInstallHandler
 } from "../../controllers/odin/nodejs.controller.js";
+import { ensureNodejsTables } from "../../services/odin/nodejs.service.js";
+import {
+  listPythonAppsHandler,
+  createPythonAppHandler,
+  managePythonAppHandler,
+  deletePythonAppHandler,
+  getPythonAppLogsHandler,
+  updatePythonAppEnvHandler
+} from "../../controllers/odin/python.controller.js";
+import { ensurePythonTables } from "../../services/odin/python.service.js";
 import {
   createMailAccountHandler,
   getMailAccountHandler,
@@ -82,6 +92,8 @@ const getDiskUsagePercent = (): number => {
 odinRouter.get("/dashboard", async (req, res) => {
   try {
     const userId = req.auth?.userId;
+
+    await Promise.all([ensureNodejsTables(), ensurePythonTables()]);
     
     const [accountRes, servicesRes, databasesRes] = await Promise.all([
       db.query(`
@@ -94,7 +106,11 @@ odinRouter.get("/dashboard", async (req, res) => {
       db.query(`
         SELECT 
           (SELECT COUNT(*) FROM domains WHERE user_id = $1) as domains,
-          (SELECT COUNT(*) FROM wordpress_sites WHERE user_id = $1) as apps
+          (
+            (SELECT COUNT(*) FROM wordpress_sites WHERE user_id = $1) +
+            (SELECT COUNT(*) FROM nodejs_apps WHERE user_id = $1) +
+            (SELECT COUNT(*) FROM python_apps WHERE user_id = $1)
+          ) as apps
       `, [userId])
       ,
       db.query(
@@ -243,3 +259,11 @@ odinRouter.post("/nodejs/:id/:action(start|stop|restart)", manageAppHandler);
 odinRouter.get("/nodejs/:id/logs", getAppLogsHandler);
 odinRouter.put("/nodejs/:id/env", updateAppEnvHandler);
 odinRouter.post("/nodejs/:id/npm-install", runNpmInstallHandler);
+
+// ── Python Runtime Integrations ─────────────────────────────────────────────
+odinRouter.get("/python", listPythonAppsHandler);
+odinRouter.post("/python", createPythonAppHandler);
+odinRouter.delete("/python/:id", deletePythonAppHandler);
+odinRouter.post("/python/:id/:action(start|stop|restart)", managePythonAppHandler);
+odinRouter.get("/python/:id/logs", getPythonAppLogsHandler);
+odinRouter.put("/python/:id/env", updatePythonAppEnvHandler);

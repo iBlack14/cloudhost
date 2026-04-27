@@ -46,17 +46,21 @@ export default function NodejsAppsPage() {
   const manageMutation = useMutation({
     mutationFn: async ({ id, action }: { id: string; action: string }) => {
       const res = await fetch(`${API_BASE}/odin-panel/nodejs/${id}/${action}`, { method: "POST", headers: authHeaders() });
-      if (!res.ok) throw new Error("Action failed");
+      const data = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(data?.error?.message ?? "Action failed");
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["odin_nodejs_apps"] })
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["odin_nodejs_apps"] }),
+    onError: (e: Error) => alert(e.message)
   });
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
       const res = await fetch(`${API_BASE}/odin-panel/nodejs/${id}`, { method: "DELETE", headers: authHeaders() });
-      if (!res.ok) throw new Error("Delete failed");
+      const data = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(data?.error?.message ?? "Delete failed");
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["odin_nodejs_apps"] })
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["odin_nodejs_apps"] }),
+    onError: (e: Error) => alert(e.message)
   });
 
   if (isLoading) return <div className="p-10 text-white">Loading PM2 Cluster data...</div>;

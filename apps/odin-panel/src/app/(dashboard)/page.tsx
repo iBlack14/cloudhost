@@ -132,8 +132,8 @@ export default function DashboardPage() {
           <BentoItem href="/wordpress" label="WordPress Manager" icon="deployed_code" desc="Instalar y gestionar instancias" />
           <BentoItem label="Administrador MultiPHP" icon="settings_suggest" desc="v7.4 a v8.3 flexible" />
           <BentoItem label="Softaculous Apps" icon="add_box" desc="1-Click Installer" />
-          <BentoItem label="Setup Node.js App" icon="javascript" desc="Entornos JS aislados" />
-          <BentoItem label="Setup Python App" icon="rebase_edit" />
+          <BentoItem href="/nodejs" label="Setup Node.js App" icon="javascript" desc="Entornos JS aislados" />
+          <BentoItem href="/python" label="Setup Python App" icon="rebase_edit" desc="FastAPI, Flask y workers" />
           <BentoItem label="Setup Ruby App" icon="diamond" />
         </BentoSection>
       </div>
