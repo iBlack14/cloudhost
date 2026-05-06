@@ -8,7 +8,8 @@ import {
   useResumeWhmAccount, 
   useImpersonateWhmAccount,
   useDeleteWhmAccount,
-  useSyncWhmDiskUsage
+  useSyncWhmDiskUsage,
+  useResetWhmAccountPassword
 } from "../../../lib/hooks/use-whm-accounts";
 
 export default function WhmAccountsPage() {
@@ -19,6 +20,13 @@ export default function WhmAccountsPage() {
   const impersonateMutation = useImpersonateWhmAccount();
   const deleteMutation = useDeleteWhmAccount();
   const syncDiskMutation = useSyncWhmDiskUsage();
+  const resetPassMutation = useResetWhmAccountPassword();
+
+  const [resetModal, setResetModal] = useState<{ isOpen: boolean; accountId: string; username: string; newPass?: string }>({
+    isOpen: false,
+    accountId: "",
+    username: ""
+  });
 
   const onDelete = async (accountId: string, username: string) => {
     if (confirm(`¿Estás seguro de que deseas ELIMINAR permanentemente la cuenta "${username}"? Esta acción no se puede deshacer.`)) {
@@ -47,6 +55,15 @@ export default function WhmAccountsPage() {
     } catch (error) {
       console.error(error);
       alert("Error al iniciar la suplantación");
+    }
+  };
+
+  const handleResetPassword = async () => {
+    try {
+      const result = await resetPassMutation.mutateAsync({ accountId: resetModal.accountId });
+      setResetModal(prev => ({ ...prev, newPass: result.password }));
+    } catch (error) {
+      alert("Error al restablecer la contraseña");
     }
   };
 
@@ -180,6 +197,13 @@ export default function WhmAccountsPage() {
                         >
                          <span className="material-symbols-outlined text-[20px]">login</span>
                        </button>
+                       <button 
+                          onClick={() => setResetModal({ isOpen: true, accountId: account.account_id, username: account.username })}
+                          className="w-10 h-10 rounded-xl bg-slate-50 border border-slate-100 text-amber-500 hover:bg-amber-500 hover:text-white transition-all flex items-center justify-center shadow-sm"
+                          title="Restablecer Contraseña"
+                        >
+                         <span className="material-symbols-outlined text-[20px]">lock_reset</span>
+                       </button>
                        {account.status === 'active' ? (
                           <button 
                             onClick={() => suspendMutation.mutate(account.account_id)}
@@ -212,6 +236,52 @@ export default function WhmAccountsPage() {
           </table>
         </div>
       </div>
+
+      {/* Reset Password Modal */}
+      {resetModal.isOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
+           <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setResetModal({ ...resetModal, isOpen: false })}></div>
+           <div className="bg-white border border-slate-200 rounded-[2rem] p-10 max-w-md w-full relative z-10 shadow-2xl animate-in zoom-in-95 duration-300">
+              <h2 className="text-2xl font-black text-slate-900 uppercase tracking-tighter italic mb-4">
+                 Restablecer <span className="text-amber-500">Acceso</span>
+              </h2>
+              <p className="text-slate-500 text-[13px] font-medium mb-8">
+                 ¿Deseas generar una nueva contraseña para la instancia <strong>{resetModal.username}</strong>? Se enviará una notificación al correo del administrador.
+              </p>
+
+              {resetModal.newPass ? (
+                <div className="space-y-6">
+                   <div className="p-6 bg-amber-50 border border-amber-100 rounded-2xl">
+                      <div className="text-[10px] font-black text-amber-600 uppercase tracking-widest mb-2">Nueva Contraseña Generada</div>
+                      <div className="text-xl font-mono font-bold text-slate-900 break-all select-all">{resetModal.newPass}</div>
+                   </div>
+                   <button 
+                     onClick={() => setResetModal({ ...resetModal, isOpen: false, newPass: undefined })}
+                     className="w-full py-4 bg-slate-900 text-white rounded-xl font-bold uppercase text-[11px] tracking-widest"
+                   >
+                     Entendido
+                   </button>
+                </div>
+              ) : (
+                <div className="flex gap-4">
+                   <button 
+                     onClick={() => setResetModal({ ...resetModal, isOpen: false })}
+                     className="flex-1 py-4 bg-slate-50 text-slate-400 rounded-xl font-bold uppercase text-[11px] tracking-widest hover:bg-slate-100 transition-all"
+                   >
+                     Cancelar
+                   </button>
+                   <button 
+                     onClick={handleResetPassword}
+                     disabled={resetPassMutation.isPending}
+                     className="flex-1 py-4 bg-amber-500 text-white rounded-xl font-bold uppercase text-[11px] tracking-widest shadow-lg shadow-amber-500/20 hover:bg-amber-600 transition-all active:scale-95 disabled:opacity-50"
+                   >
+                     {resetPassMutation.isPending ? "Generando..." : "Confirmar"}
+                   </button>
+                </div>
+              )}
+           </div>
+        </div>
+      )}
     </div>
   );
 }
