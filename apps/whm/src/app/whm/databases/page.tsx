@@ -1,7 +1,7 @@
 "use client";
 
+import React, { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001/api/v1";
 const getWhmToken = () => typeof window !== "undefined" ? window.sessionStorage.getItem("whm-access-token") : null;
@@ -19,7 +19,7 @@ export default function WhmDatabasesPage() {
     queryKey: ["whm_databases"],
     queryFn: async () => {
       const res = await fetch(`${API_BASE}/whm/databases`, { headers: whmHeaders() });
-      if (!res.ok) throw new Error("Load failed");
+      if (!res.ok) throw new Error("Fallo al cargar");
       return (await res.json()).data;
     }
   });
@@ -44,11 +44,11 @@ export default function WhmDatabasesPage() {
          headers: whmHeaders(),
          body: JSON.stringify({ newPassword: pass }) 
       });
-      if (!res.ok) throw new Error("Reset Failed");
+      if (!res.ok) throw new Error("Fallo al resetear");
       return res.json();
     },
     onSuccess: () => {
-      alert("Contraseña regenerada corectamente.");
+      alert("Contraseña regenerada correctamente.");
       setEditingUser(null);
       setNewPass("");
     }
@@ -62,94 +62,120 @@ export default function WhmDatabasesPage() {
     onSuccess: (data) => window.open(data.url, "_blank")
   });
 
-  if (isLoading) return <div className="text-white">Cargando base de datos...</div>;
+  if (isLoading) return (
+    <div className="flex flex-col items-center justify-center p-20 gap-4">
+      <div className="w-10 h-10 border-4 border-[#00A3FF]/20 border-t-[#00A3FF] rounded-full animate-spin"></div>
+      <span className="text-[11px] font-bold uppercase tracking-widest text-slate-500">Cargando Bases de Datos...</span>
+    </div>
+  );
 
   const totalSizeMb = dbs?.reduce((acc: number, db: any) => acc + (db.size_mb || 0), 0) || 0;
 
   return (
-    <div className="space-y-8 max-w-7xl mx-auto">
-      <header className="space-y-4">
-        <h1 className="text-5xl font-headline font-black text-white tracking-tighter uppercase italic flex items-center gap-4">
-          MySQL <span className="text-primary text-xl">Database Core</span>
-        </h1>
+    <div className="space-y-12 animate-in fade-in duration-700 max-w-7xl mx-auto">
+      <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 border-b border-slate-200 pb-10">
+        <div className="space-y-1.5">
+          <div className="flex items-center gap-3 mb-1">
+             <span className="px-2.5 py-1 bg-[#00A3FF]/10 text-[#00A3FF] text-[10px] font-bold uppercase rounded-full tracking-wider">
+                Infraestructura de Datos
+             </span>
+          </div>
+          <h1 className="text-5xl font-black text-slate-900 uppercase">
+            Gestor de <span className="text-[#00A3FF]">Bases de Datos</span>
+          </h1>
+          <p className="text-slate-500 text-sm font-medium mt-2">
+            Administración centralizada de motores MySQL/MariaDB.
+          </p>
+        </div>
         <div className="flex gap-4">
-           <span className="px-3 py-1 bg-white/5 border border-white/10 rounded font-mono text-xs text-zinc-400">
-             Total Databases: <strong className="text-white">{dbs?.length || 0}</strong>
-           </span>
-           <span className="px-3 py-1 bg-white/5 border border-white/10 rounded font-mono text-xs text-zinc-400">
-             Total MySQL Size: <strong className="text-white">{totalSizeMb.toFixed(2)} MB</strong>
-           </span>
+           <div className="px-4 py-2 bg-white border border-slate-200 rounded-xl flex flex-col shadow-sm">
+             <span className="text-[9px] font-bold text-slate-400 uppercase">Total Esquemas</span>
+             <span className="text-lg font-black text-slate-900">{dbs?.length || 0}</span>
+           </div>
+           <div className="px-4 py-2 bg-white border border-slate-200 rounded-xl flex flex-col shadow-sm">
+             <span className="text-[9px] font-bold text-slate-400 uppercase">Espacio Ocupado</span>
+             <span className="text-lg font-black text-[#00A3FF]">{totalSizeMb.toFixed(1)} MB</span>
+           </div>
         </div>
       </header>
 
-      <div className="glass-card rounded-3xl overflow-hidden border border-white/10 p-2 relative bg-zinc-900/50">
-          <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-primary/5 rounded-full blur-[100px] pointer-events-none -z-10"></div>
-          
-          <table className="w-full text-left relative z-10">
+      <div className="bg-white border border-slate-200 rounded-[2.5rem] overflow-hidden shadow-sm">
+          <table className="w-full text-left">
              <thead>
-                <tr className="bg-black/40 text-[10px] uppercase tracking-widest text-zinc-500 font-black border-b border-white/10">
-                   <th className="p-5">Database Name (Schema)</th>
-                   <th className="p-5">Owner Account</th>
-                   <th className="p-5 w-24 text-center">Type</th>
-                   <th className="p-5 w-24">Size</th>
-                   <th className="p-5 text-right pr-6">Manage Utilities</th>
+                <tr className="bg-slate-50/50 border-b border-slate-100 uppercase text-[10px] font-bold tracking-widest text-slate-500">
+                   <th className="px-8 py-5">Nombre / Esquema</th>
+                   <th className="px-8 py-5">Propietario</th>
+                   <th className="px-8 py-5 w-24 text-center">Tipo</th>
+                   <th className="px-8 py-5 w-24">Tamaño</th>
+                   <th className="px-8 py-5 text-right">Herramientas</th>
                 </tr>
              </thead>
-             <tbody>
+             <tbody className="divide-y divide-slate-100">
                 {dbs?.map((db: any) => (
-                   <tr key={db.db_name} className="border-b border-white/5 hover:bg-white/[0.01] transition-colors group">
-                      <td className="p-5">
-                         <div className="text-lg font-black text-white">{db.db_name}</div>
-                         <div className="flex gap-2 items-center mt-1">
-                           <span className="text-xs text-zinc-500 font-mono">User: {db.db_user}</span>
+                   <tr key={db.db_name} className="hover:bg-slate-50/30 transition-all group duration-300">
+                      <td className="px-8 py-5">
+                         <div className="text-[17px] font-black text-slate-900 group-hover:text-[#00A3FF] transition-colors">{db.db_name}</div>
+                         <div className="flex gap-3 items-center mt-1.5">
+                           <span className="text-[11px] text-slate-500 font-bold uppercase tracking-tight">Usuario: {db.db_user}</span>
                            <button 
                              onClick={() => setEditingUser(db.db_user)}
-                             title="Cambiar Password de Usuario"
-                             className="text-[10px] bg-white/5 text-primary uppercase font-bold tracking-widest px-2 rounded hover:bg-white/10"
+                             className="text-[9px] bg-slate-100 text-[#00A3FF] uppercase font-bold tracking-widest px-2 py-0.5 rounded-md hover:bg-[#00A3FF] hover:text-white transition-all shadow-sm"
                            >
                               Reset Pass
                            </button>
                          </div>
                          {editingUser === db.db_user && (
-                            <div className="mt-3 flex gap-2 w-72">
-                               <input type="text" placeholder="Nueva Contraseña" value={newPass} onChange={e => setNewPass(e.target.value)} className="w-full bg-black border border-white/20 text-white px-2 py-1 text-xs rounded" />
-                               <button onClick={() => resetPassMutation.mutate({ user: db.db_user, pass: newPass })} className="bg-primary text-black font-bold text-[10px] uppercase px-3 rounded">Guardar</button>
-                               <button onClick={() => setEditingUser(null)} className="text-zinc-500 hover:text-white px-2 material-symbols-outlined text-sm">close</button>
+                            <div className="mt-4 flex gap-2 w-full max-w-xs animate-in slide-in-from-top-2">
+                               <input type="text" placeholder="Nueva Clave" value={newPass} onChange={e => setNewPass(e.target.value)} className="flex-1 bg-slate-50 border border-slate-200 text-slate-900 px-3 py-2 text-xs rounded-xl outline-none focus:border-[#00A3FF] transition-all" />
+                               <button onClick={() => resetPassMutation.mutate({ user: db.db_user, pass: newPass })} className="bg-[#00A3FF] text-white font-bold text-[10px] uppercase px-4 rounded-xl shadow-sm hover:bg-[#008EE0]">Guardar</button>
+                               <button onClick={() => setEditingUser(null)} className="text-slate-400 hover:text-slate-600 px-1 material-symbols-outlined text-[20px]">close</button>
                             </div>
                          )}
                       </td>
-                      <td className="p-5 font-mono text-xs text-zinc-400 capitalize">{db.owner_username}</td>
-                      <td className="p-5 text-center">
-                         <span className={`px-2 py-1 rounded text-[9px] font-black uppercase tracking-widest ${db.type === 'wordpress' ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30' : 'bg-purple-500/20 text-purple-400 border border-purple-500/30'}`}>
+                      <td className="px-8 py-5">
+                        <div className="flex items-center gap-2">
+                           <div className="w-5 h-5 rounded-full bg-slate-100 flex items-center justify-center text-[9px] font-bold text-slate-400 uppercase">{db.owner_username?.charAt(0)}</div>
+                           <span className="text-slate-600 font-bold text-xs uppercase tracking-tight">{db.owner_username}</span>
+                        </div>
+                      </td>
+                      <td className="px-8 py-5 text-center">
+                         <span className={`px-2.5 py-1 rounded-md text-[9px] font-bold uppercase tracking-widest border ${db.type === 'wordpress' ? 'border-blue-200 text-blue-600 bg-blue-50' : 'border-purple-200 text-purple-600 bg-purple-50'}`}>
                            {db.type}
                          </span>
                       </td>
-                      <td className="p-5 text-zinc-300 font-mono text-sm">{db.size_mb} MB</td>
-                      <td className="p-5 text-right pr-6 space-x-2">
+                      <td className="px-8 py-5 text-slate-500 font-bold text-sm">{db.size_mb} MB</td>
+                      <td className="px-8 py-5 text-right space-x-2">
                          <button
                            onClick={() => generateSsoMutation.mutate(db.db_name)}
-                           title="phpMyAdmin Access"
-                           className="bg-primary/10 text-primary hover:bg-primary hover:text-black border border-primary/20 px-3 py-1 rounded font-black text-[10px] uppercase tracking-widest transition-all shadow-[0_0_10px_rgba(0,163,255,0)] hover:shadow-[0_0_10px_rgba(0,163,255,0.4)]"
+                           className="inline-flex items-center gap-2 bg-[#00A3FF]/10 text-[#00A3FF] hover:bg-[#00A3FF] hover:text-white border border-[#00A3FF]/10 px-4 py-2.5 rounded-xl font-bold text-[10px] uppercase tracking-widest transition-all shadow-sm active:scale-95"
                          >
-                            Login PMA
+                            <span className="material-symbols-outlined text-[16px]">login</span>
+                            Entrar PMA
                          </button>
-                         <button
-                           onClick={() => { if(confirm("¿Recalcular optimizaciones lógicas? Esto toma tiempo si es grande.")) optimizeMutation.mutate(db.db_name) }}
-                           title="Optimize Table Space"
-                           className="bg-white/5 text-zinc-400 hover:text-white hover:bg-white/10 px-3 py-1 rounded font-black text-[10px] uppercase tracking-widest transition-all"
-                         >
-                            Optimize
-                         </button>
-                         <button
-                           onClick={() => { if(confirm("¿Forzar REPAIR TABLES globalmente en los esquemas?")) repairMutation.mutate(db.db_name) }}
-                           title="Repair Corrupted Sub-Tables"
-                           className="bg-white/5 text-zinc-400 hover:text-white hover:bg-white/10 px-3 py-1 rounded font-black text-[10px] uppercase tracking-widest transition-all"
-                         >
-                            Repair
-                         </button>
+                         <div className="inline-flex gap-1">
+                            <button
+                              onClick={() => { if(confirm("¿Recalcular optimizaciones?")) optimizeMutation.mutate(db.db_name) }}
+                              title="Optimizar Tabla"
+                              className="w-10 h-10 bg-slate-50 text-slate-400 hover:text-[#00A3FF] hover:bg-[#00A3FF]/5 border border-slate-100 rounded-xl transition-all flex items-center justify-center shadow-sm"
+                            >
+                               <span className="material-symbols-outlined text-[18px]">auto_fix_high</span>
+                            </button>
+                            <button
+                              onClick={() => { if(confirm("¿Reparar esquemas?")) repairMutation.mutate(db.db_name) }}
+                              title="Reparar Tabla"
+                              className="w-10 h-10 bg-slate-50 text-slate-400 hover:text-red-500 hover:bg-red-50 border border-slate-100 rounded-xl transition-all flex items-center justify-center shadow-sm"
+                            >
+                               <span className="material-symbols-outlined text-[18px]">build</span>
+                            </button>
+                         </div>
                       </td>
                    </tr>
                 ))}
+                {(!dbs || dbs.length === 0) && !isLoading && (
+                  <tr>
+                    <td colSpan={5} className="p-20 text-center text-slate-400 italic font-medium">No se encontraron bases de datos activas.</td>
+                  </tr>
+                )}
              </tbody>
           </table>
       </div>

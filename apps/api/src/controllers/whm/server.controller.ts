@@ -55,7 +55,14 @@ export const getServerStatsHandler = async (_req: Request, res: Response): Promi
         ramDetails: { total: ramTotal, free: ramFree },
         disk: diskPercent,
         loadAvgs,
-        uptime: os.uptime()
+        uptime: os.uptime(),
+        system: {
+          os: `${os.type()} ${os.release()}`,
+          platform: os.platform(),
+          cpuModel: os.cpus()[0]?.model || "Generic Processor",
+          totalRamGB: Math.round(ramTotal / (1024 * 1024 * 1024)),
+          cores: cores
+        }
       }
     });
   } catch (error) {

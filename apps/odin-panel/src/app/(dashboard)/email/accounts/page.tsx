@@ -63,34 +63,27 @@ export default function EmailAccountsPage() {
     }
   };
 
-  const description =
-    "Gestiona buzones, restricciones y cuotas desde una vista compacta inspirada en cPanel. El acceso al buzón ya se resuelve en el webmail independiente de Odisea.";
-
   return (
-    <div className="space-y-8">
-      <EmailBreadcrumbs
-        items={[
-          { label: "Dashboard", href: "/" },
-          { label: "Email", href: "/email/accounts" },
-          { label: "Accounts" }
-        ]}
-      />
-
-      <div className="flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
-        <EmailPageIntro
-          title="Cuentas de Correo Electrónico"
-          description={description}
-          helper={
-            <>
-              Esta feature te permite crear y gestionar email accounts.{" "}
-              <span className="text-primary">Documentation</span> quedará conectada después.
-            </>
-          }
-        />
+    <div className="space-y-12 animate-in fade-in duration-700">
+      <div className="flex flex-col gap-8 md:flex-row md:items-end md:justify-between border-b border-slate-200 pb-10">
+        <div className="space-y-4">
+          <EmailBreadcrumbs
+            items={[
+              { label: "Dashboard", href: "/" },
+              { label: "Correo", href: "/email/accounts" },
+              { label: "Cuentas" }
+            ]}
+          />
+          <EmailPageIntro
+            title="Cuentas de Correo"
+            description="Gestiona tus buzones corporativos, cuotas de almacenamiento y acceso seguro por Webmail."
+          />
+        </div>
 
         <Link href="/email/accounts/create">
-          <button className="kinetic-gradient rounded-2xl px-6 py-3 text-sm font-black uppercase tracking-[0.16em] text-white shadow-lg shadow-primary/25 transition-transform active:scale-95">
-            + Crear cuenta
+          <button className="bg-[#00A3FF] rounded-2xl px-10 py-5 text-[11px] font-black uppercase tracking-widest text-white shadow-xl shadow-[#00A3FF]/25 hover:bg-[#008EE0] transition-all active:scale-95 flex items-center gap-2">
+            <span className="material-symbols-outlined">add</span>
+            Crear Nueva Cuenta
           </button>
         </Link>
       </div>
@@ -103,42 +96,43 @@ export default function EmailAccountsPage() {
         total={filtered.length}
       />
 
-      {feedback ? (
-        <div className="rounded-2xl border border-primary/20 bg-primary/10 px-5 py-4 text-sm text-primary">
+      {feedback && (
+        <div className="rounded-[2rem] border border-[#00A3FF]/20 bg-[#00A3FF]/5 px-8 py-5 text-sm text-[#00A3FF] font-bold flex items-center gap-3">
+          <span className="material-symbols-outlined">info</span>
           {feedback}
         </div>
-      ) : null}
+      )}
 
-      <div className="glass-card overflow-hidden">
-        <div className="flex flex-col gap-4 border-b border-white/5 px-5 py-4 md:flex-row md:items-center md:justify-between">
-          <div className="flex items-center gap-3 text-[11px] font-black uppercase tracking-[0.18em] text-zinc-500">
-            <span>Cuenta @ dominio</span>
-            <span className="hidden md:inline text-zinc-700">|</span>
-            <span>Restrictions</span>
-            <span className="hidden md:inline text-zinc-700">|</span>
-            <span>Storage</span>
+      <div className="bg-white border border-slate-200 rounded-[2.5rem] overflow-hidden shadow-sm">
+        <div className="flex flex-col gap-4 border-b border-slate-100 px-8 py-6 bg-slate-50/50 md:flex-row md:items-center md:justify-between">
+          <div className="flex items-center gap-4 text-[10px] font-black uppercase tracking-widest text-slate-400">
+            <span>Identificador de Cuenta</span>
+            <span className="text-slate-200">|</span>
+            <span>Seguridad</span>
+            <span className="text-slate-200">|</span>
+            <span>Uso de Cuota</span>
           </div>
-          <div className="flex items-center gap-3 text-xs text-zinc-500">
+          <div className="flex items-center gap-4 text-xs font-bold text-slate-500">
             <button
               type="button"
               onClick={() => setPage((current) => Math.max(1, current - 1))}
-              className="rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 disabled:opacity-40"
+              className="w-10 h-10 flex items-center justify-center rounded-xl border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-30 transition-all"
               disabled={safePage === 1}
             >
-              {"<"}
+              <span className="material-symbols-outlined">chevron_left</span>
             </button>
-            <div>
-              Página {safePage} de {pageCount}
+            <div className="uppercase tracking-widest text-[10px] font-black">
+              {safePage} / {pageCount}
             </div>
             <button
               type="button"
               onClick={() => setPage((current) => Math.min(pageCount, current + 1))}
-              className="rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 disabled:opacity-40"
+              className="w-10 h-10 flex items-center justify-center rounded-xl border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-30 transition-all"
               disabled={safePage === pageCount}
             >
-              {">"}
+              <span className="material-symbols-outlined">chevron_right</span>
             </button>
-            <div className="rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2">
+            <div className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-[10px] font-black uppercase tracking-widest">
               {filtered.length === 0 ? "0" : `${start + 1}-${Math.min(start + PAGE_SIZE, filtered.length)}`} de {filtered.length}
             </div>
           </div>
@@ -147,15 +141,15 @@ export default function EmailAccountsPage() {
         <div className="hidden xl:block overflow-x-auto">
           <table className="w-full min-w-[1080px] text-left">
             <thead>
-              <tr className="border-b border-white/5 text-[10px] font-black uppercase tracking-[0.18em] text-zinc-500">
-                <th className="px-6 py-4">Cuenta</th>
-                <th className="px-6 py-4">Restrictions</th>
-                <th className="px-6 py-4">Storage: usado / allocated / %</th>
-                <th className="px-6 py-4">Sync</th>
-                <th className="px-6 py-4 text-right">Acciones</th>
+              <tr className="border-b border-slate-100 text-[10px] font-black uppercase tracking-widest text-slate-400 bg-slate-50/30">
+                <th className="px-8 py-5">Dirección de Correo</th>
+                <th className="px-8 py-5">Estado / Restricciones</th>
+                <th className="px-8 py-5">Uso de Almacenamiento</th>
+                <th className="px-8 py-5">Última Actividad</th>
+                <th className="px-8 py-5 text-right">Acciones de Cuenta</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-white/5">
+            <tbody className="divide-y divide-slate-100">
               {renderRows({
                 isLoading,
                 accounts: paginated,
@@ -165,35 +159,33 @@ export default function EmailAccountsPage() {
           </table>
         </div>
 
-        <div className="space-y-4 p-4 xl:hidden">
+        <div className="space-y-6 p-8 xl:hidden">
           {isLoading ? (
-            <div className="rounded-2xl border border-white/5 bg-white/[0.03] p-8 text-center text-zinc-500 animate-pulse">
-              Sincronizando buzones mock...
+            <div className="p-20 text-center flex flex-col items-center gap-4">
+               <div className="w-10 h-10 border-4 border-slate-100 border-t-[#00A3FF] rounded-full animate-spin"></div>
+               <span className="text-[11px] font-black text-slate-400 uppercase">Sincronizando buzones...</span>
             </div>
           ) : paginated.length === 0 ? (
-            <div className="rounded-2xl border border-white/5 bg-white/[0.03] p-8 text-center text-zinc-500">
-              No hay cuentas que coincidan con tu búsqueda.
-            </div>
+            <div className="p-12 text-center text-slate-400 font-bold">No hay cuentas que coincidan.</div>
           ) : (
             paginated.map((account) => (
-              <div key={account.id} className="rounded-2xl border border-white/8 bg-white/[0.03] p-4 space-y-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <div className="font-headline text-xl font-black tracking-tight text-white">
+              <div key={account.id} className="rounded-3xl border border-slate-100 bg-slate-50/50 p-6 space-y-6 group hover:border-[#00A3FF]/20 transition-all">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="space-y-1">
+                    <div className="text-xl font-black tracking-tighter text-slate-900 group-hover:text-[#00A3FF] transition-colors">
                       {account.address}
                     </div>
-                    <div className="text-xs uppercase tracking-[0.16em] text-zinc-500">
-                      {account.devicesConnected} devices connected
+                    <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                      {account.devicesConnected} Dispositivos Conectados
                     </div>
                   </div>
                   <EmailStatusBadge status={account.status} />
                 </div>
                 <StorageMeter usedMb={account.usedMb} allocatedMb={account.allocatedMb} />
-                <div className="text-xs text-zinc-500">Último sync: {account.lastSync}</div>
                 <div className="flex flex-wrap gap-2">
-                  <EmailActionLink icon="open_in_new" label="Check Email" href={`/email/accounts/${account.id}/webmail`} />
-                  <EmailActionButton icon="tune" label="Administrar" onClick={() => runAction(account.id, "manage")} />
-                  <EmailActionButton icon="devices" label="Connect Devices" onClick={() => runAction(account.id, "connect-devices")} />
+                  <EmailActionLink icon="open_in_new" label="Webmail" href={`/email/accounts/${account.id}/webmail`} />
+                  <EmailActionButton icon="tune" label="Gestionar" onClick={() => runAction(account.id, "manage")} />
+                  <EmailActionButton icon="devices" label="Dispositivos" onClick={() => runAction(account.id, "connect-devices")} />
                 </div>
               </div>
             ))
@@ -216,8 +208,11 @@ function renderRows({
   if (isLoading) {
     return (
       <tr>
-        <td colSpan={5} className="px-6 py-20 text-center text-zinc-500 animate-pulse">
-          Sincronizando buzones mock...
+        <td colSpan={5} className="px-8 py-24 text-center">
+           <div className="flex flex-col items-center gap-4">
+              <div className="w-10 h-10 border-4 border-slate-100 border-t-[#00A3FF] rounded-full animate-spin"></div>
+              <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Consultando Servidor de Correo...</span>
+           </div>
         </td>
       </tr>
     );
@@ -226,35 +221,41 @@ function renderRows({
   if (accounts.length === 0) {
     return (
       <tr>
-        <td colSpan={5} className="px-6 py-20 text-center text-zinc-500">
-          No hay cuentas que coincidan con tu búsqueda.
+        <td colSpan={5} className="px-8 py-20 text-center">
+           <div className="flex flex-col items-center gap-3 opacity-30">
+              <span className="material-symbols-outlined text-5xl">mail_off</span>
+              <span className="text-sm font-bold text-slate-500 uppercase tracking-widest">Sin resultados encontrados</span>
+           </div>
         </td>
       </tr>
     );
   }
 
   return accounts.map((account) => (
-    <tr key={account.id} className="hover:bg-white/[0.025] transition-colors">
-      <td className="px-6 py-5">
-        <div className="font-headline text-lg font-black tracking-tight text-white">
+    <tr key={account.id} className="hover:bg-slate-50/80 transition-colors group">
+      <td className="px-8 py-6">
+        <div className="text-lg font-black tracking-tight text-slate-900 group-hover:text-[#00A3FF] transition-colors">
           {account.address}
         </div>
-        <div className="mt-1 text-[11px] font-mono uppercase tracking-[0.14em] text-zinc-500">
-          {account.username} • {account.devicesConnected} devices
+        <div className="mt-1 text-[10px] font-bold uppercase tracking-widest text-slate-400 flex items-center gap-2">
+          {account.username} <span className="text-slate-200">•</span> {account.devicesConnected} disp.
         </div>
       </td>
-      <td className="px-6 py-5">
+      <td className="px-8 py-6">
         <EmailStatusBadge status={account.status} />
       </td>
-      <td className="px-6 py-5">
+      <td className="px-8 py-6">
         <StorageMeter usedMb={account.usedMb} allocatedMb={account.allocatedMb} />
       </td>
-      <td className="px-6 py-5 text-sm text-zinc-400">{account.lastSync}</td>
-      <td className="px-6 py-5">
+      <td className="px-8 py-6">
+         <div className="text-xs font-bold text-slate-500">{account.lastSync}</div>
+         <div className="text-[9px] font-black text-slate-300 uppercase tracking-tighter">Sincronizado vía IMAP</div>
+      </td>
+      <td className="px-8 py-6">
         <div className="flex flex-wrap justify-end gap-2">
-          <EmailActionLink icon="open_in_new" label="Check Email" href={`/email/accounts/${account.id}/webmail`} />
-          <EmailActionButton icon="tune" label="Administrar" onClick={() => onAction(account.id, "manage")} />
-          <EmailActionButton icon="devices" label="Connect Devices" onClick={() => onAction(account.id, "connect-devices")} />
+          <EmailActionLink icon="open_in_new" label="Webmail" href={`/email/accounts/${account.id}/webmail`} />
+          <EmailActionButton icon="tune" label="Gestionar" onClick={() => onAction(account.id, "manage")} />
+          <EmailActionButton icon="devices" label="Dispositivos" onClick={() => onAction(account.id, "connect-devices")} />
         </div>
       </td>
     </tr>

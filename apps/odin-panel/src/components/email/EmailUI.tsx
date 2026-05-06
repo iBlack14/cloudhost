@@ -11,23 +11,23 @@ const statusMeta: Record<
 > = {
   active: {
     label: "No restringido",
-    className: "border-primary/25 bg-primary/10 text-primary",
-    dot: "bg-primary"
+    className: "border-emerald-200 bg-emerald-50 text-emerald-600",
+    dot: "bg-emerald-500"
   },
   restricted: {
-    label: "Restricted",
-    className: "border-amber-400/25 bg-amber-400/10 text-amber-300",
-    dot: "bg-amber-300"
+    label: "Restringido",
+    className: "border-amber-200 bg-amber-50 text-amber-600",
+    dot: "bg-amber-500"
   },
   system: {
     label: "Cuenta de sistema",
-    className: "border-sky-300/25 bg-sky-300/10 text-sky-200",
-    dot: "bg-sky-200"
+    className: "border-slate-200 bg-slate-50 text-slate-600",
+    dot: "bg-slate-500"
   },
   "quota-exceeded": {
-    label: "Exceeded Storage",
-    className: "border-rose-400/25 bg-rose-400/10 text-rose-300",
-    dot: "bg-rose-300"
+    label: "Cuota Excedida",
+    className: "border-red-200 bg-red-50 text-red-600",
+    dot: "bg-red-500"
   }
 };
 
@@ -37,16 +37,16 @@ export function EmailBreadcrumbs({
   items: { label: string; href?: string }[];
 }) {
   return (
-    <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.18em] text-zinc-500">
+    <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
       {items.map((item, index) => (
         <React.Fragment key={`${item.label}-${index}`}>
-          {index > 0 ? <span className="text-zinc-700">/</span> : null}
+          {index > 0 ? <span className="text-slate-200">/</span> : null}
           {item.href ? (
-            <Link href={item.href} className="hover:text-primary transition-colors">
+            <Link href={item.href} className="hover:text-[#00A3FF] transition-colors">
               {item.label}
             </Link>
           ) : (
-            <span className="text-zinc-300">{item.label}</span>
+            <span className="text-slate-900">{item.label}</span>
           )}
         </React.Fragment>
       ))}
@@ -66,12 +66,12 @@ export function EmailPageIntro({
   return (
     <header className="space-y-4">
       <div className="space-y-2">
-        <h1 className="text-4xl md:text-5xl font-headline font-black text-white tracking-tighter uppercase italic">
+        <h1 className="text-4xl md:text-5xl font-black text-slate-900 uppercase tracking-tighter">
           {title}
         </h1>
-        <p className="max-w-4xl text-sm text-zinc-400 leading-6">{description}</p>
+        <p className="max-w-4xl text-sm text-slate-500 leading-relaxed font-medium">{description}</p>
       </div>
-      {helper ? <div className="text-xs text-zinc-500">{helper}</div> : null}
+      {helper ? <div className="text-xs text-slate-400 font-medium italic">{helper}</div> : null}
     </header>
   );
 }
@@ -91,16 +91,16 @@ export function EmailToolbar({
 }) {
   const filters: { value: EmailAccountFilter; label: string }[] = [
     { value: "all", label: "Todo" },
-    { value: "restricted", label: "Restricted" },
-    { value: "system", label: "Cuenta del sistema" },
-    { value: "quota-exceeded", label: "Exceeded Storage" }
+    { value: "restricted", label: "Restringido" },
+    { value: "system", label: "Cuentas Sistema" },
+    { value: "quota-exceeded", label: "Exceso Cuota" }
   ];
 
   return (
-    <div className="glass-card p-5 md:p-6 space-y-5">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+    <div className="bg-white border border-slate-200 rounded-[2rem] p-8 space-y-6 shadow-sm">
+      <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
         <div className="relative flex-1">
-          <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500 text-[20px]">
+          <span className="material-symbols-outlined absolute left-5 top-1/2 -translate-y-1/2 text-slate-300 text-[22px]">
             search
           </span>
           <input
@@ -108,17 +108,17 @@ export function EmailToolbar({
             value={search}
             onChange={(event) => onSearchChange(event.target.value)}
             placeholder="Buscar por cuenta, usuario o dominio..."
-            className="w-full rounded-2xl border border-white/10 bg-white/[0.03] py-3 pl-12 pr-4 text-sm text-white outline-none transition-colors placeholder:text-zinc-600 focus:border-primary/40"
+            className="w-full rounded-2xl border border-slate-200 bg-slate-50 py-4 pl-14 pr-6 text-sm text-slate-900 outline-none transition-all placeholder:text-slate-300 focus:border-[#00A3FF] focus:bg-white shadow-inner"
           />
         </div>
-        <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-[11px] font-black uppercase tracking-[0.18em] text-zinc-500">
-          {total} cuentas visibles
+        <div className="rounded-2xl bg-slate-50 border border-slate-100 px-6 py-4 text-[11px] font-black uppercase tracking-widest text-slate-400">
+          {total} cuentas encontradas
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="mr-2 text-[11px] font-black uppercase tracking-[0.18em] text-zinc-500">
-          Filter:
+      <div className="flex flex-wrap items-center gap-3">
+        <span className="mr-3 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
+          Filtrar por Estado:
         </span>
         {filters.map((item) => {
           const active = item.value === filter;
@@ -127,10 +127,10 @@ export function EmailToolbar({
               key={item.value}
               type="button"
               onClick={() => onFilterChange(item.value)}
-              className={`rounded-full border px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.15em] transition-all ${
+              className={`rounded-xl border px-4 py-2.5 text-[10px] font-black uppercase tracking-widest transition-all ${
                 active
-                  ? "border-primary/30 bg-primary/15 text-primary shadow-[0_0_24px_rgba(0,163,255,0.12)]"
-                  : "border-white/10 bg-white/[0.03] text-zinc-400 hover:border-white/20 hover:text-white"
+                  ? "border-[#00A3FF] bg-[#00A3FF] text-white shadow-lg shadow-[#00A3FF]/20"
+                  : "border-slate-100 bg-slate-50 text-slate-400 hover:border-[#00A3FF]/30 hover:text-[#00A3FF]"
               }`}
             >
               {item.label}
@@ -146,7 +146,7 @@ export function EmailStatusBadge({ status }: { status: EmailAccountStatus }) {
   const meta = statusMeta[status];
   return (
     <span
-      className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] ${meta.className}`}
+      className={`inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-[9px] font-black uppercase tracking-widest ${meta.className}`}
     >
       <span className={`h-1.5 w-1.5 rounded-full ${meta.dot}`} />
       {meta.label}
@@ -162,27 +162,29 @@ export function StorageMeter({
   allocatedMb: number | null;
 }) {
   const ratio = allocatedMb ? Math.min(100, (usedMb / allocatedMb) * 100) : 0;
-  const tone =
+  const color =
     allocatedMb === null
-      ? "from-sky-400 to-cyan-300"
-      : ratio >= 95
-        ? "from-rose-400 to-amber-300"
+      ? "#00A3FF"
+      : ratio >= 90
+        ? "#EF4444"
         : ratio >= 70
-          ? "from-amber-300 to-primary"
-          : "from-primary to-secondary";
+          ? "#F59E0B"
+          : "#10B981";
 
   return (
-    <div className="space-y-2 min-w-[190px]">
-      <div className="text-sm font-medium text-zinc-200">
-        {Number(usedMb).toFixed(2)} MB / {allocatedMb === null ? "∞" : `${allocatedMb} MB`}
+    <div className="space-y-2 min-w-[200px]">
+      <div className="flex justify-between items-center text-[11px] font-bold">
+        <div className="text-slate-900">
+          {Number(usedMb).toFixed(0)}MB / {allocatedMb === null ? "∞" : `${allocatedMb}MB`}
+        </div>
         {allocatedMb !== null ? (
-          <span className="ml-2 text-zinc-500">{Number(ratio).toFixed(2)}%</span>
+          <div className="text-slate-400">{Number(ratio).toFixed(1)}%</div>
         ) : null}
       </div>
-      <div className="h-2 w-full overflow-hidden rounded-full bg-white/5">
+      <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100 shadow-inner">
         <div
-          className={`h-full rounded-full bg-gradient-to-r ${tone}`}
-          style={{ width: `${allocatedMb === null ? 28 : ratio}%` }}
+          className="h-full rounded-full transition-all duration-1000"
+          style={{ width: `${allocatedMb === null ? 15 : ratio}%`, backgroundColor: color }}
         />
       </div>
     </div>
@@ -202,9 +204,9 @@ export function EmailActionButton({
     <button
       type="button"
       onClick={onClick}
-      className="inline-flex items-center gap-2 rounded-xl border border-primary/20 bg-primary/10 px-3 py-2 text-[10px] font-black uppercase tracking-[0.14em] text-primary transition-all hover:border-primary/35 hover:bg-primary/15 hover:text-white"
+      className="inline-flex items-center gap-2 rounded-xl bg-slate-50 border border-slate-200 px-4 py-2.5 text-[10px] font-black uppercase tracking-widest text-slate-500 transition-all hover:border-[#00A3FF]/30 hover:bg-[#00A3FF]/5 hover:text-[#00A3FF] shadow-sm active:scale-95"
     >
-      <span className="material-symbols-outlined text-[16px]">{icon}</span>
+      <span className="material-symbols-outlined text-[18px]">{icon}</span>
       {label}
     </button>
   );
@@ -222,9 +224,9 @@ export function EmailActionLink({
   return (
     <Link
       href={href}
-      className="inline-flex items-center gap-2 rounded-xl border border-primary/20 bg-primary/10 px-3 py-2 text-[10px] font-black uppercase tracking-[0.14em] text-primary transition-all hover:border-primary/35 hover:bg-primary/15 hover:text-white"
+      className="inline-flex items-center gap-2 rounded-xl bg-[#00A3FF]/10 border border-[#00A3FF]/20 px-4 py-2.5 text-[10px] font-black uppercase tracking-widest text-[#00A3FF] transition-all hover:bg-[#00A3FF] hover:text-white shadow-sm active:scale-95"
     >
-      <span className="material-symbols-outlined text-[16px]">{icon}</span>
+      <span className="material-symbols-outlined text-[18px]">{icon}</span>
       {label}
     </Link>
   );
@@ -240,12 +242,12 @@ export function EmailField({
   children: React.ReactNode;
 }) {
   return (
-    <div className="space-y-2">
-      <label className="text-[11px] font-black uppercase tracking-[0.18em] text-zinc-500">
+    <div className="space-y-2.5">
+      <label className="text-[11px] font-black uppercase tracking-widest text-slate-400 ml-2">
         {label}
       </label>
       {children}
-      {hint ? <div className="text-xs text-zinc-500">{hint}</div> : null}
+      {hint ? <div className="text-[11px] text-slate-400 font-medium italic mt-1 ml-2">{hint}</div> : null}
     </div>
   );
 }

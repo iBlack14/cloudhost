@@ -15,16 +15,18 @@ export default function WhmLayout({ children }: { children: React.ReactNode }) {
   }, [router]);
 
   return (
-    <div className="flex min-h-screen overflow-hidden">
+    <div className="flex min-h-screen overflow-hidden bg-[#F8FAFC]">
       <WhmSidebar />
 
-      {/* Main Content WHM */}
-      <main className="flex-1 ml-72 p-12 relative overflow-hidden">
-        {children}
+      {/* Main Content WHM - Light Corporate Theme */}
+      <main className="flex-1 ml-72 p-12 relative overflow-hidden min-h-screen">
+        <div className="relative z-10">
+          {children}
+        </div>
 
-        {/* Corporate Celestial Orbs */}
-        <div className="fixed bottom-[-150px] right-[-150px] w-[800px] h-[800px] bg-primary/5 blur-[180px] pointer-events-none -z-10 rounded-full animate-pulse"></div>
-        <div className="fixed top-[-100px] left-[50vw] w-[400px] h-[400px] bg-secondary/3 blur-[120px] pointer-events-none -z-10 rounded-full"></div>
+        {/* Corporate Decor Orbs - Softer for Light Theme */}
+        <div className="fixed bottom-[-150px] right-[-150px] w-[800px] h-[800px] bg-[#00A3FF]/5 blur-[180px] pointer-events-none z-0 rounded-full"></div>
+        <div className="fixed top-[-100px] left-[50vw] w-[400px] h-[400px] bg-[#00A3FF]/5 blur-[120px] pointer-events-none z-0 rounded-full"></div>
       </main>
     </div>
   );

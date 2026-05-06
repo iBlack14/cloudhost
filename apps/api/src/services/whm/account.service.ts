@@ -214,7 +214,6 @@ export const impersonateWhmAccount = async (
   };
 };
 
-
 export const deleteWhmAccount = async (accountId: string): Promise<void> => {
   const client = await db.connect();
 
@@ -284,3 +283,35 @@ export const syncAllWhmAccountsDiskUsage = async (): Promise<void> => {
   }
 };
 
+
+export const resetWhmAccountPassword = async (accountId: string, newPassword?: string): Promise<{ password: string }> => {
+  const accountResult = await db.query<{ user_id: string; username: string; email: string }>(
+    `SELECT u.id AS user_id, u.username, u.email
+     FROM hosting_accounts ha
+     INNER JOIN users u ON u.id = ha.user_id
+     WHERE ha.id = $1`,
+    [accountId]
+  );
+
+  if (accountResult.rowCount === 0) {
+    throw new Error("ACCOUNT_NOT_FOUND");
+  }
+
+  const { user_id: userId, username, email } = accountResult.rows[0];
+  const generatedPass = newPassword || Math.random().toString(36).slice(-10) + "!";
+  const hash = hashPassword(generatedPass);
+
+  await db.query("UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2", [hash, userId]);
+
+  await db.query(
+    `INSERT INTO activity_logs (user_id, action, resource, details)
+     VALUES ($1, 'reset_password', 'hosting_account', $2::jsonb)`,
+    [userId, JSON.stringify({ accountId, username, email, method: "admin_reset" })]
+  );
+
+  // Here we would normally send the email using a mail service.
+  // Since we don't have a real SMTP setup, we'll log it for the demo.
+  console.log(`[MAIL_SIMULATION] Password reset for ${username} (${email}). New password: ${generatedPass}`);
+
+  return { password: generatedPass };
+};

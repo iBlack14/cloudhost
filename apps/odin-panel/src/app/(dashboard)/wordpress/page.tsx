@@ -10,20 +10,18 @@ export default function WordPressManagerPage() {
   const [installStep, setInstallStep] = useState(0);
   const queryClient = useQueryClient();
 
-  // FIX #5: Use React Query instead of manual useState + useEffect
-  const { data: sites = [], isLoading: sitesLoading, error: sitesError } = useQuery({
+  const { data: sites = [], isLoading: sitesLoading } = useQuery({
     queryKey: ["odin", "wordpress", "sites"],
     queryFn: fetchWpSites,
-    staleTime: 1000 * 60 * 5 // 5 minutes
+    staleTime: 1000 * 60 * 5
   });
 
   const { data: domains = [], isLoading: domainsLoading } = useQuery({
     queryKey: ["odin", "domains"],
     queryFn: fetchDomains,
-    staleTime: 1000 * 60 * 5 // 5 minutes
+    staleTime: 1000 * 60 * 5
   });
 
-  // FIX #7: useMutation handles installation with proper cleanup
   const installMutation = useMutation({
     mutationFn: installWordPress,
     onSuccess: () => {
@@ -38,22 +36,15 @@ export default function WordPressManagerPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["odin", "wordpress", "sites"] });
     },
-    onError: (error: any) => {
-      alert("Error eliminando el sitio: " + error.message);
-    }
+    onError: (error: any) => alert("Error eliminando el sitio: " + error.message)
   });
 
   const ssoMutation = useMutation({
     mutationFn: fetchWpSsoUrl,
-    onSuccess: (url) => {
-      window.open(url, '_blank');
-    },
-    onError: (error: any) => {
-      alert("Error al generar acceso directo: " + error.message);
-    }
+    onSuccess: (url) => window.open(url, '_blank'),
+    onError: (error: any) => alert("Error al generar acceso directo: " + error.message)
   });
 
-  // Form State
   const [formData, setFormData] = useState({
     protocol: "https://",
     domain: "",
@@ -74,7 +65,7 @@ export default function WordPressManagerPage() {
     let pass = "";
     for (let i = 0; i < 16; i++) pass += chars.charAt(Math.floor(Math.random() * chars.length));
     setFormData(prev => ({ ...prev, adminPass: pass }));
-    setShowPassword(true); // Automatically show when they generate a new one
+    setShowPassword(true);
   };
 
   const getPasswordStrength = (pass: string) => {
@@ -88,46 +79,31 @@ export default function WordPressManagerPage() {
   };
 
   const passStrength = getPasswordStrength(formData.adminPass);
-  const strengthColor = passStrength < 40 ? "bg-red-500" : passStrength < 80 ? "bg-yellow-500" : "bg-green-500";
+  const strengthColor = passStrength < 40 ? "bg-red-500" : passStrength < 80 ? "bg-yellow-500" : "bg-emerald-500";
 
   const installLogs = [
-    "PROVISIONING ISOLATED CONTAINER...",
-    "EXTRACTING WORDPRESS CORE v6.4.3...",
-    "CONFIGURING MYSQL DATABASE CLUSTER...",
-    "GENERATING SECURITY SALTS...",
-    "FINALIZING ENVIRONMENT OPTIMIZATION...",
+    "PROVISIONANDO CONTENEDOR AISLADO...",
+    "EXTRAYENDO NÚCLEO DE WORDPRESS v6.4.3...",
+    "CONFIGURANDO CLUSTER DE BASE DE DATOS...",
+    "GENERANDO SALES DE SEGURIDAD...",
+    "OPTIMIZANDO ENTORNO DE EJECUCIÓN...",
   ];
-
-  const installIntervalRef = React.useRef<NodeJS.Timeout | null>(null);
-
-  React.useEffect(() => {
-    return () => {
-      if (installIntervalRef.current) clearInterval(installIntervalRef.current);
-    };
-  }, []);
 
   const handleInstall = async () => {
     setInstallStep(0);
-    
-    if (installIntervalRef.current) clearInterval(installIntervalRef.current);
-
-    // Simulate log progression
-    installIntervalRef.current = setInterval(() => {
+    const logInterval = setInterval(() => {
       setInstallStep(prev => {
         if (prev < installLogs.length - 1) return prev + 1;
-        if (installIntervalRef.current) clearInterval(installIntervalRef.current);
+        clearInterval(logInterval);
         return prev;
       });
-    }, 1500);
+    }, 1200);
     
     try {
       await installMutation.mutateAsync(formData);
-      setTimeout(() => {
-        setFormData({ protocol: "https://", domain: "", directory: "", wpVersion: "6.4.3", phpVersion: "8.4", adminUser: "admin", adminPass: "", adminEmail: "admin@domain.com", siteTitle: "", siteDescription: "" });
-      }, 2000);
     } catch (err) {
-      if (installIntervalRef.current) clearInterval(installIntervalRef.current);
-      alert("Error: " + (err instanceof Error ? err.message : "Falla técnica en el despliegue"));
+      clearInterval(logInterval);
+      alert("Error: " + (err instanceof Error ? err.message : "Falla en el despliegue"));
     }
   };
 
@@ -135,111 +111,103 @@ export default function WordPressManagerPage() {
   const isInstalling = installMutation.isPending;
 
   return (
-    <div className="space-y-12">
-      <header className="flex justify-between items-end">
-        <div className="space-y-1">
+    <div className="space-y-12 animate-in fade-in duration-700">
+      <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 border-b border-slate-200 pb-10">
+        <div className="space-y-1.5">
           <div className="flex items-center gap-3 mb-1">
-             <span className="px-2 py-0.5 bg-primary/10 text-primary text-[9px] font-black uppercase rounded border border-primary/20 tracking-widest">
-                CMS Ecosystem
+             <span className="px-2.5 py-1 bg-[#00A3FF]/10 text-[#00A3FF] text-[10px] font-bold uppercase rounded-full tracking-wider">
+                Ecosistema CMS
              </span>
           </div>
-          <h1 className="text-6xl font-headline font-black text-white tracking-tighter uppercase italic">
-            WordPress <span className="text-zinc-600">Manager</span>
+          <h1 className="text-5xl font-black text-slate-900 uppercase">
+            WordPress <span className="text-[#00A3FF]">Manager</span>
           </h1>
-          <p className="text-zinc-500 text-sm font-mono tracking-widest mt-1">
-            Centralized orchestration for WordPress core, plugins, and security.
+          <p className="text-slate-500 text-sm font-medium mt-2">
+            Orquestación centralizada de instancias, temas, plugins y seguridad.
           </p>
         </div>
         
         <div className="flex gap-4">
           <button 
             onClick={() => queryClient.invalidateQueries({ queryKey: ["odin", "wordpress", "sites"] })}
-            className="glass-card px-6 py-4 text-white font-black text-[10px] uppercase tracking-widest hover:border-primary/40 transition-all active:scale-95"
+            className="px-6 py-4 bg-white border border-slate-200 rounded-2xl text-slate-400 font-black text-[10px] uppercase tracking-widest hover:border-[#00A3FF]/30 hover:text-[#00A3FF] transition-all shadow-sm"
           >
-             Scan Infrastructure
+             Sincronizar
           </button>
           <button 
             onClick={() => setIsWizardOpen(true)}
-            className="kinetic-gradient px-8 py-4 rounded-2xl text-white font-black font-headline tracking-widest active:scale-95 transition-all shadow-xl shadow-primary/40 uppercase text-xs"
+            className="bg-[#00A3FF] px-10 py-5 rounded-2xl text-white font-black uppercase text-[11px] tracking-widest shadow-xl shadow-[#00A3FF]/20 hover:bg-[#008EE0] active:scale-[0.98] transition-all"
           >
-            + Install WordPress
+            + Instalar WordPress
           </button>
         </div>
       </header>
 
-      {/* Main Grid */}
-      <div className="grid grid-cols-1 gap-6">
+      <div className="grid grid-cols-1 gap-8">
         {isLoading ? (
-          <div className="p-24 flex flex-col items-center justify-center glass-card animate-pulse">
-             <span className="material-symbols-outlined text-zinc-800 text-6xl mb-4">refresh</span>
-             <p className="text-[10px] font-black text-zinc-700 uppercase tracking-widest">Synchronizing instances...</p>
+          <div className="p-24 flex flex-col items-center justify-center bg-white border border-slate-200 rounded-[3rem] shadow-sm animate-pulse">
+             <div className="w-12 h-12 border-4 border-slate-100 border-t-[#00A3FF] rounded-full animate-spin mb-4"></div>
+             <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Consultando Infraestructura...</p>
           </div>
         ) : sites.length === 0 ? (
-          <div className="p-20 border-2 border-dashed border-white/5 rounded-3xl flex flex-col items-center justify-center text-center group hover:border-primary/20 transition-all cursor-pointer" onClick={() => setIsWizardOpen(true)}>
-             <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mb-6 grow-animation">
-                <span className="material-symbols-outlined text-zinc-600 group-hover:text-primary">deployed_code</span>
+          <div className="p-20 bg-slate-50 border-2 border-dashed border-slate-200 rounded-[3rem] flex flex-col items-center justify-center text-center group hover:border-[#00A3FF]/20 transition-all cursor-pointer" onClick={() => setIsWizardOpen(true)}>
+             <div className="w-20 h-20 bg-white rounded-3xl flex items-center justify-center text-slate-200 mb-6 shadow-sm">
+                <span className="material-symbols-outlined text-5xl">deployed_code</span>
              </div>
-             <h4 className="text-sm font-black text-zinc-400 uppercase tracking-widest">No active deployments found.</h4>
-             <p className="text-[10px] text-zinc-600 mt-2 uppercase tracking-tighter">Initialize your first WordPress instance to start managing resources.</p>
+             <h4 className="text-lg font-black text-slate-900 uppercase">Sin Despliegues Activos</h4>
+             <p className="text-sm text-slate-500 mt-2 font-medium">Inicia tu primera instancia de WordPress para comenzar a gestionar tu sitio.</p>
           </div>
         ) : (
           sites.map((site) => (
-            <div key={site.id} className="glass-card p-1 overflow-hidden group">
-              <div className="bg-white/[0.02] p-8 flex flex-col lg:flex-row items-center gap-12 group-hover:bg-white/[0.04] transition-all duration-500">
+            <div key={site.id} className="bg-white border border-slate-200 p-8 rounded-[2.5rem] shadow-sm group hover:border-[#00A3FF]/30 transition-all duration-500">
+              <div className="flex flex-col xl:flex-row items-center gap-10">
                 
-                {/* Site Identity */}
-                <div className="flex items-center gap-8 min-w-[300px]">
-                  <div className="w-20 h-20 rounded-2xl bg-zinc-900 border border-white/5 flex items-center justify-center text-zinc-500 group-hover:text-primary group-hover:border-primary/20 transition-all duration-500 shrink-0 shadow-2xl">
-                     <span className="material-symbols-outlined text-4xl">browser_updated</span>
+                <div className="flex items-center gap-6 min-w-[320px] w-full xl:w-1/4">
+                  <div className="w-20 h-20 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-400 group-hover:bg-[#00A3FF] group-hover:text-white transition-all shadow-sm shrink-0">
+                     <span className="material-symbols-outlined text-4xl">language</span>
                   </div>
                   <div>
-                     <h3 className="text-2xl font-headline font-black text-white italic tracking-tighter uppercase">{site.site_title}</h3>
-                     <p className="text-primary font-mono text-[10px] tracking-widest mt-1 uppercase">{site.domain}</p>
-                     <div className="flex items-center gap-2 mt-4">
-                        <span className="w-2 h-2 rounded-full bg-green-500"></span>
-                        <span className="text-[9px] font-black text-zinc-400 uppercase tracking-widest">{site.status}</span>
+                     <h3 className="text-2xl font-black text-slate-900 group-hover:text-[#00A3FF] transition-colors">{site.site_title}</h3>
+                     <p className="text-[#00A3FF] font-bold text-xs mt-1 uppercase tracking-tight">{site.domain}</p>
+                     <div className="flex items-center gap-2.5 mt-3">
+                        <span className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_#10b981]"></span>
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">En Línea</span>
                      </div>
                   </div>
                 </div>
 
-                {/* Technical Matrix */}
-                <div className="flex-1 grid grid-cols-2 md:grid-cols-4 gap-8">
-                   <TechStat label="Version" value={`v${site.wp_version}`} />
-                   <TechStat label="PHP Engine" value={site.php_version} icon="settings_suggest" />
-                   <TechStat label="Database" value={site.db_name} icon="database" />
+                <div className="flex-1 grid grid-cols-2 md:grid-cols-4 gap-6 w-full border-y xl:border-y-0 xl:border-x border-slate-100 py-6 xl:py-0 px-8">
+                   <TechStat label="Versión Core" value={`v${site.wp_version}`} />
+                   <TechStat label="Motor PHP" value={site.php_version} icon="settings_suggest" />
+                   <TechStat label="Base de Datos" value={site.db_name} icon="database" />
                    <TechStat 
-                     label="Auto-Updates" 
-                     value={site.auto_updates ? "Active" : "Disabled"} 
+                     label="Actualizaciones" 
+                     value={site.auto_updates ? "Automáticas" : "Manuales"} 
                      active={site.auto_updates} 
                    />
                 </div>
 
-                {/* Action Cluster */}
-                <div className="flex gap-2">
+                <div className="flex gap-3 w-full xl:w-auto">
                    <button 
-                     onClick={() => {
-                        if (confirm(`¿Estás seguro de que deseas eliminar permanentemente el sitio ${site.domain}? Esta acción destruirá la base de datos y los archivos.`)) {
-                           deleteMutation.mutate(site.id);
-                        }
-                     }}
-                     className="p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 hover:text-white hover:bg-red-500 transition-all group"
-                     title="Delete site completely"
+                     onClick={() => { if (confirm(`¿Eliminar permanentemente ${site.domain}?`)) deleteMutation.mutate(site.id); }}
+                     className="w-12 h-12 rounded-2xl bg-red-50 text-red-500 hover:bg-red-500 hover:text-white transition-all flex items-center justify-center shadow-sm"
+                     title="Eliminar sitio"
                    >
-                      <span className="material-symbols-outlined text-sm group-hover:animate-pulse">delete_forever</span>
+                      <span className="material-symbols-outlined text-[20px]">delete_forever</span>
                    </button>
                    <Link 
                      href={`/wordpress/${site.id}`}
-                     className="p-4 rounded-xl bg-white/5 border border-white/5 text-zinc-400 hover:text-white hover:bg-white/10 transition-all"
+                     className="w-12 h-12 rounded-2xl bg-slate-50 text-slate-400 hover:text-[#00A3FF] hover:bg-[#00A3FF]/5 transition-all flex items-center justify-center shadow-sm"
                    >
-                      <span className="material-symbols-outlined">settings</span>
+                      <span className="material-symbols-outlined text-[20px]">settings</span>
                    </Link>
                    <button 
                      onClick={() => ssoMutation.mutate(site.id)}
                      disabled={ssoMutation.isPending}
-                     className="flex items-center gap-3 px-6 py-4 rounded-xl bg-primary text-black font-black text-[10px] uppercase tracking-widest hover:brightness-110 active:scale-95 transition-all disabled:opacity-50"
+                     className="flex-1 xl:flex-none flex items-center justify-center gap-3 px-8 py-3.5 rounded-2xl bg-[#00A3FF] text-white font-black text-[11px] uppercase tracking-widest hover:bg-[#008EE0] active:scale-[0.98] transition-all disabled:opacity-40 shadow-xl shadow-[#00A3FF]/20"
                    >
-                      <span>{ssoMutation.isPending ? "Generating..." : "Admin Login"}</span>
-                      <span className="material-symbols-outlined text-sm">rocket_launch</span>
+                      <span>{ssoMutation.isPending ? "Accediendo..." : "Panel WP"}</span>
+                      <span className="material-symbols-outlined text-[18px]">rocket_launch</span>
                    </button>
                 </div>
               </div>
@@ -248,178 +216,120 @@ export default function WordPressManagerPage() {
         )}
       </div>
 
-      {/* Installation Wizard Modal */}
       {isWizardOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
-           <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => !isInstalling && setIsWizardOpen(false)}></div>
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 animate-in fade-in duration-300">
+           <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-md" onClick={() => !isInstalling && setIsWizardOpen(false)}></div>
            
-           <div className="glass-card w-full max-w-2xl relative z-10 overflow-hidden animate-in fade-in zoom-in duration-300">
-              <div className="p-8 border-b border-white/5 bg-white/[0.02]">
+           <div className="bg-white w-full max-w-2xl relative z-10 rounded-[3rem] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
+              <div className="p-10 border-b border-slate-100 bg-slate-50/50">
                  <div className="flex justify-between items-center">
                     <div>
-                       <h2 className="text-2xl font-headline font-black text-white italic tracking-tighter uppercase">WP Installation Wizard</h2>
-                       <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest mt-1">Deploying to high-performance cloud nodes</p>
+                       <h2 className="text-2xl font-black text-slate-900 uppercase">Asistente de Instalación</h2>
+                       <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Despliegue en Nodos de Alto Rendimiento</p>
                     </div>
                     {!isInstalling && (
-                      <button onClick={() => setIsWizardOpen(false)} className="w-10 h-10 rounded-full border border-white/10 flex items-center justify-center text-zinc-400 hover:text-white transition-all">
+                      <button onClick={() => setIsWizardOpen(false)} className="w-10 h-10 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-400 hover:text-slate-900 transition-all shadow-sm">
                          <span className="material-symbols-outlined">close</span>
                       </button>
                     )}
                  </div>
               </div>
 
-              <div className="p-8 space-y-8">
+              <div className="p-10 space-y-8">
                  {isInstalling ? (
                    <div className="py-12 flex flex-col items-center">
                       <div className="w-24 h-24 relative mb-12">
-                         <div className="absolute inset-0 border-4 border-primary/20 rounded-full"></div>
-                         <div className="absolute inset-0 border-4 border-primary rounded-full border-t-transparent animate-spin"></div>
+                         <div className="absolute inset-0 border-4 border-slate-100 rounded-full"></div>
+                         <div className="absolute inset-0 border-4 border-[#00A3FF] rounded-full border-t-transparent animate-spin"></div>
                          <div className="absolute inset-0 flex items-center justify-center">
-                            <span className="material-symbols-outlined text-primary text-3xl animate-pulse">cloud_download</span>
+                            <span className="material-symbols-outlined text-[#00A3FF] text-4xl animate-pulse">cloud_download</span>
                          </div>
                       </div>
-                      <div className="w-full max-w-sm bg-black/40 border border-white/5 rounded-xl p-6 font-mono space-y-2">
+                      <div className="w-full max-w-sm bg-slate-900 rounded-2xl p-8 space-y-3 shadow-2xl">
                          {installLogs.map((log, i) => (
-                           <div key={i} className={`text-[9px] flex items-center gap-3 transition-opacity duration-300 ${i <= installStep ? 'opacity-100' : 'opacity-20'}`}>
-                              <span className={`w-1 h-1 rounded-full ${i === installStep ? 'bg-primary animate-pulse' : i < installStep ? 'bg-green-500' : 'bg-zinc-800'}`}></span>
-                              <span className={i === installStep ? 'text-primary' : i < installStep ? 'text-zinc-400' : 'text-zinc-600'}>{log}</span>
+                           <div key={i} className={`text-[10px] font-bold flex items-center gap-3 transition-opacity duration-300 ${i <= installStep ? 'opacity-100' : 'opacity-20'}`}>
+                              <span className={`w-1.5 h-1.5 rounded-full ${i === installStep ? 'bg-[#00A3FF] animate-pulse' : i < installStep ? 'bg-emerald-500' : 'bg-slate-700'}`}></span>
+                              <span className={i === installStep ? 'text-[#00A3FF]' : i < installStep ? 'text-slate-400' : 'text-slate-600'}>{log}</span>
                            </div>
                          ))}
                       </div>
                    </div>
                  ) : (
-                   <div className="space-y-8">
-                      {/* Software Setup Section */}
-                      <div className="border-b border-white/5 pb-2">
-                        <h3 className="text-sm font-headline font-bold text-white uppercase tracking-widest border-b-2 border-primary inline-block pb-2">Software Configuration</h3>
-                      </div>
-                      
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                   <div className="space-y-10">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
                         <div className="space-y-4">
-                          <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1 block mb-2">Installation URL</label>
+                          <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-2 block">Dominio de Destino</label>
                           <div className="flex gap-2">
-                            <select 
-                               value={formData.protocol}
-                               onChange={(e) => setFormData(prev => ({ ...prev, protocol: e.target.value }))}
-                               className="w-1/3 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-primary/50 transition-all appearance-none cursor-pointer"
+                             <select 
+                               value={formData.domain}
+                               onChange={(e) => setFormData(prev => ({ ...prev, domain: e.target.value, adminEmail: `admin@${e.target.value}` }))}
+                               className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 text-sm text-slate-900 font-bold outline-none focus:border-[#00A3FF] focus:bg-white transition-all shadow-inner cursor-pointer"
                              >
-                               <option value="http://" className="bg-zinc-900">http://</option>
-                               <option value="https://" className="bg-zinc-900">https://</option>
+                               <option value="">Selecciona Dominio</option>
+                               {domains.map(d => (
+                                 <option key={d.id} value={d.domain_name}>{d.domain_name}</option>
+                               ))}
                              </select>
-                             
-                             {domains.length > 0 ? (
-                               <select 
-                                 value={formData.domain}
-                                 onChange={(e) => {
-                                   setFormData(prev => ({ 
-                                     ...prev, 
-                                     domain: e.target.value,
-                                     adminEmail: `admin@${e.target.value}`
-                                   }))
-                                 }}
-                                 className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-primary/50 transition-all appearance-none cursor-pointer"
-                               >
-                                 <option value="" className="bg-zinc-900">Select domain...</option>
-                                 {domains.map(d => (
-                                   <option key={d.id} value={d.domain_name} className="bg-zinc-900">{d.domain_name}</option>
-                                 ))}
-                               </select>
-                             ) : (
-                               <input 
-                                 className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-primary/50 transition-all placeholder:text-zinc-700"
-                                 placeholder="e.g. site.com"
-                                 value={formData.domain}
-                                 onChange={(e) => {
-                                   setFormData(prev => ({ 
-                                     ...prev, 
-                                     domain: e.target.value,
-                                     adminEmail: `admin@${e.target.value}`
-                                   }))
-                                 }}
-                               />
-                             )}
                           </div>
-                          <div className="flex gap-2 items-center">
-                            <span className="text-[10px] text-zinc-500 font-mono">In Directory:</span>
+                          <div className="flex gap-2 items-center px-2">
+                            <span className="text-[10px] text-slate-400 font-bold uppercase">Directorio:</span>
                             <input 
-                               className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-sm text-white focus:outline-none focus:border-primary/50 transition-all placeholder:text-zinc-700"
-                               placeholder="e.g. wp (leave empty to install in root)"
+                               className="flex-1 bg-white border-b border-slate-200 px-2 py-1 text-sm text-slate-900 font-bold outline-none focus:border-[#00A3FF] transition-all"
+                               placeholder="Vacío para raíz (root)"
                                value={formData.directory}
                                onChange={(e) => setFormData(prev => ({ ...prev, directory: e.target.value }))}
                              />
                           </div>
-                          {formData.domain && (
-                            <p className="text-[10px] text-zinc-400 mt-2 font-mono">
-                              URL: <span className="text-primary">{formData.protocol}{formData.domain}{formData.directory ? `/${formData.directory}` : ''}</span>
-                            </p>
-                          )}
                         </div>
 
-                        <div className="space-y-4">
-                           <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1 block mb-2">WordPress Version</label>
-                           <select 
-                             value={formData.wpVersion}
-                             onChange={(e) => setFormData(prev => ({ ...prev, wpVersion: e.target.value }))}
-                             className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-primary/50 transition-all appearance-none cursor-pointer"
-                           >
-                             <option value="6.4.3" className="bg-zinc-900">WordPress 6.4.3</option>
-                             <option value="6.3.2" className="bg-zinc-900">WordPress 6.3.2</option>
-                             <option value="6.2.2" className="bg-zinc-900">WordPress 6.2.2</option>
-                           </select>
-
-                           <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1 block mb-2 mt-4">PHP Version</label>
-                           <select 
-                             value={formData.phpVersion}
-                             onChange={(e) => setFormData(prev => ({ ...prev, phpVersion: e.target.value }))}
-                             className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-primary/50 transition-all appearance-none cursor-pointer"
-                           >
-                             <option value="8.1" className="bg-zinc-900">PHP 8.1 (Legacy)</option>
-                             <option value="8.2" className="bg-zinc-900">PHP 8.2 (Stable)</option>
-                             <option value="8.3" className="bg-zinc-900">PHP 8.3 (LTS)</option>
-                             <option value="8.4" className="bg-zinc-900">PHP 8.4 (Latest) ⭐</option>
-                             <option value="8.5" className="bg-zinc-900">PHP 8.5 (Edge)</option>
-                           </select>
+                        <div className="space-y-6">
+                           <div className="space-y-3">
+                              <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-2 block">Versión de Motor</label>
+                              <div className="grid grid-cols-2 gap-2">
+                                 <select 
+                                   value={formData.wpVersion}
+                                   onChange={(e) => setFormData(prev => ({ ...prev, wpVersion: e.target.value }))}
+                                   className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-[11px] font-bold text-slate-600 outline-none focus:border-[#00A3FF]"
+                                 >
+                                   <option value="6.4.3">WP 6.4.3</option>
+                                   <option value="6.3.2">WP 6.3.2</option>
+                                 </select>
+                                 <select 
+                                   value={formData.phpVersion}
+                                   onChange={(e) => setFormData(prev => ({ ...prev, phpVersion: e.target.value }))}
+                                   className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-[11px] font-bold text-slate-600 outline-none focus:border-[#00A3FF]"
+                                 >
+                                   <option value="8.4">PHP 8.4 🔥</option>
+                                   <option value="8.3">PHP 8.3</option>
+                                   <option value="8.2">PHP 8.2</option>
+                                 </select>
+                              </div>
+                           </div>
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-12 mt-8">
-                        {/* Site Settings Section */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-10 pt-6 border-t border-slate-100">
                         <div className="space-y-6">
-                           <div className="border-b border-white/5 pb-2">
-                             <h3 className="text-sm font-headline font-bold text-white uppercase tracking-widest border-b-2 border-primary inline-block pb-2">Site Settings</h3>
-                           </div>
                            <WizardField 
-                             label="Site Name" 
-                             placeholder="My Awesome WordPress Site" 
+                             label="Título del Sitio" 
+                             placeholder="Mi Blog de Odisea" 
                              value={formData.siteTitle}
                              onChange={(v) => setFormData(prev => ({ ...prev, siteTitle: v }))}
                            />
                            <WizardField 
-                             label="Site Description" 
-                             placeholder="Just another WordPress site" 
-                             value={formData.siteDescription}
-                             onChange={(v) => setFormData(prev => ({ ...prev, siteDescription: v }))}
+                             label="Usuario Administrador" 
+                             placeholder="admin" 
+                             value={formData.adminUser}
+                             onChange={(v) => setFormData(prev => ({ ...prev, adminUser: v }))}
                            />
                         </div>
 
-                        {/* Admin Account Section */}
                         <div className="space-y-6">
-                           <div className="border-b border-white/5 pb-2">
-                             <h3 className="text-sm font-headline font-bold text-white uppercase tracking-widest border-b-2 border-primary inline-block pb-2">Admin Account</h3>
-                           </div>
-                           <WizardField 
-                              label="Admin Username" 
-                              placeholder="admin" 
-                              value={formData.adminUser}
-                              onChange={(v) => setFormData(prev => ({ ...prev, adminUser: v }))}
-                           />
-                           
-                           <div className="space-y-2">
-                              <div className="flex justify-between items-center ml-1">
-                                <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Admin Password</label>
-                                <button type="button" onClick={generatePassword} className="text-[9px] font-bold tracking-widest uppercase text-primary hover:brightness-125 flex items-center gap-1">
-                                  <span className="material-symbols-outlined text-[12px]">cycle</span>
-                                  Auto-Generate
+                           <div className="space-y-3">
+                              <div className="flex justify-between items-center ml-2">
+                                <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Contraseña Admin</label>
+                                <button type="button" onClick={generatePassword} className="text-[10px] font-black text-[#00A3FF] hover:underline flex items-center gap-1">
+                                  <span className="material-symbols-outlined text-[14px]">cycle</span> Generar
                                 </button>
                               </div>
                               <div className="relative">
@@ -428,44 +338,39 @@ export default function WordPressManagerPage() {
                                   placeholder="••••••••••••"
                                   value={formData.adminPass}
                                   onChange={(e) => setFormData(prev => ({ ...prev, adminPass: e.target.value }))}
-                                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-primary/50 transition-all placeholder:text-zinc-700 font-mono pr-12"
+                                  className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-6 py-4 text-sm text-slate-900 font-bold outline-none focus:border-[#00A3FF] focus:bg-white shadow-inner"
                                 />
                                 <button 
                                   type="button"
                                   onClick={() => setShowPassword(!showPassword)}
-                                  className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white transition-colors"
+                                  className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-300 hover:text-slate-900 transition-colors"
                                 >
-                                  <span className="material-symbols-outlined text-sm">
+                                  <span className="material-symbols-outlined text-[18px]">
                                     {showPassword ? "visibility_off" : "visibility"}
                                   </span>
                                 </button>
                               </div>
-                              <div className="flex items-center gap-3 mt-2 px-1">
-                                <div className="flex-1 h-1.5 bg-white/10 rounded-full overflow-hidden">
-                                  <div className={`h-full transition-all duration-300 ${strengthColor}`} style={{ width: `${passStrength}%` }}></div>
-                                </div>
-                                <span className={`text-[9px] font-black uppercase tracking-widest ${passStrength < 40 ? "text-red-500" : passStrength < 80 ? "text-yellow-500" : "text-green-500"}`}>
-                                  {passStrength < 40 ? `Weak (${passStrength}/100)` : passStrength < 80 ? `Good (${passStrength}/100)` : `Strong (${passStrength}/100)`}
-                                </span>
+                              <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden mt-2">
+                                 <div className={`h-full transition-all duration-500 ${strengthColor}`} style={{ width: `${passStrength}%` }}></div>
                               </div>
                            </div>
                            
                            <WizardField 
-                              label="Admin Email" 
-                              placeholder="admin@domain.com" 
-                              value={formData.adminEmail}
-                              onChange={(v) => setFormData(prev => ({ ...prev, adminEmail: v }))}
+                               label="Correo de Contacto" 
+                               placeholder="admin@dominio.com" 
+                               value={formData.adminEmail}
+                               onChange={(v) => setFormData(prev => ({ ...prev, adminEmail: v }))}
                            />
                         </div>
                       </div>
                       
-                      <div className="pt-8 flex justify-end border-t border-white/5">
+                      <div className="pt-6 flex justify-end">
                          <button 
                            onClick={handleInstall}
                            disabled={!formData.domain || !formData.adminPass || !formData.siteTitle}
-                           className="kinetic-gradient px-12 py-4 rounded-xl text-white font-black font-headline tracking-widest active:scale-95 transition-all shadow-xl shadow-primary/40 uppercase text-xs disabled:opacity-50 disabled:cursor-not-allowed"
+                           className="bg-[#00A3FF] px-12 py-5 rounded-2xl text-white font-black uppercase text-[11px] tracking-widest shadow-xl shadow-[#00A3FF]/20 hover:bg-[#008EE0] active:scale-[0.98] transition-all disabled:opacity-40"
                          >
-                           Initiate Deployment
+                           Iniciar Despliegue
                          </button>
                       </div>
                    </div>
@@ -480,14 +385,14 @@ export default function WordPressManagerPage() {
 
 function WizardField({ label, placeholder, type = "text", value, onChange }: { label: string; placeholder: string; type?: string, value: string, onChange: (v: string) => void }) {
   return (
-    <div className="space-y-2">
-       <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">{label}</label>
+    <div className="space-y-3">
+       <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-2">{label}</label>
        <input 
          type={type} 
          placeholder={placeholder}
          value={value}
          onChange={(e) => onChange(e.target.value)}
-         className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-primary/50 transition-all placeholder:text-zinc-700"
+         className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-6 py-4 text-sm text-slate-900 font-bold outline-none focus:border-[#00A3FF] focus:bg-white transition-all shadow-inner"
        />
     </div>
   );
@@ -495,11 +400,11 @@ function WizardField({ label, placeholder, type = "text", value, onChange }: { l
 
 function TechStat({ label, value, icon, active }: { label: string; value: string; icon?: string; active?: boolean }) {
   return (
-    <div className="space-y-1">
-      <span className="text-[9px] font-black text-zinc-600 uppercase tracking-[0.2em] block">{label}</span>
+    <div className="space-y-1.5">
+      <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest block">{label}</span>
       <div className="flex items-center gap-2">
-         {icon && <span className="material-symbols-outlined text-[14px] text-zinc-700">{icon}</span>}
-         <span className={`text-sm font-bold tracking-tight ${active === true ? 'text-primary' : active === false ? 'text-zinc-500' : 'text-zinc-200'}`}>
+         {icon && <span className="material-symbols-outlined text-[16px] text-slate-400">{icon}</span>}
+         <span className={`text-sm font-bold tracking-tight ${active === true ? 'text-emerald-600' : active === false ? 'text-slate-400' : 'text-slate-700'}`}>
            {value}
          </span>
       </div>

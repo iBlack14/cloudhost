@@ -81,122 +81,142 @@ export default function PythonAppsPage() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["odin_python_apps"] })
   });
 
-  if (isLoading) return <div className="p-10 text-white">Loading Python runtime mesh...</div>;
+  if (isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center p-24 bg-white border border-slate-200 rounded-[3rem] animate-pulse">
+        <div className="w-12 h-12 border-4 border-slate-100 border-t-[#00A3FF] rounded-full animate-spin mb-4"></div>
+        <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Sincronizando Runtime Python...</p>
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-8 max-w-6xl">
-      <header className="flex justify-between items-end gap-6">
-        <div className="space-y-4">
-          <h1 className="text-5xl font-headline font-black text-white tracking-tighter uppercase italic flex items-center gap-4">
-            Python <span className="text-sky-400">Runtime Grid</span>
+    <div className="space-y-12 animate-in fade-in duration-700">
+      <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 border-b border-slate-200 pb-10">
+        <div className="space-y-1.5">
+          <div className="flex items-center gap-3 mb-1">
+             <span className="px-2.5 py-1 bg-[#00A3FF]/10 text-[#00A3FF] text-[10px] font-bold uppercase rounded-full tracking-wider">
+                Ecosistema Python
+             </span>
+          </div>
+          <h1 className="text-5xl font-black text-slate-900 uppercase">
+            Python <span className="text-[#00A3FF]">Runtime Grid</span>
           </h1>
-          <p className="text-zinc-500 font-mono tracking-widest text-[10px] uppercase">
+          <p className="text-slate-500 text-sm font-medium mt-2">
             Publica FastAPI, Flask, Django o workers Python bajo un proceso administrado.
           </p>
         </div>
         <button
           onClick={() => setShowCreate(!showCreate)}
-          className="bg-sky-400 hover:bg-sky-300 text-black px-6 py-3 font-black text-[10px] uppercase tracking-widest transition-all rounded-xl shadow-[0_0_15px_rgba(56,189,248,0.3)]"
+          className={`px-10 py-5 rounded-2xl font-black uppercase text-[11px] tracking-widest transition-all shadow-xl flex items-center gap-2 active:scale-95 ${showCreate ? 'bg-slate-900 text-white shadow-slate-900/20' : 'bg-[#00A3FF] text-white shadow-[#00A3FF]/20'}`}
         >
-          {showCreate ? "Cancel" : "+ Deploy Python App"}
+          <span className="material-symbols-outlined">{showCreate ? 'close' : 'add'}</span>
+          {showCreate ? "Cancelar Despliegue" : "Nueva App Python"}
         </button>
       </header>
 
       {showCreate && (
-        <div className="glass-card p-8 rounded-2xl border border-sky-400/20 bg-zinc-900 animate-fade-in relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-64 h-64 bg-sky-400/10 rounded-full blur-[80px] pointer-events-none -z-10"></div>
-          <h3 className="text-sky-400 font-black uppercase text-xl italic tracking-tighter mb-6">Python Deployment Spec</h3>
+        <div className="bg-white border border-slate-200 p-12 rounded-[3rem] shadow-2xl animate-in zoom-in-95 duration-300 relative overflow-hidden">
+          <div className="absolute top-[-10%] right-[-5%] w-64 h-64 bg-[#00A3FF]/5 rounded-full blur-[80px] pointer-events-none"></div>
+          <div className="relative z-10 space-y-10">
+             <div>
+                <h3 className="text-2xl font-black text-slate-900 uppercase">Especificación de Despliegue</h3>
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Configurar entorno virtual aislado</p>
+             </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Field label="App Name">
-              <input type="text" value={newApp.name} onChange={(e) => setNewApp({ ...newApp, name: e.target.value })} className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white font-mono text-sm focus:border-sky-400 outline-none" placeholder="fastapi-core" />
-            </Field>
-            <Field label="Python Version">
-              <select value={newApp.version} onChange={(e) => setNewApp({ ...newApp, version: e.target.value })} className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white font-mono text-sm focus:border-sky-400 outline-none appearance-none">
-                <option value="3.10">Python 3.10</option>
-                <option value="3.11">Python 3.11</option>
-                <option value="3.12">Python 3.12</option>
-              </select>
-            </Field>
-            <Field label="Application Root Path">
-              <input type="text" value={newApp.path} onChange={(e) => setNewApp({ ...newApp, path: e.target.value })} className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white font-mono text-sm focus:border-sky-400 outline-none" />
-            </Field>
-            <Field label="Entrypoint">
-              <input type="text" value={newApp.entrypoint} onChange={(e) => setNewApp({ ...newApp, entrypoint: e.target.value })} className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white font-mono text-sm focus:border-sky-400 outline-none" placeholder="main.py" />
-            </Field>
-            <Field label="Target Domain">
-              <input type="text" value={newApp.domain} onChange={(e) => setNewApp({ ...newApp, domain: e.target.value })} className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white font-mono text-sm focus:border-sky-400 outline-none" placeholder="api.midominio.com" />
-            </Field>
-            <Field label="Internal Port">
-              <input type="number" value={newApp.port} onChange={(e) => setNewApp({ ...newApp, port: e.target.value })} className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white font-mono text-sm focus:border-sky-400 outline-none" />
-            </Field>
+             <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                <Field label="Nombre del Proyecto">
+                  <input type="text" value={newApp.name} onChange={(e) => setNewApp({ ...newApp, name: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-6 py-4 text-slate-900 font-bold text-sm outline-none focus:border-[#00A3FF] focus:bg-white transition-all shadow-inner" placeholder="fastapi-core" />
+                </Field>
+                <Field label="Versión de Python">
+                  <select value={newApp.version} onChange={(e) => setNewApp({ ...newApp, version: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-6 py-4 text-slate-900 font-bold text-sm outline-none focus:border-[#00A3FF] focus:bg-white transition-all shadow-inner cursor-pointer appearance-none">
+                    <option value="3.10">Python 3.10</option>
+                    <option value="3.11">Python 3.11 (Recomendado)</option>
+                    <option value="3.12">Python 3.12 (Latest)</option>
+                  </select>
+                </Field>
+                <Field label="Ruta del Proyecto">
+                  <input type="text" value={newApp.path} onChange={(e) => setNewApp({ ...newApp, path: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-6 py-4 text-slate-900 font-bold text-sm outline-none focus:border-[#00A3FF] focus:bg-white transition-all shadow-inner" />
+                </Field>
+                <Field label="Fichero de Entrada (Entrypoint)">
+                  <input type="text" value={newApp.entrypoint} onChange={(e) => setNewApp({ ...newApp, entrypoint: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-6 py-4 text-slate-900 font-bold text-sm outline-none focus:border-[#00A3FF] focus:bg-white transition-all shadow-inner" placeholder="main.py" />
+                </Field>
+                <Field label="Dominio Asociado">
+                  <input type="text" value={newApp.domain} onChange={(e) => setNewApp({ ...newApp, domain: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-6 py-4 text-slate-900 font-bold text-sm outline-none focus:border-[#00A3FF] focus:bg-white transition-all shadow-inner" placeholder="api.midominio.com" />
+                </Field>
+                <Field label="Puerto Interno">
+                  <input type="number" value={newApp.port} onChange={(e) => setNewApp({ ...newApp, port: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-6 py-4 text-slate-900 font-bold text-sm outline-none focus:border-[#00A3FF] focus:bg-white transition-all shadow-inner" />
+                </Field>
+             </div>
+
+             <button
+               disabled={createMutation.isPending || !newApp.name || !newApp.domain}
+               onClick={() => createMutation.mutate()}
+               className="bg-[#00A3FF] px-12 py-5 rounded-2xl text-white font-black uppercase text-[11px] tracking-widest shadow-xl shadow-[#00A3FF]/20 hover:bg-[#008EE0] active:scale-[0.98] transition-all disabled:opacity-40"
+             >
+               Provisionar Runtime Python
+             </button>
           </div>
-
-          <button
-            disabled={createMutation.isPending || !newApp.name || !newApp.domain}
-            onClick={() => createMutation.mutate()}
-            className="mt-8 bg-white hover:bg-sky-400 transition-colors text-black font-black uppercase tracking-widest text-[10px] px-8 py-3 rounded-xl disabled:opacity-50"
-          >
-            Provision Python Runtime
-          </button>
         </div>
       )}
 
       {apps?.length === 0 && !showCreate ? (
-        <div className="p-20 border-2 border-dashed border-white/5 rounded-3xl flex flex-col items-center justify-center text-center">
-          <span className="material-symbols-outlined text-zinc-800 text-6xl mb-6">code_blocks</span>
-          <h4 className="text-sm font-black text-zinc-500 uppercase tracking-widest">Aún no hay Python Apps</h4>
-          <p className="text-[10px] text-zinc-700 mt-2 uppercase tracking-widest">Habilita un runtime para APIs, automatizaciones o workers async.</p>
+        <div className="p-20 bg-slate-50 border-2 border-dashed border-slate-200 rounded-[3rem] flex flex-col items-center justify-center text-center group hover:border-[#00A3FF]/20 transition-all cursor-pointer" onClick={() => setShowCreate(true)}>
+             <div className="w-20 h-20 bg-white rounded-3xl flex items-center justify-center text-slate-200 mb-6 shadow-sm">
+                <span className="material-symbols-outlined text-5xl">code_blocks</span>
+             </div>
+             <h4 className="text-lg font-black text-slate-900 uppercase">Sin Aplicaciones Python</h4>
+             <p className="text-sm text-slate-500 mt-2 font-medium">Habilita un runtime para APIs, automatizaciones o workers asíncronos.</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-6">
+        <div className="grid grid-cols-1 gap-8">
           {apps?.map((app: any) => (
-            <div key={app.id} className="glass-card p-6 rounded-2xl flex flex-col md:flex-row justify-between items-center gap-6 group hover:border-sky-400/20 transition-all border border-white/5">
-              <div className="flex gap-6 items-center w-full md:w-auto">
-                <div className="w-16 h-16 rounded-2xl bg-zinc-900 border border-white/5 flex items-center justify-center text-sky-400 transition-all group-hover:bg-sky-400/10">
+            <div key={app.id} className="bg-white border border-slate-200 p-8 rounded-[2.5rem] flex flex-col xl:flex-row justify-between items-center gap-10 group hover:border-[#00A3FF]/30 transition-all duration-500 shadow-sm">
+              <div className="flex gap-6 items-center w-full xl:w-1/3">
+                <div className="w-16 h-16 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-400 group-hover:bg-[#00A3FF] group-hover:text-white transition-all shadow-sm shrink-0">
                   <span className="material-symbols-outlined text-3xl">code_blocks</span>
                 </div>
-                <div>
-                  <h3 className="text-2xl font-headline font-black text-white italic uppercase tracking-tighter flex items-center gap-3">
+                <div className="space-y-1">
+                  <h3 className="text-2xl font-black text-slate-900 group-hover:text-[#00A3FF] transition-colors flex items-center gap-3">
                     {app.name}
-                    <span className={`w-2 h-2 rounded-full ${app.status === "online" ? "bg-green-500 shadow-[0_0_8px_#22c55e]" : app.status === "stopping" || app.status === "stopped" ? "bg-amber-500" : "bg-red-500"}`}></span>
+                    <span className={`w-2.5 h-2.5 rounded-full ${app.status === "online" ? "bg-emerald-500 shadow-[0_0_8px_#10b981]" : app.status === "stopping" || app.status === "stopped" ? "bg-amber-500" : "bg-red-500"}`}></span>
                   </h3>
-                  <div className="flex gap-4 mt-2 flex-wrap">
-                    <span className="text-[10px] font-mono text-zinc-500 tracking-widest">Port: <strong className="text-zinc-300">{app.port}</strong></span>
-                    <span className="text-[10px] font-mono text-zinc-500 tracking-widest">Python: <strong className="text-zinc-300">{app.version}</strong></span>
-                    <span className="text-[10px] font-mono text-sky-400/70 tracking-widest">https://{app.domain}</span>
+                  <div className="flex gap-4 flex-wrap">
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Puerto: <strong className="text-[#00A3FF]">{app.port}</strong></span>
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Python: <strong className="text-[#00A3FF]">{app.version}</strong></span>
+                    <span className="text-[10px] font-black text-[#00A3FF] tracking-widest hover:underline cursor-pointer">https://{app.domain}</span>
                   </div>
                 </div>
               </div>
 
-              <div className="flex flex-col md:flex-row gap-4 md:gap-8 items-center w-full md:w-auto">
-                <div className="flex gap-4 text-center">
-                  <div>
-                    <span className="block text-[9px] uppercase tracking-widest text-zinc-600 font-black mb-1">CPU Load</span>
-                    <span className="text-xs font-mono font-bold text-white">{app.cpu ?? 0}%</span>
-                  </div>
-                  <div>
-                    <span className="block text-[9px] uppercase tracking-widest text-zinc-600 font-black mb-1">RAM Alloc</span>
-                    <span className="text-xs font-mono font-bold text-white">{Math.round((app.memory ?? 0) / 1024 / 1024)}mb</span>
-                  </div>
-                </div>
+              <div className="flex flex-col md:flex-row gap-6 md:gap-10 items-center flex-1 w-full xl:w-auto border-y xl:border-y-0 xl:border-x border-slate-100 py-6 xl:py-0 px-8">
+                 <div className="grid grid-cols-2 gap-8 flex-1">
+                   <div className="text-center md:text-left">
+                     <span className="block text-[10px] uppercase tracking-widest text-slate-300 font-black mb-2">Carga CPU</span>
+                     <span className="text-sm font-black text-slate-700 font-mono bg-slate-50 px-3 py-1 rounded-lg">{app.cpu ?? 0}%</span>
+                   </div>
+                   <div className="text-center md:text-left">
+                     <span className="block text-[10px] uppercase tracking-widest text-slate-300 font-black mb-2">Memoria RAM</span>
+                     <span className="text-sm font-black text-slate-700 font-mono bg-slate-50 px-3 py-1 rounded-lg">{Math.round((app.memory ?? 0) / 1024 / 1024)}MB</span>
+                   </div>
+                 </div>
 
-                <div className="flex gap-2 bg-black/40 p-1.5 rounded-xl border border-white/5">
-                  <button onClick={() => manageMutation.mutate({ id: app.id, action: "start" })} className="px-3 py-2 text-[10px] uppercase font-black tracking-widest text-zinc-400 hover:text-green-500 hover:bg-green-500/10 rounded-lg transition-all">
-                    Boot
-                  </button>
-                  <button onClick={() => manageMutation.mutate({ id: app.id, action: "restart" })} className="px-3 py-2 text-[10px] uppercase font-black tracking-widest text-zinc-400 hover:text-amber-500 hover:bg-amber-500/10 rounded-lg transition-all">
-                    Restart
-                  </button>
-                  <button onClick={() => manageMutation.mutate({ id: app.id, action: "stop" })} className="px-3 py-2 text-[10px] uppercase font-black tracking-widest text-red-500/70 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all">
-                    Stop
-                  </button>
-                  <span className="w-px h-6 bg-white/10 self-center mx-1"></span>
-                  <button onClick={() => { if (confirm("¿Eliminar aplicación Python del runtime mesh?")) deleteMutation.mutate(app.id); }} className="p-2 text-zinc-600 hover:text-red-500 hover:bg-red-500/10 transition-all rounded-lg">
-                    <span className="material-symbols-outlined text-[16px]">close</span>
-                  </button>
-                </div>
+                 <div className="flex gap-2 bg-slate-50 p-2 rounded-2xl border border-slate-100 shadow-inner">
+                   <button onClick={() => manageMutation.mutate({ id: app.id, action: "start" })} className="px-4 py-2 text-[10px] uppercase font-black tracking-widest text-slate-400 hover:text-emerald-500 hover:bg-emerald-50 rounded-xl transition-all">
+                     Iniciar
+                   </button>
+                   <button onClick={() => manageMutation.mutate({ id: app.id, action: "restart" })} className="px-4 py-2 text-[10px] uppercase font-black tracking-widest text-slate-400 hover:text-amber-500 hover:bg-amber-50 rounded-xl transition-all">
+                     Reiniciar
+                   </button>
+                   <button onClick={() => manageMutation.mutate({ id: app.id, action: "stop" })} className="px-4 py-2 text-[10px] uppercase font-black tracking-widest text-red-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all">
+                     Parar
+                   </button>
+                 </div>
               </div>
+
+              <button onClick={() => { if (confirm("¿Eliminar aplicación Python permanentemente?")) deleteMutation.mutate(app.id); }} className="w-12 h-12 rounded-2xl bg-red-50 text-red-400 hover:bg-red-500 hover:text-white transition-all flex items-center justify-center shadow-sm">
+                <span className="material-symbols-outlined text-[20px]">delete</span>
+              </button>
             </div>
           ))}
         </div>
@@ -207,8 +227,8 @@ export default function PythonAppsPage() {
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div>
-      <label className="text-[10px] font-black uppercase text-zinc-500 tracking-widest block mb-2">{label}</label>
+    <div className="space-y-3">
+      <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-2 block">{label}</label>
       {children}
     </div>
   );

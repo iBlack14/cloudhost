@@ -56,20 +56,20 @@ export const ensureDomainsTable = async () => {
 export const listUserDomains = async (userId: string) => {
   await ensureDomainsTable();
   const result = await db.query(
-    "SELECT d.*, u.username as owner_name FROM domains d INNER JOIN users u ON u.id = d.user_id WHERE d.user_id = $1 ORDER BY d.domain_name ASC",
+    "SELECT d.*, u.username as username FROM domains d INNER JOIN users u ON u.id = d.user_id WHERE d.user_id = $1 ORDER BY d.domain_name ASC",
     [userId]
   );
 
-  return Promise.all(result.rows.map((domain) => enrichDomain(domain)));
+  return result.rows;
 };
 
 export const listAllDomains = async () => {
   await ensureDomainsTable();
   const result = await db.query(
-    "SELECT d.*, u.username as owner_name FROM domains d INNER JOIN users u ON u.id = d.user_id ORDER BY d.created_at DESC"
+    "SELECT d.*, u.username as username FROM domains d INNER JOIN users u ON u.id = d.user_id ORDER BY d.created_at DESC"
   );
 
-  return Promise.all(result.rows.map((domain) => enrichDomain(domain)));
+  return result.rows;
 };
 
 export const addDomain = async (userId: string, domainName: string) => {

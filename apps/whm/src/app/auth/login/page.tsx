@@ -11,8 +11,10 @@ export default function WhmLoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const [showPass, setShowPass] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    setMounted(true);
     if (hasWhmSession()) {
       router.replace("/whm");
     }
@@ -27,136 +29,146 @@ export default function WhmLoginPage() {
       await loginWhm(username, password);
       router.replace("/whm");
     } catch (submitError) {
-      setError(submitError instanceof Error ? submitError.message : "No se pudo iniciar sesión");
+      setError(submitError instanceof Error ? submitError.message : "Acceso denegado. Credenciales inválidas.");
     } finally {
       setIsLoading(false);
     }
   };
 
+  if (!mounted) return null;
+
   return (
-    <div className="min-h-screen bg-[#02060C] flex items-center justify-center relative overflow-hidden font-sans antialiased">
-      {/* Dynamic Background Elements */}
-      <div className="absolute inset-0 z-0">
-        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-primary/10 blur-[120px] rounded-full animate-pulse" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[30%] h-[30%] bg-secondary/5 blur-[100px] rounded-full" />
-        {/* Starfield / Grid pattern */}
+    <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center relative overflow-hidden font-sans antialiased text-slate-900 selection:bg-[#00A3FF]/20">
+      {/* 🌌 Corporate Light Background */}
+      <div className="absolute inset-0 z-0 pointer-events-none">
         <div 
-          className="absolute inset-0 opacity-[0.03]" 
-          style={{ 
-            backgroundImage: `radial-gradient(circle at 2px 2px, #00A3FF 1px, transparent 0)`,
-            backgroundSize: '40px 40px' 
+          className="absolute inset-0 z-0 opacity-40"
+          style={{
+            backgroundImage: "url('/fondo-logo.webp')",
+            backgroundSize: "cover",
+            backgroundPosition: "center",
           }}
         />
+        {/* Soft Overlays for depth */}
+        <div className="absolute inset-0 bg-gradient-to-tr from-white via-white/90 to-blue-50/30 opacity-95" />
       </div>
 
-      <div className="relative z-10 w-full max-w-[380px] px-6">
-        {/* Branding */}
+      {/* 🔮 Subtle Accent Glow */}
+      <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-[#00A3FF]/5 rounded-full blur-[120px] pointer-events-none opacity-50" />
+      <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-[#00A3FF]/5 rounded-full blur-[100px] pointer-events-none opacity-30" />
+
+      <div className="relative z-10 w-full max-w-[440px] px-6 animate-in fade-in slide-in-from-bottom-6 duration-700 ease-out">
+        
+        {/* 🛡️ Corporate Branding */}
         <div className="flex flex-col items-center mb-10">
-          <div className="relative mb-6 group cursor-default">
-            <div className="absolute inset-0 bg-primary/20 rounded-full blur-2xl group-hover:bg-primary/40 transition-all duration-700 opacity-50"></div>
+          <div className="relative group transition-transform duration-500 hover:scale-105">
             <img 
               src="/logo.png" 
-              alt="Odisea" 
-              className="w-20 h-20 object-contain relative z-10 drop-shadow-[0_0_15px_rgba(0,163,255,0.4)] group-hover:scale-110 transition-transform duration-500" 
+              alt="Odisea Logo" 
+              className="w-32 h-32 object-contain mb-4 drop-shadow-lg" 
             />
           </div>
-          <h1 className="text-2xl font-black text-white tracking-tighter italic uppercase font-headline">
-            WHM <span className="text-primary font-normal tracking-normal not-italic ml-1">CONSOLE</span>
-          </h1>
-          <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-[0.4em] mt-2 opacity-60">
-            Secure Infrastructure Access
-          </p>
-        </div>
-
-        {/* Login Form Container */}
-        <div className="bg-[#0A1221]/60 backdrop-blur-3xl border border-white/5 rounded-2xl p-8 shadow-2xl shadow-black/40">
-          <div className="mb-6">
-             <h2 className="text-[11px] font-black text-white uppercase tracking-[0.2em] mb-1">
-               Identity Required
-             </h2>
-             <div className="h-0.5 w-8 bg-primary/40 rounded-full"></div>
+          
+          <div className="text-center mb-6">
+             <h1 className="text-4xl font-black text-slate-900 tracking-tighter uppercase mb-1">
+               ODISEA <span className="font-light text-[#00A3FF]">CLOUD</span>
+             </h1>
+             <div className="flex items-center gap-2 justify-center">
+                <div className="h-[2px] w-12 bg-gradient-to-r from-transparent to-[#00A3FF]/40 rounded-full"></div>
+                <div className="h-[2px] w-12 bg-gradient-to-l from-transparent to-[#00A3FF]/40 rounded-full"></div>
+             </div>
           </div>
 
-          <form onSubmit={onSubmit} className="space-y-5">
-            <div className="space-y-2">
-              <label className="text-[9px] font-black uppercase tracking-[0.2em] text-zinc-500 ml-1">Terminal ID</label>
-              <div className="relative">
-                <span className="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-[16px] text-zinc-600">person</span>
+          <div className="flex flex-col items-center">
+            <h2 className="text-xl font-bold text-slate-800 tracking-tight">
+              Acceso Administrativo
+            </h2>
+            <p className="text-sm text-slate-500 mt-1 font-medium">
+              Panel de gestión de infraestructura global
+            </p>
+          </div>
+        </div>
+
+        {/* 🔐 Elegant White Container */}
+        <div className="bg-white border border-slate-200 rounded-[2.5rem] p-10 shadow-[0_20px_50px_-12px_rgba(0,163,255,0.12)] relative overflow-hidden">
+          
+          <form onSubmit={onSubmit} className="space-y-6 relative z-10">
+            <div className="space-y-2.5">
+              <label className="text-[13px] font-bold text-slate-600 ml-1">Usuario</label>
+              <div className="relative group/input">
+                <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[20px] text-slate-400 group-focus-within/input:text-[#00A3FF] transition-all duration-300">person</span>
                 <input
                   type="text"
                   value={username}
                   onChange={(event) => setUsername(event.target.value)}
                   required
-                  className="w-full bg-white/[0.03] border border-white/[0.08] rounded-xl pl-10 pr-4 py-3 text-sm text-white outline-none focus:border-primary/40 focus:bg-primary/[0.02] transition-all font-mono placeholder-zinc-700"
-                  placeholder="admin_id"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-2xl pl-12 pr-4 py-4 text-[15px] text-slate-900 outline-none focus:border-[#00A3FF]/50 focus:bg-white focus:ring-4 focus:ring-[#00A3FF]/5 transition-all duration-300 placeholder-slate-400"
+                  placeholder="ID de administrador"
                 />
               </div>
             </div>
 
-            <div className="space-y-2">
-              <label className="text-[9px] font-black uppercase tracking-[0.2em] text-zinc-500 ml-1">Access Key</label>
-              <div className="relative">
-                <span className="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-[16px] text-zinc-600">lock</span>
+            <div className="space-y-2.5">
+              <label className="text-[13px] font-bold text-slate-600 ml-1">Contraseña</label>
+              <div className="relative group/input">
+                <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[20px] text-slate-400 group-focus-within/input:text-[#00A3FF] transition-all duration-300">lock</span>
                 <input
                   type={showPass ? "text" : "password"}
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
                   required
-                  className="w-full bg-white/[0.03] border border-white/[0.08] rounded-xl pl-10 pr-12 py-3 text-sm text-white outline-none focus:border-primary/40 focus:bg-primary/[0.02] transition-all font-mono placeholder-zinc-700"
-                  placeholder="••••••••"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-2xl pl-12 pr-12 py-4 text-[15px] text-slate-900 outline-none focus:border-[#00A3FF]/50 focus:bg-white focus:ring-4 focus:ring-[#00A3FF]/5 transition-all duration-300 placeholder-slate-400"
+                  placeholder="••••••••••••"
                 />
                 <button 
                   type="button" 
                   onClick={() => setShowPass(!showPass)}
-                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-zinc-600 hover:text-zinc-400 transition-colors"
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors outline-none"
                 >
-                  <span className="material-symbols-outlined text-[18px]">
+                  <span className="material-symbols-outlined text-[20px]">
                     {showPass ? 'visibility_off' : 'visibility'}
                   </span>
                 </button>
               </div>
             </div>
 
-            {error ? (
-              <div className="flex items-center gap-2.5 p-3 rounded-xl border border-red-500/20 bg-red-500/5 text-red-400 text-[10px] font-bold uppercase tracking-wide animate-in fade-in slide-in-from-top-1">
-                <span className="material-symbols-outlined text-[16px]">error</span>
+            {error && (
+              <div className="flex items-center gap-3 p-4 rounded-2xl border border-red-200 bg-red-50 text-red-600 text-[13px] font-semibold animate-in fade-in zoom-in-95 duration-300">
+                <span className="material-symbols-outlined text-[18px]">error</span>
                 {error}
               </div>
-            ) : null}
+            )}
 
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full kinetic-gradient py-3.5 rounded-xl text-white font-black uppercase tracking-[0.2em] text-[10px] shadow-lg shadow-primary/20 hover:shadow-primary/30 active:scale-[0.98] transition-all disabled:opacity-40 disabled:grayscale group relative overflow-hidden"
+              className="w-full bg-[#00A3FF] hover:bg-[#008EE0] py-4 rounded-2xl text-white font-bold text-[15px] transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed mt-4 flex items-center justify-center gap-3 shadow-[0_10px_20px_-5px_rgba(0,163,255,0.4)] active:scale-[0.98]"
             >
-              <span className="relative z-10 flex items-center justify-center gap-2">
-                {isLoading ? (
-                  <>
-                    <div className="w-3 h-3 border-2 border-white/20 border-t-white rounded-full animate-spin"></div>
-                    Verifying...
-                  </>
-                ) : (
-                  <>
-                    <span className="material-symbols-outlined text-[16px] group-hover:translate-x-1 transition-transform">login</span>
-                    Authorize Access
-                  </>
-                )}
-              </span>
-              <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+              {isLoading ? (
+                <>
+                  <div className="w-5 h-5 border-[3px] border-white/20 border-t-white rounded-full animate-spin"></div>
+                  Verificando...
+                </>
+              ) : (
+                <>
+                  <span>Ingresar al Sistema</span>
+                  <span className="material-symbols-outlined text-[18px]">login</span>
+                </>
+              )}
             </button>
           </form>
         </div>
 
-        {/* Footer info */}
-        <div className="mt-8 flex items-center justify-center gap-4 opacity-30 grayscale hover:opacity-100 hover:grayscale-0 transition-all duration-700">
-           <div className="flex items-center gap-1.5">
-              <span className="material-symbols-outlined text-[12px] text-zinc-400">shield</span>
-              <span className="text-[8px] font-black text-zinc-500 uppercase tracking-widest">Encrypted</span>
+        {/* 🔒 Corporate Footer */}
+        <div className="mt-12 flex items-center justify-center gap-6 text-slate-400 cursor-default">
+           <div className="flex items-center gap-2">
+              <span className="material-symbols-outlined text-[14px]">verified_user</span>
+              <span className="text-[10px] font-bold tracking-wider uppercase">Bóveda Protegida</span>
            </div>
-           <div className="w-1 h-1 rounded-full bg-zinc-800"></div>
-           <div className="flex items-center gap-1.5">
-              <span className="material-symbols-outlined text-[12px] text-zinc-400">dns</span>
-              <span className="text-[8px] font-black text-zinc-500 uppercase tracking-widest">Node v2.4</span>
+           <div className="w-1.5 h-1.5 rounded-full bg-slate-200"></div>
+           <div className="flex items-center gap-2">
+              <span className="material-symbols-outlined text-[14px]">hub</span>
+              <span className="text-[10px] font-bold tracking-wider uppercase">Nodo US-EAST-2.4</span>
            </div>
         </div>
       </div>

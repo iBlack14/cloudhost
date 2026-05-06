@@ -8,14 +8,12 @@ export default function DomainsPage() {
   const [newDomain, setNewDomain] = useState("");
   const queryClient = useQueryClient();
 
-  // FIX #5: Use React Query instead of manual useState + useEffect
-  const { data: domains = [], isLoading, error } = useQuery({
+  const { data: domains = [], isLoading } = useQuery({
     queryKey: ["odin", "domains"],
     queryFn: fetchDomains,
-    staleTime: 1000 * 60 * 5 // 5 minutes
+    staleTime: 1000 * 60 * 5
   });
 
-  // FIX #7: useMutation handles loading state automatically
   const addMutation = useMutation({
     mutationFn: addDomain,
     onSuccess: () => {
@@ -45,16 +43,14 @@ export default function DomainsPage() {
          headers: { Authorization: `Bearer ${window.sessionStorage.getItem("odin-access-token")}` }
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data?.error?.message ?? "SSL Issue Failed");
+      if (!res.ok) throw new Error(data?.error?.message ?? "Fallo al emitir SSL");
       return data;
     },
     onSuccess: () => {
-      alert("Certificado SSL emitido con éxito por Let's Encrypt.");
+      alert("Certificado SSL emitido con éxito.");
       queryClient.invalidateQueries({ queryKey: ["odin", "domains"] });
     },
-    onError: (err) => {
-      alert(`Error SSL: ${err.message}`);
-    }
+    onError: (err) => alert(`Error SSL: ${err.message}`)
   });
 
   const handleAddDomain = async (e: React.FormEvent) => {
@@ -63,135 +59,144 @@ export default function DomainsPage() {
     await addMutation.mutateAsync(newDomain);
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure?")) return;
-    deleteMutation.mutate(id);
-  };
-
   return (
-    <div className="space-y-12">
-      <header className="flex justify-between items-end">
-        <div className="space-y-1">
+    <div className="space-y-12 animate-in fade-in duration-700">
+      <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 border-b border-slate-200 pb-10">
+        <div className="space-y-1.5">
           <div className="flex items-center gap-3 mb-1">
-             <span className="px-2 py-0.5 bg-primary/10 text-primary text-[9px] font-black uppercase rounded border border-primary/20 tracking-widest">
-                Network Layer
+             <span className="px-2.5 py-1 bg-[#00A3FF]/10 text-[#00A3FF] text-[10px] font-bold uppercase rounded-full tracking-wider">
+                Gestión de Red
              </span>
           </div>
-          <h1 className="text-6xl font-headline font-black text-white tracking-tighter uppercase italic">
-            Domain <span className="text-zinc-600">Assets</span>
+          <h1 className="text-5xl font-black text-slate-900 uppercase">
+            Mis <span className="text-[#00A3FF]">Dominios</span>
           </h1>
-          <p className="text-zinc-500 text-sm font-mono tracking-widest mt-1">
-            Global namespace orchestration and DNS propagation control.
+          <p className="text-slate-500 text-sm font-medium mt-2">
+            Administra tus activos digitales, zonas DNS y seguridad SSL.
           </p>
+        </div>
+        <div className="flex gap-4">
+           <div className="px-5 py-3 bg-white border border-slate-200 rounded-2xl shadow-sm flex items-center gap-4">
+              <div className="text-right">
+                 <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Dominios Activos</div>
+                 <div className="text-xl font-black text-slate-900">{domains.length}</div>
+              </div>
+              <div className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center text-[#00A3FF]">
+                 <span className="material-symbols-outlined">public</span>
+              </div>
+           </div>
         </div>
       </header>
 
       {/* Add Domain Section */}
-      <div className="glass-card p-1">
-         <form onSubmit={handleAddDomain} className="bg-white/[0.02] p-8 flex flex-col md:flex-row items-center gap-6 group">
-            <div className="flex-1 w-full space-y-2">
-               <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Register New Domain Asset</label>
-               <input 
-                 type="text" 
-                 placeholder="e.g. blxkstudio.com"
-                 value={newDomain}
-                 onChange={(e) => setNewDomain(e.target.value)}
-                 disabled={addMutation.isPending}
-                 className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white focus:outline-none focus:border-primary/50 transition-all placeholder:text-zinc-800 font-headline italic uppercase tracking-tighter disabled:opacity-50"
-               />
+      <div className="bg-white border border-slate-200 rounded-[2.5rem] p-10 shadow-sm relative overflow-hidden group">
+         <form onSubmit={handleAddDomain} className="relative z-10 flex flex-col md:flex-row items-end gap-6">
+            <div className="flex-1 w-full space-y-3">
+               <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-2">Conectar Nuevo Dominio</label>
+               <div className="relative">
+                  <span className="material-symbols-outlined absolute left-5 top-1/2 -translate-y-1/2 text-slate-300">add_link</span>
+                  <input 
+                    type="text" 
+                    placeholder="ejemplo.com"
+                    value={newDomain}
+                    onChange={(e) => setNewDomain(e.target.value)}
+                    disabled={addMutation.isPending}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl pl-14 pr-6 py-4 text-slate-900 font-bold outline-none focus:border-[#00A3FF] focus:bg-white transition-all placeholder:text-slate-300 shadow-inner"
+                  />
+               </div>
             </div>
             <button 
               disabled={addMutation.isPending || !newDomain}
-              className="w-full md:w-auto mt-6 md:mt-0 kinetic-gradient px-12 py-5 rounded-2xl text-white font-black font-headline tracking-widest active:scale-95 transition-all shadow-xl shadow-primary/40 uppercase text-xs disabled:opacity-50"
+              className="w-full md:w-auto bg-[#00A3FF] px-10 py-5 rounded-2xl text-white font-black uppercase text-[11px] tracking-widest shadow-xl shadow-[#00A3FF]/20 hover:bg-[#008EE0] active:scale-[0.98] transition-all disabled:opacity-40"
             >
-              {addMutation.isPending ? "Connecting..." : "+ Connect Domain"}
+              {addMutation.isPending ? "Conectando..." : "Vincular Dominio"}
             </button>
          </form>
+         <div className="absolute -bottom-16 -right-16 w-64 h-64 bg-[#00A3FF]/5 blur-[100px] rounded-full"></div>
       </div>
 
       {/* Domains List */}
-      <div className="space-y-4">
+      <div className="grid grid-cols-1 gap-6">
          {isLoading ? (
-           <div className="p-20 flex flex-col items-center justify-center glass-card animate-pulse">
-              <span className="material-symbols-outlined text-zinc-800 text-6xl mb-4">globe</span>
-              <p className="text-[10px] font-black text-zinc-700 uppercase tracking-widest">Scanning Global Name Servers...</p>
+           <div className="p-20 flex flex-col items-center justify-center bg-white border border-slate-200 rounded-[3rem] shadow-sm">
+              <div className="w-12 h-12 border-4 border-slate-100 border-t-[#00A3FF] rounded-full animate-spin mb-4"></div>
+              <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Sincronizando con Servidores DNS...</p>
            </div>
          ) : domains.length === 0 ? (
-           <div className="p-20 border-2 border-dashed border-white/5 rounded-3xl flex flex-col items-center justify-center text-center">
-              <span className="material-symbols-outlined text-zinc-800 text-6xl mb-6">language_off</span>
-              <h4 className="text-sm font-black text-zinc-500 uppercase tracking-widest">No Domain Assets Mapped</h4>
-              <p className="text-[10px] text-zinc-700 mt-2 uppercase tracking-widest">Connect your first domain to enable cluster routing.</p>
+           <div className="p-20 bg-slate-50 border-2 border-dashed border-slate-200 rounded-[3rem] flex flex-col items-center justify-center text-center">
+              <div className="w-20 h-20 bg-white rounded-3xl flex items-center justify-center text-slate-200 mb-6 shadow-sm">
+                 <span className="material-symbols-outlined text-5xl">language_off</span>
+              </div>
+              <h4 className="text-lg font-black text-slate-900 uppercase">Sin Dominios Vinculados</h4>
+              <p className="text-sm text-slate-500 mt-2 font-medium">Conecta tu primer dominio para habilitar el enrutamiento y hosting.</p>
            </div>
          ) : (
            <div className="grid grid-cols-1 gap-4">
               {domains.map((domain) => (
-                <div key={domain.id} className="glass-card p-1 group">
-                   <div className="bg-white/[0.01] p-6 flex flex-col md:flex-row items-center justify-between gap-8 group-hover:bg-white/[0.03] transition-all">
-                      <div className="flex items-center gap-6">
-                         <div className="w-14 h-14 rounded-xl bg-zinc-900 border border-white/5 flex items-center justify-center text-zinc-500 group-hover:text-primary transition-all">
-                            <span className="material-symbols-outlined">public</span>
+                <div key={domain.id} className="bg-white border border-slate-200 rounded-[2.5rem] p-8 shadow-sm group hover:border-[#00A3FF]/30 transition-all duration-300">
+                   <div className="flex flex-col lg:flex-row items-center justify-between gap-8">
+                      <div className="flex items-center gap-6 w-full lg:w-1/3">
+                         <div className="w-16 h-16 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-400 group-hover:bg-[#00A3FF] group-hover:text-white transition-all shadow-sm">
+                            <span className="material-symbols-outlined text-3xl">public</span>
                          </div>
                          <div>
-                            <h3 className="text-xl font-headline font-black text-white italic uppercase tracking-tighter">{domain.domain_name}</h3>
-                            <div className="flex items-center gap-3 mt-1">
-                               <span className={`w-1.5 h-1.5 rounded-full ${domain.status === 'active' ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]' : 'bg-amber-500'}`}></span>
-                               <span className="text-[9px] font-black text-zinc-500 uppercase tracking-widest">{domain.status}</span>
+                            <h3 className="text-xl font-black text-slate-900 group-hover:text-[#00A3FF] transition-colors">{domain.domain_name}</h3>
+                            <div className="flex items-center gap-2.5 mt-1.5">
+                               <span className={`w-2 h-2 rounded-full ${domain.status === 'active' ? 'bg-emerald-500 shadow-[0_0_8px_#10b981]' : 'bg-amber-500'}`}></span>
+                               <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{domain.status === 'active' ? 'Activo' : 'Pendiente'}</span>
                             </div>
                          </div>
                       </div>
 
-                      <div className="flex flex-1 justify-center gap-12">
-                         <div className="text-center">
-                             <span className="text-[9px] font-black text-zinc-600 uppercase tracking-widest block mb-1">Provider</span>
-                             <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-tight">{domain.dns_provider}</span>
+                      <div className="flex flex-1 justify-around w-full border-y lg:border-y-0 lg:border-x border-slate-100 py-6 lg:py-0 px-4">
+                         <div className="text-center px-4">
+                             <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest block mb-1.5">Proveedor DNS</span>
+                             <span className="text-xs font-bold text-slate-600 uppercase tracking-tight">{domain.dns_provider || "Odisea DNS"}</span>
                          </div>
-                         <div className="text-center">
-                             <span className="text-[9px] font-black text-zinc-600 uppercase tracking-widest block mb-1">SSL Shield</span>
-                             <span className={`text-[10px] font-black uppercase tracking-tight ${domain.ssl_enabled ? 'text-primary' : 'text-zinc-700'}`}>
-                               {domain.ssl_enabled ? 'Protected' : 'Inactive'}
+                         <div className="text-center px-4">
+                             <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest block mb-1.5">Seguridad SSL</span>
+                             <span className={`text-xs font-black uppercase tracking-tight ${domain.ssl_enabled ? 'text-emerald-500' : 'text-slate-400'}`}>
+                               {domain.ssl_enabled ? 'Protegido' : 'Inactivo'}
                              </span>
                          </div>
-                         <div className="text-center min-w-[220px]">
-                             <span className="text-[9px] font-black text-zinc-600 uppercase tracking-widest block mb-1">Runtime</span>
-                             <span className="text-[10px] font-bold text-zinc-400 tracking-tight">
-                               {domain.verification?.publicUrl ?? (domain.verification?.dns?.resolves ? "DNS OK, sin respuesta web" : "DNS no resuelve aún")}
+                         <div className="text-center px-4">
+                             <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest block mb-1.5">URL Pública</span>
+                             <span className="text-xs font-bold text-[#00A3FF] tracking-tight">
+                               {domain.verification?.publicUrl ?? "dns_waiting"}
                              </span>
                          </div>
                       </div>
 
-                      <div className="flex gap-2">
+                      <div className="flex gap-2 w-full lg:w-auto">
                          <button
                            onClick={() => window.location.href = `/domains/${domain.id}`}
-                           title="Manage DNS Zone"
-                           className="px-4 py-2 rounded-lg border border-primary/20 bg-primary/10 text-primary font-black uppercase text-[10px] tracking-widest hover:text-white hover:bg-primary transition-all flex items-center gap-2"
+                           className="flex-1 lg:flex-none px-6 py-3 rounded-xl bg-slate-50 border border-slate-100 text-slate-500 font-black uppercase text-[10px] tracking-widest hover:text-[#00A3FF] hover:bg-[#00A3FF]/5 transition-all flex items-center justify-center gap-2"
                          >
-                            <span className="material-symbols-outlined text-sm">tune</span> Zone
+                            <span className="material-symbols-outlined text-[18px]">tune</span> Gestionar
                          </button>
                          {!domain.ssl_enabled && (
                             <button
-                              onClick={() => { if(confirm("Emite tu certificado SSL con Let's Encrypt. \nRequiere que los DNS apunten a este servidor.")) sslMutation.mutate(domain.id) }}
+                              onClick={() => { if(confirm("¿Emitir certificado SSL Let's Encrypt?")) sslMutation.mutate(domain.id) }}
                               disabled={sslMutation.isPending}
-                              title="Instalar Auto-SSL (Let's Encrypt)"
-                              className="px-4 py-2 rounded-lg border border-secondary/20 bg-secondary/10 text-secondary font-black uppercase text-[10px] tracking-widest hover:text-black hover:bg-secondary transition-all flex items-center gap-2"
+                              className="flex-1 lg:flex-none px-6 py-3 rounded-xl bg-emerald-50 border border-emerald-100 text-emerald-600 font-black uppercase text-[10px] tracking-widest hover:bg-emerald-500 hover:text-white transition-all flex items-center justify-center gap-2"
                             >
-                               <span className="material-symbols-outlined text-sm">lock</span> {sslMutation.isPending ? "Issuing..." : "Auto-SSL"}
+                               <span className="material-symbols-outlined text-[18px]">lock</span> {sslMutation.isPending ? "Emitiendo..." : "Auto-SSL"}
                             </button>
                          )}
-                         <button
-                           onClick={() => verifyMutation.mutate(domain.id)}
-                           disabled={verifyMutation.isPending}
-                           title="Verificar DNS/SSL ahora"
-                           className="p-3 rounded-lg border border-white/5 bg-white/5 text-zinc-500 hover:text-white hover:bg-white/10 transition-all disabled:opacity-50"
-                         >
-                            <span className="material-symbols-outlined text-sm">sync</span>
-                         </button>
-                         <button 
-                           onClick={() => handleDelete(domain.id)}
-                           disabled={deleteMutation.isPending}
-                           className="p-3 rounded-lg border border-white/5 bg-white/5 text-zinc-500 hover:text-red-500 hover:bg-red-500/10 transition-all disabled:opacity-50"
-                         >
-                            <span className="material-symbols-outlined text-sm">delete</span>
-                         </button>
+                         <div className="flex gap-1">
+                            <button
+                              onClick={() => verifyMutation.mutate(domain.id)}
+                              className="w-11 h-11 rounded-xl bg-slate-50 text-slate-400 hover:text-[#00A3FF] transition-all flex items-center justify-center shadow-sm"
+                            >
+                               <span className="material-symbols-outlined text-[18px]">sync</span>
+                            </button>
+                            <button 
+                              onClick={() => handleDelete(domain.id)}
+                              className="w-11 h-11 rounded-xl bg-slate-50 text-slate-400 hover:text-red-500 transition-all flex items-center justify-center shadow-sm"
+                            >
+                               <span className="material-symbols-outlined text-[18px]">delete</span>
+                            </button>
+                         </div>
                       </div>
                    </div>
                 </div>

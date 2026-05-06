@@ -10,7 +10,8 @@ import {
   resumeWhmAccount,
   suspendWhmAccount,
   deleteWhmAccount,
-  syncAllWhmAccountsDiskUsage
+  syncAllWhmAccountsDiskUsage,
+  resetWhmAccountPassword
 } from "../../services/whm/account.service.js";
 
 const accountIdParamSchema = z.object({
@@ -197,6 +198,42 @@ export const deleteWhmAccountHandler = async (req: Request, res: Response): Prom
     return res.status(500).json({
       success: false,
       error: { code: "INTERNAL_ERROR", message: "No se pudo eliminar la cuenta" }
+    });
+  }
+};
+
+export const resetWhmAccountPasswordHandler = async (req: Request, res: Response): Promise<Response> => {
+  const parsedParams = accountIdParamSchema.safeParse(req.params);
+  if (!parsedParams.success) {
+    return res.status(422).json({
+      success: false,
+      error: { code: "VALIDATION_ERROR", message: "accountId inválido" }
+    });
+  }
+
+  const passwordSchema = z.object({ password: z.string().min(6).optional() });
+  const parsedBody = passwordSchema.safeParse(req.body);
+
+  try {
+    const { password } = await resetWhmAccountPassword(parsedParams.data.accountId, parsedBody.success ? parsedBody.data.password : undefined);
+    return res.status(200).json({ 
+      success: true, 
+      data: { 
+        message: "Contraseña restablecida y enviada por correo (simulado)",
+        password 
+      } 
+    });
+  } catch (error) {
+    if (error instanceof Error && error.message === "ACCOUNT_NOT_FOUND") {
+      return res.status(404).json({
+        success: false,
+        error: { code: "ACCOUNT_NOT_FOUND", message: "Cuenta no encontrada" }
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      error: { code: "INTERNAL_ERROR", message: "No se pudo restablecer la contraseña" }
     });
   }
 };

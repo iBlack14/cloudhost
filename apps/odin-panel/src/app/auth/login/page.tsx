@@ -59,82 +59,82 @@ export default function OdinLoginPage() {
   if (!mounted) return null;
 
   return (
-    <div className="min-h-screen bg-[#02060C] flex items-center justify-center relative overflow-hidden font-sans antialiased">
-      {/* Background Effects */}
-      <div className="absolute inset-0 z-0">
-        <div className="absolute top-[-10%] right-[-10%] w-[40%] h-[40%] bg-primary/10 blur-[120px] rounded-full animate-pulse" />
-        <div className="absolute bottom-[-10%] left-[-10%] w-[30%] h-[30%] bg-secondary/5 blur-[100px] rounded-full" />
+    <div className="min-h-screen bg-slate-50 flex items-center justify-center relative overflow-hidden font-sans antialiased">
+      {/* Background Decorative Elements */}
+      <div className="fixed inset-0 z-0 pointer-events-none">
+        <div className="absolute top-[-10%] right-[-10%] w-[50%] h-[50%] bg-[#00A3FF]/10 blur-[150px] rounded-full animate-pulse" />
+        <div className="absolute bottom-[-15%] left-[-15%] w-[45%] h-[45%] bg-slate-200 blur-[120px] rounded-full" />
         <div 
-          className="absolute inset-0 opacity-[0.03]" 
+          className="absolute inset-0 opacity-[0.3]" 
           style={{ 
-            backgroundImage: `radial-gradient(circle at 2px 2px, #00A3FF 1px, transparent 0)`,
+            backgroundImage: `radial-gradient(circle at 2px 2px, #E2E8F0 1px, transparent 0)`,
             backgroundSize: '50px 50px' 
           }}
         />
       </div>
 
-      <div className="relative z-10 w-full max-w-[380px] px-6">
+      <div className="relative z-10 w-full max-w-[420px] px-6">
         {/* Branding */}
-        <div className="flex flex-col items-center mb-10">
-          <div className="relative mb-6 group cursor-default">
-            <div className="absolute inset-0 bg-primary/20 rounded-full blur-2xl group-hover:bg-primary/40 transition-all duration-700 opacity-50"></div>
+        <div className="flex flex-col items-center mb-12">
+          <div className="relative mb-8 group cursor-default">
+            <div className="absolute inset-0 bg-[#00A3FF]/20 rounded-full blur-3xl group-hover:bg-[#00A3FF]/40 transition-all duration-700 opacity-40"></div>
             <img 
               src="/logo.png" 
               alt="Odisea" 
-              className="w-20 h-20 object-contain relative z-10 drop-shadow-[0_0_15px_rgba(0,163,255,0.4)] group-hover:scale-110 transition-transform duration-500" 
+              className="w-24 h-24 object-contain relative z-10 drop-shadow-xl group-hover:scale-110 transition-transform duration-500" 
             />
           </div>
-          <h1 className="text-2xl font-black text-white tracking-tighter italic uppercase font-headline">
-            ODIN <span className="text-primary not-italic font-normal tracking-normal ml-1">PANEL</span>
+          <h1 className="text-4xl font-black text-slate-900 tracking-tighter italic uppercase">
+            ODIN <span className="text-[#00A3FF]">PANEL</span>
           </h1>
-          <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-[0.4em] mt-2 opacity-60">
+          <p className="text-[10px] text-slate-400 font-black uppercase tracking-[0.4em] mt-3">
             Cloud User Terminal
           </p>
         </div>
 
         {/* Login Form Container */}
-        <div className="bg-[#0A1221]/60 backdrop-blur-3xl border border-white/5 rounded-3xl p-8 shadow-2xl shadow-black/40">
-          <div className="mb-8">
-             <h2 className="text-sm font-black text-white uppercase tracking-tight font-headline">
+        <div className="bg-white border border-slate-200 rounded-[3rem] p-12 shadow-2xl shadow-slate-200/50 animate-in zoom-in-95 duration-500">
+          <div className="mb-10">
+             <h2 className="text-lg font-black text-slate-900 uppercase tracking-tight">
                Autenticación
              </h2>
-             <p className="text-[10px] text-zinc-500 uppercase tracking-widest mt-1 font-bold">
-               Ingresa tus credenciales de acceso
+             <p className="text-[10px] text-slate-400 uppercase tracking-widest mt-1.5 font-bold">
+               Ingresa tus credenciales de acceso seguro
              </p>
           </div>
 
-          <form onSubmit={handleLogin} className="space-y-5">
-            <div className="space-y-2">
-              <label className="text-[9px] font-black uppercase tracking-[0.2em] text-zinc-600 ml-1">ID de Usuario</label>
+          <form onSubmit={handleLogin} className="space-y-6">
+            <div className="space-y-3">
+              <label className="text-[11px] font-black uppercase tracking-widest text-slate-400 ml-2">ID de Usuario</label>
               <div className="relative">
-                <span className="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-[18px] text-zinc-600">account_circle</span>
+                <span className="material-symbols-outlined absolute left-5 top-1/2 -translate-y-1/2 text-[22px] text-slate-300">account_circle</span>
                 <input
                   type="text"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   required
-                  className="w-full bg-white/[0.03] border border-white/[0.08] rounded-xl pl-11 pr-4 py-3 text-sm text-white outline-none focus:border-primary/40 focus:bg-primary/[0.01] transition-all font-mono placeholder-zinc-700"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-2xl pl-14 pr-6 py-4 text-sm text-slate-900 font-bold outline-none focus:border-[#00A3FF] focus:bg-white transition-all shadow-inner placeholder-slate-300"
                   placeholder="usuario_odin"
                 />
               </div>
             </div>
 
-            <div className="space-y-2">
-              <label className="text-[9px] font-black uppercase tracking-[0.2em] text-zinc-600 ml-1">Clave de Acceso</label>
+            <div className="space-y-3">
+              <label className="text-[11px] font-black uppercase tracking-widest text-slate-400 ml-2">Clave de Acceso</label>
               <div className="relative">
-                <span className="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-[18px] text-zinc-600">shield_lock</span>
+                <span className="material-symbols-outlined absolute left-5 top-1/2 -translate-y-1/2 text-[22px] text-slate-300">shield_lock</span>
                 <input
                   type={showPass ? "text" : "password"}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  className="w-full bg-white/[0.03] border border-white/[0.08] rounded-xl pl-11 pr-12 py-3 text-sm text-white outline-none focus:border-primary/40 focus:bg-primary/[0.01] transition-all font-mono placeholder-zinc-700"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-2xl pl-14 pr-14 py-4 text-sm text-slate-900 font-bold outline-none focus:border-[#00A3FF] focus:bg-white transition-all shadow-inner placeholder-slate-300"
                   placeholder="••••••••"
                 />
                 <button 
                   type="button" 
                   onClick={() => setShowPass(!showPass)}
-                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-zinc-600 hover:text-zinc-400 transition-colors"
+                  className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-300 hover:text-slate-900 transition-colors"
                 >
                   <span className="material-symbols-outlined text-[20px]">
                     {showPass ? 'visibility_off' : 'visibility'}
@@ -144,8 +144,8 @@ export default function OdinLoginPage() {
             </div>
 
             {error && (
-              <div className="flex items-center gap-3 p-3.5 rounded-xl border border-red-500/20 bg-red-500/5 text-red-400 text-[10px] font-bold uppercase tracking-wide animate-in fade-in slide-in-from-top-1">
-                <span className="material-symbols-outlined text-[18px]">gpp_maybe</span>
+              <div className="flex items-center gap-3 p-4 rounded-2xl border border-red-200 bg-red-50 text-red-500 text-[10px] font-black uppercase tracking-wide animate-in fade-in slide-in-from-top-1">
+                <span className="material-symbols-outlined text-[20px]">warning</span>
                 {error}
               </div>
             )}
@@ -153,36 +153,33 @@ export default function OdinLoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full kinetic-gradient py-4 rounded-xl text-white font-black uppercase tracking-[0.2em] text-[10px] shadow-xl shadow-primary/20 hover:shadow-primary/30 active:scale-[0.98] transition-all disabled:opacity-40 disabled:grayscale group relative overflow-hidden mt-2"
+              className="w-full bg-[#00A3FF] py-5 rounded-2xl text-white font-black uppercase tracking-widest text-[11px] shadow-xl shadow-[#00A3FF]/20 hover:bg-[#008EE0] active:scale-[0.98] transition-all disabled:opacity-40 mt-4 flex items-center justify-center gap-3"
             >
-              <span className="relative z-10 flex items-center justify-center gap-2">
-                {loading ? (
-                  <>
-                    <div className="w-3.5 h-3.5 border-2 border-white/20 border-t-white rounded-full animate-spin"></div>
-                    Verificando...
-                  </>
-                ) : (
-                  <>
-                    <span className="material-symbols-outlined text-[18px]">verified_user</span>
-                    Acceder al Panel
-                  </>
-                )}
-              </span>
-              <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+              {loading ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin"></div>
+                  Sincronizando...
+                </>
+              ) : (
+                <>
+                  <span className="material-symbols-outlined text-[20px]">verified_user</span>
+                  Acceder al Sistema
+                </>
+              )}
             </button>
           </form>
         </div>
 
         {/* Security badge */}
-        <div className="mt-8 flex items-center justify-center gap-4 opacity-30 group hover:opacity-100 transition-all duration-1000">
+        <div className="mt-12 flex items-center justify-center gap-6 opacity-30">
            <div className="flex items-center gap-2">
-              <span className="material-symbols-outlined text-[14px] text-zinc-400 group-hover:text-primary transition-colors">verified</span>
-              <span className="text-[9px] font-black text-zinc-500 uppercase tracking-widest">SSL Secure</span>
+              <span className="material-symbols-outlined text-[16px] text-slate-400">verified</span>
+              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Seguridad SSL</span>
            </div>
-           <div className="w-1 h-1 rounded-full bg-zinc-800"></div>
+           <div className="w-1.5 h-1.5 rounded-full bg-slate-200"></div>
            <div className="flex items-center gap-2">
-              <span className="material-symbols-outlined text-[14px] text-zinc-400 group-hover:text-primary transition-colors">database</span>
-              <span className="text-[9px] font-black text-zinc-500 uppercase tracking-widest">Global Node</span>
+              <span className="material-symbols-outlined text-[16px] text-slate-400">gpp_good</span>
+              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Protección Odin</span>
            </div>
         </div>
       </div>

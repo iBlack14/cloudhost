@@ -49,62 +49,62 @@ export default function ComposePage() {
   return (
     <MailShell
       me={me}
-      title="Compose"
-      subtitle="Envía mensajes desde tu buzón del webmail independiente."
+      title="Redactar"
+      subtitle="Envía mensajes seguros desde tu terminal independiente."
     >
-      <form onSubmit={onSubmit} className="glass-card p-6 md:p-8 space-y-6">
-        <Field label="From">
-          <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-4 text-white">{me?.address ?? "Cargando..."}</div>
+      <form onSubmit={onSubmit} className="bg-white border border-slate-200 p-10 rounded-[2.5rem] space-y-8 shadow-sm">
+        <Field label="Desde">
+          <div className="rounded-2xl border border-slate-100 bg-slate-50 px-6 py-4 text-slate-900 font-bold text-sm">{me?.address ?? "Cargando..."}</div>
         </Field>
-        <Field label="To">
+        <Field label="Para">
           <input
             value={to}
             onChange={(event) => setTo(event.target.value)}
-            placeholder="cliente@empresa.com, admin@odiseacloud.com"
-            className="w-full rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-4 text-white outline-none placeholder:text-zinc-600 focus:border-primary/35"
+            placeholder="ejemplo@correo.com, contacto@empresa.com"
+            className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-6 py-4 text-slate-900 font-bold text-sm outline-none placeholder:text-slate-300 focus:border-[#00A3FF] focus:bg-white transition-all shadow-inner"
             required
           />
         </Field>
-        <Field label="Subject">
+        <Field label="Asunto">
           <input
             value={subject}
             onChange={(event) => setSubject(event.target.value)}
-            placeholder="Asunto"
-            className="w-full rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-4 text-white outline-none placeholder:text-zinc-600 focus:border-primary/35"
+            placeholder="Asunto del mensaje"
+            className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-6 py-4 text-slate-900 font-bold text-sm outline-none placeholder:text-slate-300 focus:border-[#00A3FF] focus:bg-white transition-all shadow-inner"
             required
           />
         </Field>
-        <Field label="Body">
+        <Field label="Mensaje">
           <textarea
             value={body}
             onChange={(event) => setBody(event.target.value)}
             rows={12}
-            placeholder="Escribe tu mensaje..."
-            className="w-full rounded-3xl border border-white/10 bg-white/[0.03] px-4 py-4 text-white outline-none placeholder:text-zinc-600 focus:border-primary/35"
+            placeholder="Escribe el contenido de tu correo aquí..."
+            className="w-full rounded-[2rem] border border-slate-200 bg-slate-50 px-6 py-5 text-slate-900 font-medium text-base outline-none placeholder:text-slate-300 focus:border-[#00A3FF] focus:bg-white transition-all shadow-inner leading-relaxed"
             required
           />
         </Field>
 
-        {feedback ? (
-          <div className="rounded-2xl border border-primary/20 bg-primary/10 px-4 py-3 text-sm text-primary">
+        {feedback && (
+          <div className={`rounded-2xl px-6 py-4 text-xs font-black uppercase tracking-widest border ${feedback.includes("error") ? 'bg-red-50 border-red-100 text-red-500' : 'bg-emerald-50 border-emerald-100 text-emerald-600'}`}>
             {feedback}
           </div>
-        ) : null}
+        )}
 
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap items-center gap-4 pt-4">
           <button
             type="submit"
             disabled={loading}
-            className="kinetic-gradient rounded-2xl px-6 py-4 text-sm font-black uppercase tracking-[0.16em] text-white disabled:opacity-60"
+            className="bg-[#00A3FF] rounded-2xl px-10 py-5 text-[11px] font-black uppercase tracking-[0.2em] text-white shadow-xl shadow-[#00A3FF]/20 hover:bg-[#008EE0] active:scale-[0.98] transition-all disabled:opacity-40"
           >
-            {loading ? "Enviando..." : "Send message"}
+            {loading ? "Enviando..." : "Enviar Mensaje"}
           </button>
           <button
             type="button"
             onClick={() => router.push("/inbox")}
-            className="rounded-2xl border border-white/10 bg-white/[0.03] px-6 py-4 text-sm font-black uppercase tracking-[0.16em] text-zinc-300"
+            className="rounded-2xl border border-slate-200 bg-slate-50 px-10 py-5 text-[11px] font-black uppercase tracking-[0.2em] text-slate-400 hover:bg-slate-100 hover:text-slate-900 transition-all"
           >
-            Cancel
+            Cancelar
           </button>
         </div>
       </form>
@@ -114,8 +114,8 @@ export default function ComposePage() {
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="space-y-2">
-      <div className="text-[11px] font-black uppercase tracking-[0.18em] text-zinc-500">{label}</div>
+    <div className="space-y-2.5">
+      <div className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-2">{label}</div>
       {children}
     </div>
   );

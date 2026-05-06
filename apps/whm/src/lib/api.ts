@@ -110,6 +110,13 @@ export interface DashboardStats {
     loadAvgs?: number[];
     cores?: number;
     uptimeSeconds?: number;
+    system?: {
+      os: string;
+      platform: string;
+      cpuModel: string;
+      totalRamGB: number;
+      cores: number;
+    };
   };
   accounts: { active: number; suspended: number; terminated: number };
 }
@@ -162,6 +169,15 @@ export const impersonateAccount = async (accountId: string): Promise<WhmImperson
     headers: withWhmAuth()
   });
   return parsePayload<WhmImpersonation>(response);
+};
+
+export const resetAccountPassword = async (accountId: string, password?: string): Promise<{ message: string; password?: string }> => {
+  const response = await fetch(`${API_BASE}/whm/accounts/${accountId}/reset-password`, {
+    method: "POST",
+    headers: withWhmAuth({ "Content-Type": "application/json" }),
+    body: JSON.stringify({ password })
+  });
+  return parsePayload<{ message: string; password?: string }>(response);
 };
 
 export const fetchWhmDomains = async (): Promise<any[]> => {

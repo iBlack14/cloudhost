@@ -11,7 +11,8 @@ import {
   resumeAccount,
   suspendAccount,
   deleteAccount,
-  syncDiskUsage
+  syncDiskUsage,
+  resetAccountPassword
 } from "../api";
 
 import { whmCreateAccountSchema, type WhmCreateAccountInput } from "../schemas/whm-create-account";
@@ -99,5 +100,11 @@ export const useSyncWhmDiskUsage = () => {
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["whm-accounts"] });
     }
+  });
+};
+
+export const useResetWhmAccountPassword = () => {
+  return useMutation({
+    mutationFn: ({ accountId, password }: { accountId: string; password?: string }) => resetAccountPassword(accountId, password)
   });
 };

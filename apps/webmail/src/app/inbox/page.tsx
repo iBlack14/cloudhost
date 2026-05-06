@@ -77,80 +77,85 @@ export default function InboxPage() {
     <MailShell
       me={me}
       title="Bandeja de Entrada"
-      subtitle="Terminal de comunicaciones cifradas de Odisea Cloud."
+      subtitle="Comunicaciones seguras y cifradas de Odisea Cloud."
     >
-      <div className="grid gap-6 xl:grid-cols-[220px_minmax(320px,400px)_minmax(0,1fr)]">
+      <div className="grid gap-8 xl:grid-cols-[240px_minmax(350px,450px)_minmax(0,1fr)]">
         {/* Folders */}
-        <section className="bg-[#0A1221]/40 backdrop-blur-xl border border-white/5 rounded-3xl p-4 space-y-4">
-          <div className="text-[9px] font-black uppercase tracking-[0.2em] text-zinc-600 ml-1">Carpetas</div>
-          <div className="space-y-1">
+        <section className="bg-white border border-slate-200 rounded-[2rem] p-6 space-y-6 shadow-sm">
+          <div className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-2">Directorios</div>
+          <div className="space-y-1.5">
             {folders.map((item) => (
               <button
                 key={item.folder}
                 type="button"
                 onClick={() => setFolder(item.folder)}
-                className={`flex w-full items-center justify-between rounded-xl px-4 py-2.5 text-left text-[10px] font-black uppercase tracking-widest transition-all ${
+                className={`flex w-full items-center justify-between rounded-xl px-5 py-3 text-left text-[11px] font-bold uppercase tracking-widest transition-all ${
                   item.folder === folder
-                    ? "bg-primary/10 text-primary"
-                    : "text-zinc-500 hover:text-white hover:bg-white/[0.03]"
+                    ? "bg-[#00A3FF]/5 text-[#00A3FF] border-l-4 border-[#00A3FF]"
+                    : "text-slate-500 hover:text-slate-900 hover:bg-slate-50"
                 }`}
               >
                 <span>{item.label}</span>
-                <span className={`text-[9px] font-mono ${item.folder === folder ? 'text-primary' : 'text-zinc-700'}`}>{item.count}</span>
+                <span className={`text-[10px] font-black ${item.folder === folder ? 'text-[#00A3FF]' : 'text-slate-300'}`}>{item.count}</span>
               </button>
             ))}
           </div>
         </section>
 
         {/* Message List */}
-        <section className="bg-[#0A1221]/40 backdrop-blur-xl border border-white/5 rounded-3xl overflow-hidden flex flex-col h-[72vh]">
-          <div className="border-b border-white/5 p-4 bg-white/[0.01]">
+        <section className="bg-white border border-slate-200 rounded-[2.5rem] overflow-hidden flex flex-col h-[75vh] shadow-sm relative">
+          <div className="border-b border-slate-100 p-6 bg-slate-50/30">
             <div className="flex items-center justify-between gap-4">
-              <div className="text-[9px] font-black uppercase tracking-[0.2em] text-zinc-600">
+              <div className="text-[10px] font-black uppercase tracking-[0.2em] text-[#00A3FF]">
                 {folder}
               </div>
               <Link
                 href="/compose"
-                className="kinetic-gradient px-4 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest text-white shadow-lg shadow-primary/20"
+                className="bg-[#00A3FF] px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest text-white shadow-lg shadow-[#00A3FF]/20 hover:bg-[#008EE0] transition-all flex items-center gap-2"
               >
-                + Redactar
+                <span className="material-symbols-outlined text-[16px]">add</span>
+                Redactar
               </Link>
             </div>
           </div>
 
-          <div className="flex-1 overflow-auto divide-y divide-white/5">
+          <div className="flex-1 overflow-auto divide-y divide-slate-100">
             {loading ? (
-              <div className="p-12 text-center">
-                 <div className="w-6 h-6 border-2 border-primary/20 border-t-primary rounded-full animate-spin mx-auto mb-3"></div>
-                 <span className="text-[9px] font-black uppercase tracking-widest text-zinc-600">Sincronizando...</span>
+              <div className="p-20 text-center flex flex-col items-center gap-4">
+                 <div className="w-8 h-8 border-4 border-[#00A3FF]/20 border-t-[#00A3FF] rounded-full animate-spin"></div>
+                 <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Sincronizando...</span>
               </div>
             ) : error ? (
-              <div className="p-8 text-center text-red-400 text-[10px] font-black uppercase tracking-widest">{error}</div>
+              <div className="p-12 text-center text-red-500 text-[11px] font-black uppercase tracking-widest">{error}</div>
             ) : messages.length === 0 ? (
-              <div className="p-8 text-center text-zinc-700 italic text-[11px]">Buzón vacío</div>
+              <div className="p-20 text-center flex flex-col items-center opacity-30">
+                 <span className="material-symbols-outlined text-4xl mb-3 text-slate-400">inbox</span>
+                 <span className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">Buzón vacío</span>
+              </div>
             ) : (
               messages.map((message) => (
                 <button
                   key={message.id}
                   type="button"
                   onClick={() => setSelectedId(message.id)}
-                  className={`w-full p-4 text-left transition-all relative group ${
-                    selectedMessage?.id === message.id ? "bg-primary/[0.03]" : "hover:bg-white/[0.01]"
+                  className={`w-full p-6 text-left transition-all relative group border-l-4 ${
+                    selectedId === message.id 
+                    ? "bg-[#00A3FF]/5 border-[#00A3FF]" 
+                    : "hover:bg-slate-50 border-transparent"
                   }`}
                 >
-                  {selectedMessage?.id === message.id && <div className="absolute inset-y-0 left-0 w-1 bg-primary"></div>}
-                  <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-start justify-between gap-4">
                     <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        {!message.read && <div className="w-1.5 h-1.5 rounded-full bg-primary shadow-[0_0_8px_#00A3FF]"></div>}
-                        <span className={`truncate text-[10px] font-black uppercase tracking-tight ${message.read ? 'text-zinc-600' : 'text-zinc-200'}`}>
+                      <div className="flex items-center gap-2 mb-2">
+                        {!message.read && <div className="w-2 h-2 rounded-full bg-[#00A3FF] shadow-[0_0_8px_rgba(0,163,255,0.4)]"></div>}
+                        <span className={`truncate text-[11px] font-black uppercase tracking-tight ${message.read ? 'text-slate-400' : 'text-[#00A3FF]'}`}>
                           {message.from}
                         </span>
                       </div>
-                      <div className="mt-1.5 truncate text-sm font-bold text-white tracking-tight group-hover:text-primary transition-colors">{message.subject}</div>
-                      <div className="mt-1 truncate text-[11px] text-zinc-600 line-clamp-1">{message.preview}</div>
+                      <div className="truncate text-[15px] font-black text-slate-900 tracking-tight leading-tight group-hover:text-[#00A3FF] transition-colors mb-1">{message.subject}</div>
+                      <div className="truncate text-xs text-slate-400 line-clamp-1 font-medium">{message.preview}</div>
                     </div>
-                    <div className="shrink-0 text-[9px] font-mono font-bold text-zinc-700 uppercase">
+                    <div className="shrink-0 text-[10px] font-bold text-slate-300 uppercase tracking-tighter">
                       {message.receivedAt}
                     </div>
                   </div>
@@ -161,7 +166,7 @@ export default function InboxPage() {
         </section>
 
         {/* Message Pane */}
-        <section className="bg-[#0A1221]/40 backdrop-blur-xl border border-white/5 rounded-3xl overflow-hidden h-[72vh] flex flex-col">
+        <section className="bg-white border border-slate-200 rounded-[2.5rem] overflow-hidden h-[75vh] flex flex-col shadow-sm">
           {selectedMessage ? (
             <MessagePane
               key={selectedMessage.id}
@@ -172,9 +177,11 @@ export default function InboxPage() {
               onTrash={() => void trashMessage(selectedMessage)}
             />
           ) : (
-            <div className="flex-1 flex flex-col items-center justify-center p-10 opacity-20">
-               <span className="material-symbols-outlined text-6xl mb-4">mail</span>
-               <div className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-500 text-center">Selecciona un terminal para visualizar</div>
+            <div className="flex-1 flex flex-col items-center justify-center p-20 opacity-20">
+               <div className="w-24 h-24 rounded-[2rem] bg-slate-100 flex items-center justify-center mb-6">
+                  <span className="material-symbols-outlined text-5xl text-slate-400">mail</span>
+               </div>
+               <div className="text-[11px] font-black uppercase tracking-[0.3em] text-slate-500 text-center">Selecciona un mensaje para visualizar</div>
             </div>
           )}
         </section>
@@ -212,38 +219,46 @@ function MessagePane({
 
   return (
     <>
-      <div className="border-b border-white/5 p-6 bg-white/[0.01]">
-        <div className="flex flex-wrap items-start justify-between gap-6">
+      <div className="border-b border-slate-100 p-8 bg-slate-50/30">
+        <div className="flex flex-wrap items-start justify-between gap-8">
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-2">
-               <span className="px-1.5 py-0.5 bg-white/5 text-zinc-500 text-[8px] font-black uppercase rounded border border-white/5 tracking-tighter">Lectura en curso</span>
+            <div className="flex items-center gap-3 mb-4">
+               <span className="px-3 py-1 bg-white border border-slate-200 text-slate-400 text-[9px] font-black uppercase rounded-full tracking-wider shadow-sm">Cifrado de Extremo a Extremo</span>
             </div>
-            <h2 className="text-xl font-bold text-white tracking-tight leading-tight">{summary.subject}</h2>
-            <div className="mt-3 flex items-center gap-2 text-[10px] font-mono text-zinc-500">
-              <span className="text-primary">{summary.fromAddress}</span>
-              <span>→</span>
-              <span className="text-zinc-600">{me?.address}</span>
+            <h2 className="text-3xl font-black text-slate-900 tracking-tighter leading-tight mb-4">{summary.subject}</h2>
+            <div className="flex items-center gap-4">
+               <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 font-bold text-sm uppercase">
+                  {summary.from?.charAt(0)}
+               </div>
+               <div className="flex flex-col">
+                  <div className="text-xs font-black text-slate-900">{summary.from}</div>
+                  <div className="text-[10px] font-bold text-slate-400 tracking-tight mt-0.5">
+                    De: <span className="text-[#00A3FF]">{summary.fromAddress}</span> → Para: <span className="text-slate-500">{me?.address}</span>
+                  </div>
+               </div>
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <button type="button" onClick={onToggleRead} className="w-9 h-9 rounded-xl bg-white/[0.03] border border-white/10 flex items-center justify-center text-zinc-500 hover:text-primary transition-all" title={summary.read ? "Marcar como no leído" : "Marcar como leído"}>
-              <span className="material-symbols-outlined text-[18px]">{summary.read ? "mark_email_unread" : "drafts"}</span>
+            <button type="button" onClick={onToggleRead} className="w-11 h-11 rounded-2xl bg-white border border-slate-200 flex items-center justify-center text-slate-400 hover:text-[#00A3FF] hover:border-[#00A3FF]/30 transition-all shadow-sm active:scale-95" title={summary.read ? "Marcar como no leído" : "Marcar como leído"}>
+              <span className="material-symbols-outlined text-[20px]">{summary.read ? "mark_email_unread" : "drafts"}</span>
             </button>
-            <button type="button" onClick={onToggleStar} className="w-9 h-9 rounded-xl bg-white/[0.03] border border-white/10 flex items-center justify-center text-zinc-500 hover:text-amber-400 transition-all" title="Destacar">
-              <span className="material-symbols-outlined text-[18px]">{summary.starred ? "star" : "star_outline"}</span>
+            <button type="button" onClick={onToggleStar} className="w-11 h-11 rounded-2xl bg-white border border-slate-200 flex items-center justify-center text-slate-400 hover:text-amber-500 hover:border-amber-500/30 transition-all shadow-sm active:scale-95" title="Destacar">
+              <span className="material-symbols-outlined text-[20px]">{summary.starred ? "star" : "star_outline"}</span>
             </button>
-            <button type="button" onClick={onTrash} className="w-9 h-9 rounded-xl bg-white/[0.03] border border-white/10 flex items-center justify-center text-zinc-500 hover:text-red-500 transition-all" title="Eliminar">
-              <span className="material-symbols-outlined text-[18px]">delete</span>
+            <button type="button" onClick={onTrash} className="w-11 h-11 rounded-2xl bg-white border border-slate-200 flex items-center justify-center text-slate-400 hover:text-red-500 hover:border-red-500/30 transition-all shadow-sm active:scale-95" title="Eliminar">
+              <span className="material-symbols-outlined text-[20px]">delete</span>
             </button>
           </div>
         </div>
       </div>
-      <div className="flex-1 overflow-auto p-6">
-        <article className="bg-[#02060C]/40 border border-white/5 rounded-2xl p-6 text-sm leading-relaxed text-zinc-300 font-medium whitespace-pre-line shadow-inner">
-          {message?.body ?? (
-            <div className="flex items-center gap-3 opacity-40">
-               <div className="w-4 h-4 border-2 border-zinc-700 border-t-zinc-400 rounded-full animate-spin"></div>
-               <span className="text-[10px] font-black uppercase tracking-widest">Sincronizando contenido...</span>
+      <div className="flex-1 overflow-auto p-10 bg-white relative">
+        <article className="prose prose-slate max-w-none text-slate-700 text-base leading-relaxed font-medium whitespace-pre-line">
+          {message?.body ? (
+             <div className="animate-in fade-in duration-500">{message.body}</div>
+          ) : (
+            <div className="flex items-center gap-4 text-slate-300">
+               <div className="w-5 h-5 border-2 border-slate-100 border-t-[#00A3FF] rounded-full animate-spin"></div>
+               <span className="text-[11px] font-black uppercase tracking-[0.2em]">Desencriptando contenido...</span>
             </div>
           )}
         </article>

@@ -120,6 +120,15 @@ export const impersonateAccount = async (accountId: string): Promise<WhmImperson
   return parsePayload<WhmImpersonation>(response);
 };
 
+export const resetAccountPassword = async (accountId: string, password?: string): Promise<{ message: string; password?: string }> => {
+  const response = await fetch(`${API_BASE}/whm/accounts/${accountId}/reset-password`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ password })
+  });
+  return parsePayload<{ message: string; password?: string }>(response);
+};
+
 export const fetchWpSites = async (): Promise<WordPressSite[]> => {
   const response = await fetch(`${API_BASE}/odin-panel/wordpress`, {
     cache: "no-store",
