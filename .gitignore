@@ -8,3 +8,4 @@ node_modules
 apps/api/dist/
 .cursor/
 .agent/
+.gemini/skills
