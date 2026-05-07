@@ -575,6 +575,8 @@ export const listMailFolders = async (session: MailSessionTokenPayload): Promise
   return [
     { folder: "INBOX", label: "Inbox", count: counts.get("INBOX") ?? 0 },
     { folder: "SENT", label: "Sent", count: counts.get("SENT") ?? 0 },
+    { folder: "DRAFTS", label: "Borradores", count: counts.get("DRAFTS") ?? 0 },
+    { folder: "SPAM", label: "Spam", count: counts.get("SPAM") ?? 0 },
     { folder: "TRASH", label: "Trash", count: counts.get("TRASH") ?? 0 },
     {
       folder: "STARRED",

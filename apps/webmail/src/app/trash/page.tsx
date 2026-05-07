@@ -71,6 +71,7 @@ export default function TrashPage() {
       me={me}
       title="Papelera"
       subtitle="Mensajes Eliminados"
+      folders={folders}
     >
       <div className="flex h-full w-full overflow-hidden flex-col bg-white">
         

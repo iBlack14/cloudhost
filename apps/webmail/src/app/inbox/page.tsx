@@ -78,6 +78,7 @@ export default function InboxPage() {
       me={me}
       title={folder === 'INBOX' ? 'Recibidos' : folder}
       subtitle="Buzón Corporativo"
+      folders={folders}
     >
       <div className="flex h-full w-full overflow-hidden flex-col">
         

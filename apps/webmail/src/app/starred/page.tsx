@@ -76,6 +76,7 @@ export default function StarredPage() {
       me={me}
       title="Destacados"
       subtitle="Mensajes Importantes Guardados"
+      folders={folders}
     >
       <div className="flex h-full w-full overflow-hidden flex-col bg-white">
         

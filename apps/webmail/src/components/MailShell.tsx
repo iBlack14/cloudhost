@@ -3,19 +3,21 @@
 import React, { useState, useRef } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import type { MailIdentity } from "@odisea/types";
+import type { MailFolderSummary, MailIdentity } from "@odisea/types";
 import { sendMailMessage } from "../lib/mail-client";
 
 export function MailShell({
   children,
   me,
   title,
-  subtitle
+  subtitle,
+  folders = []
 }: {
   children: React.ReactNode;
   me: MailIdentity | null;
   title: string;
   subtitle: string;
+  folders?: MailFolderSummary[];
 }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -84,11 +86,11 @@ export function MailShell({
            </button>
 
            <nav className="flex-1 flex flex-col gap-1 overflow-y-auto custom-scrollbar">
-              <MailNavItem href="/inbox" icon="inbox" label="Recibidos" count={12} active={pathname.endsWith("/inbox")} sidebarOpen={isSidebarOpen} />
-              <MailNavItem href="/starred" icon="star" label="Destacados" active={pathname.endsWith("/starred")} sidebarOpen={isSidebarOpen} />
-              <MailNavItem href="/sent" icon="send" label="Enviados" active={pathname.endsWith("/sent")} sidebarOpen={isSidebarOpen} />
-              <MailNavItem href="/drafts" icon="drafts" label="Borradores" active={pathname.endsWith("/drafts")} sidebarOpen={isSidebarOpen} />
-              <MailNavItem href="/trash" icon="delete" label="Papelera" active={pathname.endsWith("/trash")} sidebarOpen={isSidebarOpen} />
+              <MailNavItem href="/inbox" icon="inbox" label="Recibidos" count={folders.find(f => f.folder === 'INBOX')?.count} active={pathname.endsWith("/inbox")} sidebarOpen={isSidebarOpen} />
+              <MailNavItem href="/starred" icon="star" label="Destacados" count={folders.find(f => f.folder === 'STARRED')?.count} active={pathname.endsWith("/starred")} sidebarOpen={isSidebarOpen} />
+              <MailNavItem href="/sent" icon="send" label="Enviados" count={folders.find(f => f.folder === 'SENT')?.count} active={pathname.endsWith("/sent")} sidebarOpen={isSidebarOpen} />
+              <MailNavItem href="/drafts" icon="drafts" label="Borradores" count={folders.find(f => f.folder === 'DRAFTS')?.count} active={pathname.endsWith("/drafts")} sidebarOpen={isSidebarOpen} />
+              <MailNavItem href="/trash" icon="delete" label="Papelera" count={folders.find(f => f.folder === 'TRASH')?.count} active={pathname.endsWith("/trash")} sidebarOpen={isSidebarOpen} />
               <div className="mt-4 pt-4 border-t border-slate-100">
                  <MailNavItem href="/logout" icon="logout" label="Salir" active={pathname.endsWith("/logout")} sidebarOpen={isSidebarOpen} variant="danger" />
               </div>

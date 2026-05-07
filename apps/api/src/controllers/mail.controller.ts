@@ -26,7 +26,7 @@ const ssoExchangeSchema = z.object({
   token: z.string().min(1, "Token requerido")
 });
 
-const folderSchema = z.enum(["INBOX", "SENT", "TRASH", "STARRED"]).default("INBOX");
+const folderSchema = z.enum(["INBOX", "SENT", "TRASH", "STARRED", "DRAFTS", "SPAM"]).default("INBOX");
 
 const sendSchema = z.object({
   to: z.array(z.string().email()).min(1, "Ingresa al menos un destinatario"),
@@ -43,7 +43,7 @@ const starSchema = z.object({
 });
 
 const moveSchema = z.object({
-  folder: z.enum(["INBOX", "SENT", "TRASH"])
+  folder: z.enum(["INBOX", "SENT", "TRASH", "DRAFTS", "SPAM"])
 });
 
 const getMailSession = (req: Request): MailSessionTokenPayload => {

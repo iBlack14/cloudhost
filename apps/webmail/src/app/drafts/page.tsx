@@ -71,6 +71,7 @@ export default function DraftsPage() {
       me={me}
       title="Borradores"
       subtitle="Mensajes sin enviar"
+      folders={folders}
     >
       <div className="flex h-full w-full overflow-hidden flex-col bg-white">
         
