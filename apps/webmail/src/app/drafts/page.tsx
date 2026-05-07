@@ -29,7 +29,7 @@ export default function DraftsPage() {
     const [identity, nextFolders, nextMessages] = await Promise.all([
       fetchMailMe(),
       fetchMailFolders(),
-      fetchMailMessages("DRAFTS" as any)
+      fetchMailMessages("DRAFTS")
     ]);
 
     setMe(identity);

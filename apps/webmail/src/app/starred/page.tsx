@@ -29,7 +29,7 @@ export default function StarredPage() {
     const [identity, nextFolders, nextMessages] = await Promise.all([
       fetchMailMe(),
       fetchMailFolders(),
-      fetchMailMessages("STARRED" as any)
+      fetchMailMessages("STARRED")
     ]);
 
     setMe(identity);

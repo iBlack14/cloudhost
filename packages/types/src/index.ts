@@ -139,7 +139,7 @@ export interface WordPressSite {
   container_name?: string;
 }
 
-export type MailFolder = "INBOX" | "SENT" | "TRASH" | "STARRED";
+export type MailFolder = "INBOX" | "SENT" | "TRASH" | "STARRED" | "DRAFTS" | "SPAM";
 
 export interface MailAccountSummary {
   id: string;
