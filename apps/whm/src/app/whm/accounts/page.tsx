@@ -9,24 +9,37 @@ import {
   useImpersonateWhmAccount,
   useDeleteWhmAccount,
   useSyncWhmDiskUsage,
-  useResetWhmAccountPassword
+  useResetWhmAccountPassword,
+  useWhmPlans,
+  useChangeWhmAccountPlan
 } from "../../../lib/hooks/use-whm-accounts";
 
 export default function WhmAccountsPage() {
   const [search, setSearch] = useState("");
   const { data: accounts = [], isLoading, isError } = useWhmAccounts();
+  const { data: plans = [] } = useWhmPlans();
   const suspendMutation = useSuspendWhmAccount();
   const resumeMutation = useResumeWhmAccount();
   const impersonateMutation = useImpersonateWhmAccount();
   const deleteMutation = useDeleteWhmAccount();
   const syncDiskMutation = useSyncWhmDiskUsage();
   const resetPassMutation = useResetWhmAccountPassword();
+  const changePlanMutation = useChangeWhmAccountPlan();
 
   const [resetModal, setResetModal] = useState<{ isOpen: boolean; accountId: string; username: string; newPass?: string }>({
     isOpen: false,
     accountId: "",
     username: ""
   });
+
+  const [planModal, setPlanModal] = useState<{ isOpen: boolean; accountId: string; username: string; currentPlan: string }>({
+    isOpen: false,
+    accountId: "",
+    username: "",
+    currentPlan: ""
+  });
+
+  const [selectedPlanId, setSelectedPlanId] = useState("");
 
   const onDelete = async (accountId: string, username: string) => {
     if (confirm(`¿Estás seguro de que deseas ELIMINAR permanentemente la cuenta "${username}"? Esta acción no se puede deshacer.`)) {
@@ -64,6 +77,17 @@ export default function WhmAccountsPage() {
       setResetModal(prev => ({ ...prev, newPass: result.password }));
     } catch (error) {
       alert("Error al restablecer la contraseña");
+    }
+  };
+
+  const handleChangePlan = async () => {
+    if (!selectedPlanId) return;
+    try {
+      await changePlanMutation.mutateAsync({ accountId: planModal.accountId, planId: selectedPlanId });
+      setPlanModal({ ...planModal, isOpen: false });
+      setSelectedPlanId("");
+    } catch (error) {
+      alert("Error al cambiar el plan");
     }
   };
 
@@ -133,17 +157,17 @@ export default function WhmAccountsPage() {
                    </td>
                  </tr>
               ) : isError ? (
-                  <tr>
-                     <td colSpan={6} className="p-20 text-center text-red-600 font-bold uppercase text-[11px] tracking-widest">
-                        Error Crítico: No se pudo conectar con el clúster API.
-                     </td>
-                  </tr>
+                   <tr>
+                      <td colSpan={6} className="p-20 text-center text-red-600 font-bold uppercase text-[11px] tracking-widest">
+                         Error Crítico: No se pudo conectar con el clúster API.
+                      </td>
+                   </tr>
               ) : filteredAccounts.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} className="p-20 text-center text-slate-500 font-medium italic text-sm">
-                      No se encontraron unidades de infraestructura coincidentes.
-                    </td>
-                  </tr>
+                   <tr>
+                     <td colSpan={6} className="p-20 text-center text-slate-500 font-medium italic text-sm">
+                       No se encontraron unidades de infraestructura coincidentes.
+                     </td>
+                   </tr>
               ) : filteredAccounts.map((account) => (
                 <tr key={account.account_id} className="hover:bg-slate-50/80 transition-all group duration-300">
                   <td className="px-8 py-5">
@@ -156,9 +180,20 @@ export default function WhmAccountsPage() {
                      </div>
                   </td>
                   <td className="px-8 py-5">
-                    <div className="text-xs font-bold text-slate-700 uppercase tracking-tight">{account.plan_name || "Ilimitado"}</div>
-                    <div className="text-[11px] text-slate-500 font-medium mt-0.5">
-                      {account.disk_quota_mb ? `${account.disk_quota_mb} MB` : "∞ MB"}
+                    <div className="flex items-center gap-3">
+                      <div>
+                        <div className="text-xs font-bold text-slate-700 uppercase tracking-tight">{account.plan_name || "Ilimitado"}</div>
+                        <div className="text-[11px] text-slate-500 font-medium mt-0.5">
+                          {account.disk_quota_mb ? `${account.disk_quota_mb} MB` : "∞ MB"}
+                        </div>
+                      </div>
+                      <button 
+                        onClick={() => setPlanModal({ isOpen: true, accountId: account.account_id, username: account.username, currentPlan: account.plan_name || "Ilimitado" })}
+                        className="p-1.5 rounded-lg bg-slate-50 border border-slate-100 text-slate-400 hover:text-[#00A3FF] hover:border-[#00A3FF]/20 transition-all"
+                        title="Cambiar Plan"
+                      >
+                        <span className="material-symbols-outlined text-[18px]">edit_note</span>
+                      </button>
                     </div>
                   </td>
                   <td className="px-8 py-5">
@@ -279,6 +314,55 @@ export default function WhmAccountsPage() {
                    </button>
                 </div>
               )}
+           </div>
+        </div>
+      )}
+
+      {/* Change Plan Modal */}
+      {planModal.isOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
+           <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setPlanModal({ ...planModal, isOpen: false })}></div>
+           <div className="bg-white border border-slate-200 rounded-[2rem] p-10 max-w-md w-full relative z-10 shadow-2xl animate-in zoom-in-95 duration-300">
+              <h2 className="text-2xl font-black text-slate-900 uppercase tracking-tighter italic mb-4">
+                 Cambiar <span className="text-[#00A3FF]">Plan</span>
+              </h2>
+              <p className="text-slate-500 text-[13px] font-medium mb-8">
+                 Selecciona un nuevo paquete para la cuenta <strong>{planModal.username}</strong>. El cambio de cuota será instantáneo.
+              </p>
+
+              <div className="space-y-6">
+                 <div className="space-y-3">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Paquetes Disponibles</label>
+                    <select 
+                      value={selectedPlanId}
+                      onChange={(e) => setSelectedPlanId(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-5 py-4 text-sm font-bold text-slate-900 focus:ring-2 focus:ring-[#00A3FF]/20 transition-all outline-none"
+                    >
+                       <option value="">Selecciona un plan...</option>
+                       {plans.map((plan) => (
+                         <option key={plan.id} value={plan.id}>
+                           {plan.name} ({plan.disk_quota_mb ? `${plan.disk_quota_mb} MB` : '∞'})
+                         </option>
+                       ))}
+                    </select>
+                 </div>
+
+                 <div className="flex gap-4">
+                    <button 
+                      onClick={() => setPlanModal({ ...planModal, isOpen: false })}
+                      className="flex-1 py-4 bg-slate-50 text-slate-400 rounded-xl font-bold uppercase text-[11px] tracking-widest hover:bg-slate-100 transition-all"
+                    >
+                      Cancelar
+                    </button>
+                    <button 
+                      onClick={handleChangePlan}
+                      disabled={!selectedPlanId || changePlanMutation.isPending}
+                      className="flex-1 py-4 bg-[#00A3FF] text-white rounded-xl font-bold uppercase text-[11px] tracking-widest shadow-lg shadow-[#00A3FF]/20 hover:bg-[#008EE0] transition-all active:scale-95 disabled:opacity-50"
+                    >
+                      {changePlanMutation.isPending ? "Actualizando..." : "Actualizar"}
+                    </button>
+                 </div>
+              </div>
            </div>
         </div>
       )}

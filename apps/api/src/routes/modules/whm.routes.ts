@@ -11,7 +11,8 @@ import {
   suspendWhmAccountHandler,
   deleteWhmAccountHandler,
   syncWhmAccountsDiskUsageHandler,
-  resetWhmAccountPasswordHandler
+  resetWhmAccountPasswordHandler,
+  changeWhmAccountPlanHandler
 } from "../../controllers/whm/account.controller.js";
 import { listAllDomainsHandler } from "../../controllers/odin/domain.controller.js";
 import { getDnsZoneHandler, addDnsRecordHandler, deleteDnsRecordHandler } from "../../controllers/odin/dns.controller.js";
@@ -148,6 +149,7 @@ whmRouter.post("/accounts/:accountId/resume", resumeWhmAccountHandler);
 whmRouter.post("/accounts/:accountId/impersonate", impersonateWhmAccountHandler);
 whmRouter.delete("/accounts/:accountId", deleteWhmAccountHandler);
 whmRouter.post("/accounts/:accountId/reset-password", resetWhmAccountPasswordHandler);
+whmRouter.patch("/accounts/:accountId/plan", changeWhmAccountPlanHandler);
 whmRouter.post("/accounts/sync-disk", syncWhmAccountsDiskUsageHandler);
 
 whmRouter.get("/domains", listAllDomainsHandler);

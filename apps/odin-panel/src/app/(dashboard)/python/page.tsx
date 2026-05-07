@@ -2,11 +2,11 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
+import { getOdinAccessToken } from "../../../lib/api";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001/api/v1";
-const getToken = () => (typeof window !== "undefined" ? window.sessionStorage.getItem("odin-access-token") : null);
 const authHeaders = (): Record<string, string> => {
-  const token = getToken();
+  const token = getOdinAccessToken();
   return token ? { Authorization: `Bearer ${token}`, "Content-Type": "application/json" } : { "Content-Type": "application/json" };
 };
 

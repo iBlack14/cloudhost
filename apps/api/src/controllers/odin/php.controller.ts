@@ -15,7 +15,7 @@ const getAccountInfo = async (userId: string) => {
      LIMIT 1`,
     [userId]
   );
-  if (result.rowCount === 0) throw new Error("Cuenta de hosting no encontrada");
+  if (result.rowCount === 0) return null;
   return result.rows[0] as {
     id: string;
     php_version: string;
@@ -25,11 +25,20 @@ const getAccountInfo = async (userId: string) => {
 };
 
 const getPhpIni = async (accountId: string): Promise<Record<string, string>> => {
-  const result = await db.query(
-    `SELECT php_ini FROM php_configurations WHERE account_id = $1 LIMIT 1`,
-    [accountId]
-  );
-  return result.rows[0]?.php_ini ?? {};
+  try {
+    const result = await db.query(
+      `SELECT php_ini FROM php_configurations WHERE account_id = $1 LIMIT 1`,
+      [accountId]
+    );
+    return result.rows[0]?.php_ini ?? {};
+  } catch (error) {
+    const dbError = error as { code?: string };
+    if (dbError.code === "42P01") {
+      return {};
+    }
+
+    throw error;
+  }
 };
 
 // ─── GET /odin-panel/php/versions ────────────────────────────────────────────
@@ -61,6 +70,14 @@ export const getCurrentPhpHandler = async (req: Request, res: Response): Promise
   try {
     const userId = await getUserId(req);
     const account = await getAccountInfo(userId);
+
+    if (!account) {
+      return res.status(404).json({
+        success: false,
+        error: { message: "No se encontró una cuenta de hosting asociada a este usuario." },
+      });
+    }
+
     const phpIni = await getPhpIni(account.id);
     const activeExtensions = await phpService.getActiveExtensions(
       account.php_version as phpService.PHPVersion
@@ -102,6 +119,14 @@ export const changeVersionHandler = async (req: Request, res: Response): Promise
   try {
     const userId = await getUserId(req);
     const account = await getAccountInfo(userId);
+
+    if (!account) {
+      return res.status(404).json({
+        success: false,
+        error: { message: "Cuenta de hosting no encontrada" },
+      });
+    }
+
     const phpIni = await getPhpIni(account.id);
 
     const result = await phpService.changeAccountPhpVersion(
@@ -139,6 +164,14 @@ export const getPhpIniHandler = async (req: Request, res: Response): Promise<Res
   try {
     const userId = await getUserId(req);
     const account = await getAccountInfo(userId);
+
+    if (!account) {
+      return res.status(404).json({
+        success: false,
+        error: { message: "Cuenta de hosting no encontrada" },
+      });
+    }
+
     const phpIni = await getPhpIni(account.id);
 
     return res.status(200).json({ success: true, data: phpIni });
@@ -186,6 +219,13 @@ export const updatePhpIniHandler = async (req: Request, res: Response): Promise<
     const userId = await getUserId(req);
     const account = await getAccountInfo(userId);
 
+    if (!account) {
+      return res.status(404).json({
+        success: false,
+        error: { message: "Cuenta de hosting no encontrada" },
+      });
+    }
+
     // Strip undefined values
     const safeOptions = Object.fromEntries(
       Object.entries(parse.data).filter(([_, v]) => v !== undefined)
@@ -221,6 +261,14 @@ export const getExtensionsHandler = async (req: Request, res: Response): Promise
   try {
     const userId = await getUserId(req);
     const account = await getAccountInfo(userId);
+
+    if (!account) {
+      return res.status(404).json({
+        success: false,
+        error: { message: "Cuenta de hosting no encontrada" },
+      });
+    }
+
     const active = await phpService.getActiveExtensions(
       account.php_version as phpService.PHPVersion
     );

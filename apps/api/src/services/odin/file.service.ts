@@ -21,8 +21,10 @@ export interface FileItem {
 // ─── Path Security ────────────────────────────────────────────────────────────
 
 export const resolveSafePath = (basePath: string, userPath: string): string => {
-  const resolvedPath = path.resolve(basePath, userPath.replace(/^\//, ""));
-  if (!resolvedPath.startsWith(basePath)) {
+  const resolvedBasePath = path.resolve(basePath);
+  const resolvedPath = path.resolve(resolvedBasePath, userPath.replace(/^[\\/]+/, ""));
+
+  if (resolvedPath !== resolvedBasePath && !resolvedPath.startsWith(resolvedBasePath + path.sep)) {
     throw new Error("Acceso denegado: Fuera del directorio base");
   }
   return resolvedPath;

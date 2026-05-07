@@ -3,16 +3,25 @@
 import React from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { logoutWhmSession } from "../lib/api";
+import { logoutWhmSession, getWhmRole } from "../lib/api";
 
 export function WhmSidebar() {
   const pathname = usePathname();
   const router = useRouter();
+  const [mounted, setMounted] = React.useState(false);
+
+  React.useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const role = mounted ? getWhmRole() : null;
 
   const onLogout = () => {
     logoutWhmSession();
     router.replace("/auth/login");
   };
+
+  const isAdmin = role === "admin" || !mounted; // Default to admin while mounting to avoid layout shift if possible, or just false.
 
   return (
     <aside className="w-72 fixed inset-y-0 left-0 z-50 p-6 flex flex-col bg-white border-r border-slate-200 shadow-[4px_0_24px_rgba(0,0,0,0.02)]">
@@ -31,8 +40,10 @@ export function WhmSidebar() {
               ODISEA <span className="font-light text-[#00A3FF]">CLOUD</span>
             </h2>
             <div className="flex items-center gap-2 mt-2.5">
-              <div className="h-1.5 w-1.5 rounded-full bg-[#00A3FF] shadow-[0_0_8px_#00A3FF]"></div>
-              <span className="text-[10px] text-slate-500 uppercase font-bold tracking-widest">Administrador</span>
+              <div className={`h-1.5 w-1.5 rounded-full shadow-[0_0_8px] ${isAdmin ? 'bg-[#00A3FF] shadow-[#00A3FF]' : 'bg-emerald-500 shadow-emerald-500'}`}></div>
+              <span className="text-[10px] text-slate-500 uppercase font-bold tracking-widest">
+                {isAdmin ? 'Administrador' : 'Revendedor'}
+              </span>
             </div>
           </div>
         </Link>
@@ -42,14 +53,19 @@ export function WhmSidebar() {
         <NavItem icon="dashboard" label="Inicio" href="/whm" active={pathname === "/whm"} />
         <NavItem icon="group" label="Ver Cuentas" href="/whm/accounts" active={pathname === "/whm/accounts"} />
         <NavItem icon="person_add" label="Crear Cuenta" href="/whm/accounts/create" active={pathname === "/whm/accounts/create"} />
-        <NavItem icon="settings_suggest" label="Planes y Tarifas" href="/whm/plans" active={pathname === "/whm/plans"} />
-        <NavItem icon="dns" label="Configuración" href="/whm/config" active={pathname === "/whm/config"} />
+        <NavItem icon="settings_suggest" label="Planes de Usuario" href="/whm/plans" active={pathname === "/whm/plans"} />
+        {isAdmin && <NavItem icon="hub" label="Planes Reseller" href="/whm/plans/resellers" active={pathname === "/whm/plans/resellers"} />}
+        
+        {isAdmin && <NavItem icon="dns" label="Configuración" href="/whm/config" active={pathname === "/whm/config"} />}
+        
+        <NavItem icon="settings_account_box" label="Basic Setup" href="/whm/config/basic-setup" active={pathname === "/whm/config/basic-setup"} />
         <NavItem icon="language" label="Zonas DNS" href="/whm/domains" active={pathname === "/whm/domains"} />
         <NavItem icon="verified_user" label="Seguridad SSL" href="/whm/ssl" active={pathname === "/whm/ssl"} />
         <NavItem icon="developer_board" label="Versiones PHP" href="/whm/php" active={pathname === "/whm/php"} />
         <NavItem icon="database" label="Bases de Datos" href="/whm/databases" active={pathname === "/whm/databases"} />
-        <NavItem icon="move_up" label="Migraciones" href="/whm/migrations" active={pathname === "/whm/migrations"} />
-        <NavItem icon="monitoring" label="Recursos" href="/whm/monitoring" active={pathname === "/whm/monitoring"} />
+        
+        {isAdmin && <NavItem icon="move_up" label="Migraciones" href="/whm/migrations" active={pathname === "/whm/migrations"} />}
+        {isAdmin && <NavItem icon="monitoring" label="Recursos" href="/whm/monitoring" active={pathname === "/whm/monitoring"} />}
       </nav>
 
       <div className="mt-auto pt-6 border-t border-slate-100 space-y-4">

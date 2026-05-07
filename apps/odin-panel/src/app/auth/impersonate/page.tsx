@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { exchangeImpersonationToken } from "../../../lib/api";
+import { clearOdinSession, exchangeImpersonationToken, setOdinSession } from "../../../lib/api";
 
 export default function OdinImpersonatePage() {
   const router = useRouter();
@@ -52,16 +52,16 @@ export default function OdinImpersonatePage() {
     const authenticateFromImpersonation = async () => {
       try {
         const exchange = await exchangeImpersonationToken(token);
-        window.sessionStorage.setItem("odin-access-token", exchange.token);
+        setOdinSession(exchange.token);
         // Clear the hash for security
         window.history.replaceState(null, "", "/auth/impersonate");
         
         timeoutId = setTimeout(() => {
           router.replace("/");
-        }, 3500);
+        }, 900);
       } catch (err) {
         setInvalidToken(true);
-        window.sessionStorage.removeItem("odin-access-token");
+        clearOdinSession();
         clearInterval(interval);
       }
     };

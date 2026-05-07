@@ -26,6 +26,11 @@ export const whmCreateAccountSchema = z.object({
     .regex(/[!@#$%^&*]/, "Debe contener carácter especial"),
   email: z.string().email("Email inválido"),
   planId: z.string().uuid("Plan ID inválido").optional(),
+  isReseller: z.boolean().default(false),
+  resellerConfig: z.object({
+    maxAccounts: z.number().int().min(-1).default(-1),
+    limitDiskMb: z.number().int().min(-1).default(-1),
+  }).optional(),
   nameservers: z.object({
     inheritRoot: z.boolean(),
     ns1: z.string().optional(),
@@ -34,7 +39,7 @@ export const whmCreateAccountSchema = z.object({
     ns4: z.string().optional()
   }),
   settings: z.object({
-    phpVersion: z.enum(["7.4", "8.0", "8.1", "8.2", "8.3"]),
+    phpVersion: z.enum(["7.4", "8.0", "8.1", "8.2", "8.3", "8.4"]),
     shellAccess: z.boolean(),
     nodejsEnabled: z.boolean(),
     dockerEnabled: z.boolean()

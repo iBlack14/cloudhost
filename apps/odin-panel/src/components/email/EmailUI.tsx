@@ -224,6 +224,8 @@ export function EmailActionLink({
   return (
     <Link
       href={href}
+      target="_blank"
+      rel="noopener noreferrer"
       className="inline-flex items-center gap-2 rounded-xl bg-[#00A3FF]/10 border border-[#00A3FF]/20 px-4 py-2.5 text-[10px] font-black uppercase tracking-widest text-[#00A3FF] transition-all hover:bg-[#00A3FF] hover:text-white shadow-sm active:scale-95"
     >
       <span className="material-symbols-outlined text-[18px]">{icon}</span>

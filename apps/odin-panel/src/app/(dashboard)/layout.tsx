@@ -3,8 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { Sidebar } from "../../components/Sidebar";
-
-const ODIN_ACCESS_TOKEN_KEY = "odin-access-token";
+import { hasOdinSession } from "../../lib/api";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -13,12 +12,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   useEffect(() => {
     // Perform check only on client side
-    const token = typeof window !== "undefined" ? window.sessionStorage.getItem(ODIN_ACCESS_TOKEN_KEY) : null;
+    const token = hasOdinSession();
     
     if (!token) {
       // Small delay to ensure no race condition with impersonate bridge
       const timeout = setTimeout(() => {
-        const reCheckToken = window.sessionStorage.getItem(ODIN_ACCESS_TOKEN_KEY);
+        const reCheckToken = hasOdinSession();
         if (!reCheckToken) {
           router.replace("/auth/login");
         } else {

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
-import type { MailFolder, MailFolderSummary, MailIdentity, MailMessageDetail, MailMessageSummary } from "@odisea/types";
+import type { MailFolderSummary, MailIdentity, MailMessageDetail, MailMessageSummary } from "@odisea/types";
 
 import {
   fetchMailFolders,
@@ -16,22 +16,20 @@ import {
 } from "../../lib/mail-client";
 import { MailShell } from "../../components/MailShell";
 
-export default function InboxPage() {
+export default function StarredPage() {
   const router = useRouter();
   const [me, setMe] = useState<MailIdentity | null>(null);
   const [folders, setFolders] = useState<MailFolderSummary[]>([]);
-  const [folder, setFolder] = useState<MailFolder>("INBOX");
   const [messages, setMessages] = useState<MailMessageSummary[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState("principal");
 
-  const loadAll = async (nextFolder: MailFolder) => {
+  const loadAll = async () => {
     const [identity, nextFolders, nextMessages] = await Promise.all([
       fetchMailMe(),
       fetchMailFolders(),
-      fetchMailMessages(nextFolder)
+      fetchMailMessages("STARRED" as any)
     ]);
 
     setMe(identity);
@@ -42,16 +40,16 @@ export default function InboxPage() {
 
   useEffect(() => {
     setLoading(true);
-    loadAll(folder)
+    loadAll()
       .catch((reason) => {
         if (reason instanceof Error && reason.message.toLowerCase().includes("sesión")) {
           router.replace("/login");
           return;
         }
-        setError(reason instanceof Error ? reason.message : "No se pudo cargar la bandeja.");
+        setError(reason instanceof Error ? reason.message : "No se pudo cargar los destacados.");
       })
       .finally(() => setLoading(false));
-  }, [folder, router]);
+  }, [router]);
 
   const selectedMessage = useMemo<MailMessageSummary | null>(
     () => messages.find((item) => item.id === selectedId) ?? messages[0] ?? null,
@@ -60,35 +58,35 @@ export default function InboxPage() {
 
   const toggleRead = async (message: MailMessageSummary) => {
     await setMailRead(message.id, !message.read);
-    await loadAll(folder);
+    await loadAll();
   };
 
   const toggleStar = async (message: MailMessageSummary) => {
     await setMailStar(message.id, !message.starred);
-    await loadAll(folder);
+    await loadAll();
   };
 
   const trashMessage = async (message: MailMessageSummary) => {
     await moveMailMessage(message.id, "TRASH");
-    await loadAll(folder);
+    await loadAll();
   };
 
   return (
     <MailShell
       me={me}
-      title={folder === 'INBOX' ? 'Recibidos' : folder}
-      subtitle="Buzón Corporativo"
+      title="Destacados"
+      subtitle="Mensajes Importantes Guardados"
     >
-      <div className="flex h-full w-full overflow-hidden flex-col">
+      <div className="flex h-full w-full overflow-hidden flex-col bg-white">
         
-        {/* 1. Gmail-Style Toolbar */}
+        {/* Gmail-Style Toolbar */}
         <div className="h-14 border-b border-slate-100 flex items-center px-6 justify-between shrink-0 bg-white z-20">
            <div className="flex items-center gap-6">
               <div className="flex items-center gap-1">
                  <ToolbarIcon icon="check_box_outline_blank" />
                  <ToolbarIcon icon="arrow_drop_down" />
               </div>
-              <ToolbarIcon icon="refresh" onClick={() => loadAll(folder)} />
+              <ToolbarIcon icon="refresh" onClick={() => loadAll()} />
               <ToolbarIcon icon="more_vert" />
            </div>
            
@@ -102,17 +100,20 @@ export default function InboxPage() {
         </div>
 
         <div className="flex-1 flex overflow-hidden">
-          {/* 2. Message List with Tabs */}
+          {/* Message List */}
           <section className={`
             flex flex-col border-r border-slate-100 transition-all duration-500 bg-white
             ${selectedId ? "w-[450px] 2xl:w-[550px]" : "w-full"}
           `}>
-             {/* Tabs Header */}
+             {/* Filter Chips */}
              {!selectedId && (
-               <div className="flex px-4 border-b border-slate-100 bg-white">
-                  <MailTab icon="inbox" label="Principal" active={activeTab === 'principal'} onClick={() => setActiveTab('principal')} color="blue" />
-                  <MailTab icon="sell" label="Promociones" active={activeTab === 'promo'} onClick={() => setActiveTab('promo')} color="green" badge="4 nuevas" />
-                  <MailTab icon="group" label="Social" active={activeTab === 'social'} onClick={() => setActiveTab('social')} color="blue-light" />
+               <div className="flex px-6 py-3 gap-3 border-b border-slate-50 bg-white overflow-x-auto scrollbar-hide">
+                  <FilterChip label="Cualquier momento" />
+                  <FilterChip label="Contiene archivos adjuntos" />
+                  <FilterChip label="Para" hasDropdown />
+                  <FilterChip label="Excluir Promociones" />
+                  <FilterChip label="No leídos" />
+                  <button className="text-[11px] font-black text-[#00A3FF] uppercase tracking-widest ml-auto whitespace-nowrap">Búsqueda avanzada</button>
                </div>
              )}
 
@@ -120,10 +121,16 @@ export default function InboxPage() {
                 {loading ? (
                   <div className="p-24 flex flex-col items-center gap-4 opacity-30">
                     <div className="w-8 h-8 border-4 border-slate-100 border-t-[#00A3FF] rounded-full animate-spin"></div>
-                    <span className="text-[11px] font-black uppercase tracking-widest text-slate-400">Sincronizando...</span>
+                    <span className="text-[11px] font-black uppercase tracking-widest text-slate-400">Filtrando Destacados...</span>
                   </div>
                 ) : messages.length === 0 ? (
-                  <div className="p-20 text-center text-slate-400 text-sm font-medium">Buzón vacío.</div>
+                  <div className="p-32 text-center flex flex-col items-center">
+                     <div className="w-20 h-20 rounded-full bg-amber-50 flex items-center justify-center mb-6">
+                        <span className="material-symbols-outlined text-4xl text-amber-200">star</span>
+                     </div>
+                     <div className="text-slate-400 text-sm font-medium">No hay mensajes destacados.</div>
+                     <p className="text-[11px] text-slate-300 mt-2 font-bold uppercase">Usa la estrella para guardar mensajes importantes aquí.</p>
+                  </div>
                 ) : (
                   messages.map((message) => (
                     <div
@@ -174,7 +181,7 @@ export default function InboxPage() {
              </div>
           </section>
 
-          {/* 3. Integrated Reading Pane */}
+          {/* Integrated Reading Pane */}
           {selectedId && (
             <section className="flex-1 bg-white flex flex-col min-w-0 overflow-hidden">
                <MessagePane
@@ -225,7 +232,7 @@ function MessagePane({
 
   return (
     <div className="flex flex-col h-full bg-white">
-       {/* Message Header Toolbar */}
+       {/* Toolbar */}
        <div className="h-14 border-b border-slate-100 flex items-center px-6 gap-6 shrink-0">
           <ToolbarIcon icon="arrow_back" onClick={onClose} />
           <div className="h-6 w-px bg-slate-100 mx-2"></div>
@@ -239,10 +246,10 @@ function MessagePane({
           <ToolbarIcon icon="more_vert" />
        </div>
 
-       <div className="flex-1 overflow-y-auto p-10 lg:p-14 custom-scrollbar">
-          <div className="max-w-4xl mx-auto space-y-10">
+       <div className="flex-1 overflow-y-auto p-12 lg:p-20 custom-scrollbar">
+          <div className="max-w-4xl mx-auto space-y-12">
              <div className="flex items-start justify-between">
-                <h2 className="text-3xl font-black text-slate-900 tracking-tight leading-tight uppercase italic">{summary.subject}</h2>
+                <h2 className="text-4xl font-black text-slate-900 tracking-tight leading-tight uppercase italic">{summary.subject}</h2>
                 <div className="flex items-center gap-2">
                    <ToolbarIcon icon="print" />
                    <ToolbarIcon icon="open_in_new" />
@@ -250,30 +257,30 @@ function MessagePane({
              </div>
 
              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-full bg-slate-900 text-white flex items-center justify-center font-black text-lg">
+                <div className="w-14 h-14 rounded-full bg-slate-900 text-white flex items-center justify-center font-black text-xl shadow-lg shadow-slate-900/20">
                    {summary.from?.charAt(0).toUpperCase()}
                 </div>
                 <div className="flex-1">
                    <div className="flex items-center justify-between mb-1">
                       <div className="flex items-center gap-2">
-                         <span className="text-base font-black text-slate-900">{summary.from}</span>
+                         <span className="text-lg font-black text-slate-900">{summary.from}</span>
                          <span className="text-xs text-slate-400 font-bold tracking-tight">&lt;{summary.fromAddress}&gt;</span>
                       </div>
                       <div className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">{summary.receivedAt}</div>
                    </div>
-                   <div className="text-[10px] font-medium text-slate-400">
+                   <div className="text-[11px] font-medium text-slate-400">
                       para <span className="text-slate-900 font-black">{me?.address}</span>
                    </div>
                 </div>
              </div>
 
-             <div className="text-slate-700 text-lg leading-[1.8] font-medium whitespace-pre-line border-t border-slate-50 pt-10">
+             <div className="text-slate-700 text-lg leading-[1.8] font-medium whitespace-pre-line border-t border-slate-50 pt-12">
                 {message?.body ? (
                    <div className="animate-in fade-in duration-700">{message.body}</div>
                 ) : (
                   <div className="flex items-center gap-4 text-slate-300">
                     <div className="w-5 h-5 border-2 border-slate-100 border-t-[#00A3FF] rounded-full animate-spin"></div>
-                    <span className="text-[10px] font-black uppercase tracking-widest">Cargando contenido...</span>
+                    <span className="text-[11px] font-black uppercase tracking-widest">Cargando mensaje destacado...</span>
                   </div>
                 )}
              </div>
@@ -294,38 +301,11 @@ function ToolbarIcon({ icon, onClick }: { icon: string; onClick?: (e: React.Mous
   );
 }
 
-function MailTab({ icon, label, active, color, badge, onClick }: { icon: string; label: string; active: boolean; color: string; badge?: string; onClick: () => void }) {
-  const colors: Record<string, string> = {
-    blue: active ? "text-[#00A3FF] border-[#00A3FF]" : "text-slate-500 hover:bg-slate-50",
-    green: active ? "text-emerald-500 border-emerald-500" : "text-slate-500 hover:bg-slate-50",
-    'blue-light': active ? "text-sky-400 border-sky-400" : "text-slate-500 hover:bg-slate-50"
-  };
-
+function FilterChip({ label, hasDropdown }: { label: string; hasDropdown?: boolean }) {
   return (
-    <button 
-      onClick={onClick}
-      className={`
-        flex items-center gap-4 px-6 py-4 border-b-4 transition-all shrink-0
-        ${colors[color]}
-        ${!active && "border-transparent"}
-      `}
-    >
-       <span className="material-symbols-outlined text-[20px]">{icon}</span>
-       <div className="flex flex-col items-start">
-          <span className={`text-sm tracking-tight ${active ? "font-black" : "font-bold"}`}>{label}</span>
-          {badge && <span className={`text-[9px] font-black uppercase tracking-widest ${active ? "opacity-100" : "opacity-0"}`}>{badge}</span>}
-       </div>
+    <button className="flex items-center gap-2 px-4 py-2 border border-slate-200 rounded-lg text-[11px] font-bold text-slate-600 hover:bg-slate-50 transition-all whitespace-nowrap">
+       {label}
+       {hasDropdown && <span className="material-symbols-outlined text-[16px]">arrow_drop_down</span>}
     </button>
   );
-}
-
-function getFolderIcon(folder: MailFolder): string {
-  switch(folder) {
-    case 'INBOX': return 'inbox';
-    case 'SENT': return 'send';
-    case 'TRASH': return 'delete';
-    case 'DRAFTS': return 'drafts';
-    case 'SPAM': return 'verified_user';
-    default: return 'folder';
-  }
 }

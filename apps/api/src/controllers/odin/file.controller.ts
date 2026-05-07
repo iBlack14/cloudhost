@@ -17,7 +17,11 @@ const getBaseUserPath = async (userId: string): Promise<string> => {
   const userResult = await db.query("SELECT username FROM users WHERE id = $1", [userId]);
   if (userResult.rowCount === 0) throw new Error("Usuario no encontrado");
   const username = userResult.rows[0].username.replace(/[^a-z0-9]/gi, "_").toLowerCase();
-  return `/home/${username}`;
+  if (process.platform === "win32") {
+    return path.join(process.cwd(), ".odin-home", username);
+  }
+
+  return path.join("/home", username);
 };
 
 export const listFilesHandler = async (req: Request, res: Response): Promise<Response> => {
@@ -205,4 +209,3 @@ export const uploadFileHandler = async (req: Request, res: Response): Promise<Re
     });
   }
 };
-

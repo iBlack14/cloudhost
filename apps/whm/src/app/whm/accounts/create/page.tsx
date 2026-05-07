@@ -11,6 +11,11 @@ const defaultForm: WhmCreateAccountInput = {
   password: "",
   email: "",
   planId: undefined,
+  isReseller: false,
+  resellerConfig: {
+    maxAccounts: -1,
+    limitDiskMb: -1,
+  },
   nameservers: {
     inheritRoot: true,
     ns1: "",
@@ -25,6 +30,12 @@ const defaultForm: WhmCreateAccountInput = {
     dockerEnabled: false
   }
 };
+
+const RESELLER_PLANS = [
+  { id: "res-bronze", name: "Reseller Bronze", maxAccounts: 10, limitDiskMb: 102400 },
+  { id: "res-silver", name: "Reseller Silver", maxAccounts: 50, limitDiskMb: 512000 },
+  { id: "res-gold", name: "Reseller Gold", maxAccounts: -1, limitDiskMb: 2097152 },
+];
 
 export default function CreateWhmAccountPage() {
   const [form, setForm] = useState<WhmCreateAccountInput>(defaultForm);
@@ -43,6 +54,38 @@ export default function CreateWhmAccountPage() {
     const target = event.target as HTMLInputElement;
     const { name, value, type, checked } = target;
 
+    if (name === "isReseller") {
+      setForm(prev => ({ 
+        ...prev, 
+        isReseller: checked,
+        planId: "", // Reset plan when toggling type
+        resellerConfig: checked ? { maxAccounts: -1, limitDiskMb: -1 } : prev.resellerConfig
+      }));
+      return;
+    }
+
+    if (name === "planId") {
+       const selectedPlanId = value;
+       let updatedResellerConfig = form.resellerConfig;
+
+       if (form.isReseller) {
+          const plan = RESELLER_PLANS.find(p => p.id === selectedPlanId);
+          if (plan) {
+             updatedResellerConfig = {
+                maxAccounts: plan.maxAccounts,
+                limitDiskMb: plan.limitDiskMb
+             };
+          }
+       }
+
+       setForm(prev => ({ 
+          ...prev, 
+          planId: selectedPlanId,
+          resellerConfig: updatedResellerConfig
+       }));
+       return;
+    }
+
     if (name.startsWith("settings.")) {
       const key = name.replace("settings.", "") as keyof WhmCreateAccountInput["settings"];
       setForm((prev: WhmCreateAccountInput) => ({
@@ -55,19 +98,19 @@ export default function CreateWhmAccountPage() {
       return;
     }
 
-    if (name.startsWith("nameservers.")) {
-      const key = name.replace("nameservers.", "") as keyof WhmCreateAccountInput["nameservers"];
+    if (name.startsWith("resellerConfig.")) {
+      const key = name.replace("resellerConfig.", "") as keyof NonNullable<WhmCreateAccountInput["resellerConfig"]>;
       setForm((prev: WhmCreateAccountInput) => ({
         ...prev,
-        nameservers: {
-          ...prev.nameservers,
-          [key]: type === "checkbox" ? checked : value
+        resellerConfig: {
+          ...prev.resellerConfig!,
+          [key]: type === "number" ? parseInt(value) : value
         }
       }));
       return;
     }
 
-    setForm((prev: WhmCreateAccountInput) => ({ ...prev, [name]: value }));
+    setForm((prev: WhmCreateAccountInput) => ({ ...prev, [name]: type === "checkbox" ? checked : value }));
   };
 
   const generatePassword = () => {
@@ -203,11 +246,19 @@ export default function CreateWhmAccountPage() {
                 className="w-full bg-slate-50 border border-slate-200 rounded-xl px-5 py-3.5 text-sm font-medium text-slate-900 outline-none focus:border-[#00A3FF]/50 focus:bg-white transition-all appearance-none shadow-inner"
               >
                 <option value="">Seleccionar un Plan</option>
-                {(plansQuery.data ?? []).map(plan => (
-                   <option key={plan.id} value={plan.id}>
-                    {plan.name} ({plan.disk_quota_mb}MB SSD)
-                  </option>
-                ))}
+                {form.isReseller ? (
+                   RESELLER_PLANS.map(plan => (
+                      <option key={plan.id} value={plan.id}>
+                        {plan.name} (Límite: {plan.maxAccounts === -1 ? 'Ilimitado' : plan.maxAccounts} cuentas)
+                      </option>
+                   ))
+                ) : (
+                  (plansQuery.data ?? []).map(plan => (
+                    <option key={plan.id} value={plan.id}>
+                      {plan.name} ({plan.disk_quota_mb}MB SSD)
+                    </option>
+                  ))
+                )}
               </select>
             </ProField>
             <ProField label="Versión de PHP">
@@ -225,39 +276,84 @@ export default function CreateWhmAccountPage() {
           </section>
 
           <section className="pt-10 border-t border-slate-100 space-y-8">
-             <div className="flex items-center justify-between">
-                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500">Opciones Adicionales</h3>
-                <label className="flex items-center gap-3 cursor-pointer group">
-                   <input 
-                    type="checkbox" 
-                    name="nameservers.inheritRoot" 
-                    checked={form.nameservers.inheritRoot} 
-                    onChange={onInputChange}
-                    className="hidden"
-                   />
-                   <div className={`w-5 h-5 rounded border-2 transition-all flex items-center justify-center ${form.nameservers.inheritRoot ? 'bg-[#00A3FF] border-[#00A3FF]' : 'border-slate-300 bg-white'}`}>
-                      {form.nameservers.inheritRoot && <span className="material-symbols-outlined text-white text-[14px] font-bold">check</span>}
-                   </div>
-                   <span className="text-xs font-bold text-slate-600 group-hover:text-slate-900 transition-colors">Usar DNS del sistema</span>
-                </label>
+             <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                <div className="space-y-1">
+                   <h3 className="text-xs font-black uppercase tracking-widest text-slate-900">Privilegios de Cuenta</h3>
+                   <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tight">Configurar accesos de administrador/revendedor</p>
+                </div>
+                <div className="flex items-center gap-6">
+                   <label className="flex items-center gap-3 cursor-pointer group">
+                      <input 
+                        type="checkbox" 
+                        name="isReseller" 
+                        checked={form.isReseller} 
+                        onChange={onInputChange}
+                        className="hidden"
+                      />
+                      <div className={`w-10 h-6 rounded-full relative transition-all duration-300 ${form.isReseller ? 'bg-[#00A3FF]' : 'bg-slate-200'}`}>
+                         <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all duration-300 ${form.isReseller ? 'left-5' : 'left-1'}`}></div>
+                      </div>
+                      <span className="text-xs font-bold text-slate-600 group-hover:text-slate-900 transition-colors uppercase tracking-tight">Habilitar Reseller (WHM)</span>
+                   </label>
+                   
+                   <label className="flex items-center gap-3 cursor-pointer group">
+                      <input 
+                        type="checkbox" 
+                        name="nameservers.inheritRoot" 
+                        checked={form.nameservers.inheritRoot} 
+                        onChange={onInputChange}
+                        className="hidden"
+                      />
+                      <div className={`w-5 h-5 rounded border-2 transition-all flex items-center justify-center ${form.nameservers.inheritRoot ? 'bg-slate-900 border-slate-900' : 'border-slate-300 bg-white'}`}>
+                         {form.nameservers.inheritRoot && <span className="material-symbols-outlined text-white text-[14px] font-bold">check</span>}
+                      </div>
+                      <span className="text-xs font-bold text-slate-600 group-hover:text-slate-900 transition-colors uppercase tracking-tight">Heredar DNS Root</span>
+                   </label>
+                </div>
              </div>
 
-             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <ModuleToggle 
-                  label="Acceso SSH" 
-                  active={form.settings.shellAccess} 
-                  onClick={() => setForm((prev: WhmCreateAccountInput) => ({ ...prev, settings: { ...prev.settings, shellAccess: !prev.settings.shellAccess } }))} 
-                />
-                <ModuleToggle 
-                  label="Soporte Node.js" 
-                  active={form.settings.nodejsEnabled} 
-                  onClick={() => setForm((prev: WhmCreateAccountInput) => ({ ...prev, settings: { ...prev.settings, nodejsEnabled: !prev.settings.nodejsEnabled } }))} 
-                />
-                <ModuleToggle 
-                  label="Contenedores Docker" 
-                  active={form.settings.dockerEnabled} 
-                  onClick={() => setForm((prev: WhmCreateAccountInput) => ({ ...prev, settings: { ...prev.settings, dockerEnabled: !prev.settings.dockerEnabled } }))} 
-                />
+             {form.isReseller && !form.planId && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 p-8 bg-slate-50 rounded-[2rem] border border-slate-100 animate-in slide-in-from-top-4 duration-300">
+                   <ProField label="Límite de Cuentas (-1 = Ilimitado)">
+                      <input 
+                        name="resellerConfig.maxAccounts"
+                        type="number"
+                        value={form.resellerConfig?.maxAccounts}
+                        onChange={onInputChange}
+                        className="w-full bg-white border border-slate-200 rounded-xl px-5 py-3.5 text-sm font-bold text-slate-900 outline-none focus:border-[#00A3FF]/50 shadow-inner"
+                      />
+                   </ProField>
+                   <ProField label="Límite de Disco MB (-1 = Ilimitado)">
+                      <input 
+                        name="resellerConfig.limitDiskMb"
+                        type="number"
+                        value={form.resellerConfig?.limitDiskMb}
+                        onChange={onInputChange}
+                        className="w-full bg-white border border-slate-200 rounded-xl px-5 py-3.5 text-sm font-bold text-slate-900 outline-none focus:border-[#00A3FF]/50 shadow-inner"
+                      />
+                   </ProField>
+                </div>
+             )}
+
+             <div className="space-y-4">
+                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 block px-1">Módulos de Sistema</span>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                   <ModuleToggle 
+                     label="Acceso SSH" 
+                     active={form.settings.shellAccess} 
+                     onClick={() => setForm((prev: WhmCreateAccountInput) => ({ ...prev, settings: { ...prev.settings, shellAccess: !prev.settings.shellAccess } }))} 
+                   />
+                   <ModuleToggle 
+                     label="Soporte Node.js" 
+                     active={form.settings.nodejsEnabled} 
+                     onClick={() => setForm((prev: WhmCreateAccountInput) => ({ ...prev, settings: { ...prev.settings, nodejsEnabled: !prev.settings.nodejsEnabled } }))} 
+                   />
+                   <ModuleToggle 
+                     label="Contenedores Docker" 
+                     active={form.settings.dockerEnabled} 
+                     onClick={() => setForm((prev: WhmCreateAccountInput) => ({ ...prev, settings: { ...prev.settings, dockerEnabled: !prev.settings.dockerEnabled } }))} 
+                   />
+                </div>
              </div>
           </section>
         </div>

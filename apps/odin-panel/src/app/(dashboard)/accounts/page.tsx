@@ -2,55 +2,28 @@
 
 import React, { useMemo, useState } from "react";
 import Link from "next/link";
-import { 
-  useWhmAccounts, 
-  useSuspendWhmAccount, 
-  useResumeWhmAccount, 
-  useImpersonateWhmAccount,
-  useResetWhmAccountPassword
-} from "../../../lib/hooks/use-whm-accounts";
+import { useQuery } from "@tanstack/react-query";
+import { fetchDomains, fetchOdinDashboard } from "../../../lib/api";
 
 export default function AccountsPage() {
   const [search, setSearch] = useState("");
-  const { data: accounts = [], isLoading, isError } = useWhmAccounts();
-  const suspendMutation = useSuspendWhmAccount();
-  const resumeMutation = useResumeWhmAccount();
-  const impersonateMutation = useImpersonateWhmAccount();
-  const resetPassMutation = useResetWhmAccountPassword();
-
-  const [resetModal, setResetModal] = useState<{ isOpen: boolean; accountId: string; username: string; newPass?: string }>({
-    isOpen: false,
-    accountId: "",
-    username: ""
+  const { data: dashboard, isLoading: dashboardLoading } = useQuery({
+    queryKey: ["odin", "dashboard"],
+    queryFn: fetchOdinDashboard
   });
+  const { data: domains = [], isLoading: domainsLoading } = useQuery({
+    queryKey: ["odin", "domains"],
+    queryFn: fetchDomains
+  });
+  const isLoading = dashboardLoading || domainsLoading;
 
   const filteredAccounts = useMemo(() => {
     const term = search.toLowerCase();
-    return accounts.filter(acc => 
-      acc.username.toLowerCase().includes(term) || 
-      acc.domain.toLowerCase().includes(term) ||
-      acc.email.toLowerCase().includes(term)
+    return domains.filter(domain => 
+      domain.domain_name.toLowerCase().includes(term) ||
+      domain.status.toLowerCase().includes(term)
     );
-  }, [accounts, search]);
-
-  const onImpersonate = async (accountId: string) => {
-    try {
-      const data = await impersonateMutation.mutateAsync(accountId);
-      window.open(data.odinPanelUrl, "_blank");
-    } catch (error) {
-      console.error(error);
-      alert("Error al iniciar la suplantación de identidad");
-    }
-  };
-
-  const handleResetPassword = async () => {
-    try {
-      const result = await resetPassMutation.mutateAsync({ accountId: resetModal.accountId });
-      setResetModal(prev => ({ ...prev, newPass: result.password }));
-    } catch (error) {
-      alert("Error al restablecer la contraseña");
-    }
-  };
+  }, [domains, search]);
 
   return (
     <div className="space-y-12 animate-in fade-in duration-700">
@@ -65,13 +38,13 @@ export default function AccountsPage() {
             Gestión de <span className="text-[#00A3FF]">Cuentas</span>
           </h1>
           <p className="text-slate-500 text-sm font-medium mt-2">
-            Administra tus instancias activas y despliega nuevos entornos instantáneamente.
+            Consulta la instancia asociada a tu usuario y sus dominios vinculados.
           </p>
         </div>
-        <Link href="/accounts/create">
+        <Link href="/domains">
           <button className="bg-[#00A3FF] px-10 py-5 rounded-2xl text-white font-black uppercase text-[11px] tracking-widest shadow-xl shadow-[#00A3FF]/20 hover:bg-[#008EE0] active:scale-[0.98] transition-all flex items-center gap-2">
-            <span className="material-symbols-outlined text-[20px]">add</span>
-            Nueva Instancia
+            <span className="material-symbols-outlined text-[20px]">language</span>
+            Ver Dominios
           </button>
         </Link>
       </header>
@@ -92,10 +65,10 @@ export default function AccountsPage() {
           <table className="w-full text-left whitespace-nowrap">
             <thead>
               <tr className="text-[10px] font-black uppercase tracking-widest text-slate-400 bg-slate-50/30 border-b border-slate-100">
-                <th className="px-10 py-5">Identidad / Email</th>
+                <th className="px-10 py-5">Instancia / Dominio</th>
                 <th className="px-10 py-5">Dominio Principal</th>
                 <th className="px-10 py-5">Estado</th>
-                <th className="px-10 py-5 text-right">Control</th>
+                <th className="px-10 py-5 text-right">Recursos</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50 bg-white">
@@ -117,60 +90,30 @@ export default function AccountsPage() {
                       </div>
                     </td>
                   </tr>
-              ) : filteredAccounts.map((account) => (
-                <tr key={account.account_id} className="hover:bg-slate-50 transition-colors group">
+              ) : filteredAccounts.map((domain) => (
+                <tr key={domain.id} className="hover:bg-slate-50 transition-colors group">
                   <td className="px-10 py-6">
-                    <div className="font-black text-slate-900 tracking-tight text-base group-hover:text-[#00A3FF] transition-colors">{account.username}</div>
-                    <div className="text-[11px] text-slate-400 font-bold mt-0.5">{account.email}</div>
+                    <div className="font-black text-slate-900 tracking-tight text-base group-hover:text-[#00A3FF] transition-colors">{domain.domain_name}</div>
+                    <div className="text-[11px] text-slate-400 font-bold mt-0.5">{dashboard?.account.plan ?? "Plan activo"}</div>
                   </td>
                   <td className="px-10 py-6">
                     <div className="flex items-center gap-2">
                        <span className="material-symbols-outlined text-slate-200 text-[18px]">language</span>
-                       <span className="font-bold text-slate-600 text-sm">{account.domain}</span>
+                       <span className="font-bold text-slate-600 text-sm">{domain.domain_name}</span>
                     </div>
                   </td>
                   <td className="px-10 py-6">
                     <span className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest border ${
-                      account.status === 'active' 
+                      domain.status === 'active' 
                       ? 'border-[#00A3FF]/20 text-[#00A3FF] bg-[#00A3FF]/5 shadow-sm shadow-[#00A3FF]/5' 
                       : 'border-red-200 text-red-500 bg-red-50'
                     }`}>
-                      {account.status === 'active' ? '● Activo' : '○ Suspendido'}
+                      {domain.status === 'active' ? 'Activo' : domain.status}
                     </span>
                   </td>
                   <td className="px-10 py-6 text-right">
-                    <div className="flex justify-end gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
-                       <button 
-                          onClick={() => onImpersonate(account.account_id)}
-                          className="w-10 h-10 rounded-xl bg-white border border-slate-200 text-[#00A3FF] hover:bg-[#00A3FF] hover:text-white hover:border-[#00A3FF] transition-all shadow-sm flex items-center justify-center"
-                          title="Acceder como Usuario"
-                        >
-                         <span className="material-symbols-outlined text-[18px]">login</span>
-                       </button>
-                       <button 
-                          onClick={() => setResetModal({ isOpen: true, accountId: account.account_id, username: account.username })}
-                          className="w-10 h-10 rounded-xl bg-white border border-slate-200 text-amber-500 hover:bg-amber-500 hover:text-white hover:border-amber-500 transition-all shadow-sm flex items-center justify-center"
-                          title="Restablecer Contraseña"
-                        >
-                         <span className="material-symbols-outlined text-[18px]">lock_reset</span>
-                       </button>
-                       {account.status === 'active' ? (
-                          <button 
-                            onClick={() => suspendMutation.mutate(account.account_id)}
-                            className="w-10 h-10 rounded-xl bg-white border border-slate-200 text-red-400 hover:bg-red-500 hover:text-white hover:border-red-500 transition-all shadow-sm flex items-center justify-center"
-                            title="Suspender"
-                          >
-                            <span className="material-symbols-outlined text-[18px]">block</span>
-                          </button>
-                       ) : (
-                          <button 
-                            onClick={() => resumeMutation.mutate(account.account_id)}
-                            className="w-10 h-10 rounded-xl bg-white border border-slate-200 text-emerald-500 hover:bg-emerald-500 hover:text-white hover:border-emerald-500 transition-all shadow-sm flex items-center justify-center"
-                            title="Reactivar"
-                          >
-                            <span className="material-symbols-outlined text-[18px]">play_arrow</span>
-                          </button>
-                       )}
+                    <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                      {dashboard?.account.diskUsed ?? 0} MB / {dashboard?.account.diskLimit ?? 0} MB
                     </div>
                   </td>
                 </tr>
@@ -179,52 +122,6 @@ export default function AccountsPage() {
           </table>
         </div>
       </div>
-
-      {/* Reset Password Modal */}
-      {resetModal.isOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
-           <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setResetModal({ ...resetModal, isOpen: false })}></div>
-           <div className="bg-white border border-slate-200 rounded-[3rem] p-12 max-w-md w-full relative z-10 shadow-2xl animate-in zoom-in-95 duration-300">
-              <h2 className="text-3xl font-black text-slate-900 uppercase tracking-tighter italic mb-4">
-                 Restablecer <span className="text-amber-500">Acceso</span>
-              </h2>
-              <p className="text-slate-500 text-sm font-medium mb-8">
-                 ¿Deseas generar una nueva contraseña para <strong>{resetModal.username}</strong>? Se enviará una notificación al correo de contacto.
-              </p>
-
-              {resetModal.newPass ? (
-                <div className="space-y-6">
-                   <div className="p-6 bg-amber-50 border border-amber-100 rounded-2xl">
-                      <div className="text-[10px] font-black text-amber-600 uppercase tracking-widest mb-2">Nueva Contraseña Generada</div>
-                      <div className="text-2xl font-mono font-bold text-slate-900 break-all select-all">{resetModal.newPass}</div>
-                   </div>
-                   <button 
-                     onClick={() => setResetModal({ ...resetModal, isOpen: false, newPass: undefined })}
-                     className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black uppercase text-[11px] tracking-widest"
-                   >
-                     Entendido
-                   </button>
-                </div>
-              ) : (
-                <div className="flex gap-4">
-                   <button 
-                     onClick={() => setResetModal({ ...resetModal, isOpen: false })}
-                     className="flex-1 py-4 bg-slate-50 text-slate-400 rounded-2xl font-black uppercase text-[11px] tracking-widest hover:bg-slate-100 transition-all"
-                   >
-                     Cancelar
-                   </button>
-                   <button 
-                     onClick={handleResetPassword}
-                     disabled={resetPassMutation.isPending}
-                     className="flex-1 py-4 bg-amber-500 text-white rounded-2xl font-black uppercase text-[11px] tracking-widest shadow-lg shadow-amber-500/20 hover:bg-amber-600 transition-all active:scale-95 disabled:opacity-50"
-                   >
-                     {resetPassMutation.isPending ? "Generando..." : "Confirmar"}
-                   </button>
-                </div>
-              )}
-           </div>
-        </div>
-      )}
     </div>
   );
 }

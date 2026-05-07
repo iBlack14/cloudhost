@@ -23,15 +23,43 @@ export {
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001/api/v1";
 const ODIN_ACCESS_TOKEN_KEY = "odin-access-token";
 
+const getBrowserStorage = (): Storage | null => {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  try {
+    return window.localStorage;
+  } catch {
+    return window.sessionStorage;
+  }
+};
+
+export const getOdinAccessToken = (): string | null => {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  return getBrowserStorage()?.getItem(ODIN_ACCESS_TOKEN_KEY) ?? window.sessionStorage.getItem(ODIN_ACCESS_TOKEN_KEY);
+};
+
 export const clearOdinSession = (): void => {
   if (typeof window !== "undefined") {
+    getBrowserStorage()?.removeItem(ODIN_ACCESS_TOKEN_KEY);
     window.sessionStorage.removeItem(ODIN_ACCESS_TOKEN_KEY);
+  }
+};
+
+export const setOdinSession = (token: string): void => {
+  if (typeof window !== "undefined") {
+    getBrowserStorage()?.setItem(ODIN_ACCESS_TOKEN_KEY, token);
+    window.sessionStorage.setItem(ODIN_ACCESS_TOKEN_KEY, token);
   }
 };
 
 export const hasOdinSession = (): boolean => {
   if (typeof window === "undefined") return false;
-  return Boolean(window.sessionStorage.getItem(ODIN_ACCESS_TOKEN_KEY));
+  return Boolean(getOdinAccessToken());
 };
 
 export const loginOdin = async (username: string, password: string): Promise<void> => {
@@ -44,17 +72,19 @@ export const loginOdin = async (username: string, password: string): Promise<voi
   if (!res.ok || !payload.success) {
     throw new Error(payload?.error?.message ?? "Credenciales incorrectas");
   }
-  if (typeof window !== "undefined") {
-    window.sessionStorage.setItem(ODIN_ACCESS_TOKEN_KEY, payload.data.token);
-  }
+  setOdinSession(payload.data.token);
 };
 
-const parsePayload = async <T>(response: Response): Promise<T> => {
+const parsePayload = async <T>(
+  response: Response,
+  options: { redirectOnAuthFailure?: boolean } = {}
+): Promise<T> => {
+  const { redirectOnAuthFailure = true } = options;
   const payload = await response.json();
 
   if (!response.ok || !payload.success) {
     // Redirect to login on auth failures
-    if ((response.status === 401 || response.status === 403) && typeof window !== "undefined") {
+    if (redirectOnAuthFailure && (response.status === 401 || response.status === 403) && typeof window !== "undefined") {
       clearOdinSession();
       if (!window.location.pathname.startsWith("/auth/")) {
         window.location.href = "/auth/login";
@@ -66,16 +96,8 @@ const parsePayload = async <T>(response: Response): Promise<T> => {
   return payload.data as T;
 };
 
-const getAccessToken = (): string | null => {
-  if (typeof window === "undefined") {
-    return null;
-  }
-
-  return window.sessionStorage.getItem(ODIN_ACCESS_TOKEN_KEY);
-};
-
 const withOdinAuth = (headers: Record<string, string> = {}): Record<string, string> => {
-  const token = getAccessToken();
+  const token = getOdinAccessToken();
 
   return token
     ? {
@@ -87,12 +109,12 @@ const withOdinAuth = (headers: Record<string, string> = {}): Record<string, stri
 
 export const fetchPlans = async (): Promise<Plan[]> => {
   const response = await fetch(`${API_BASE}/whm/plans`, { cache: "no-store" });
-  return parsePayload<Plan[]>(response);
+  return parsePayload<Plan[]>(response, { redirectOnAuthFailure: false });
 };
 
 export const fetchAccounts = async (): Promise<WhmAccount[]> => {
   const response = await fetch(`${API_BASE}/whm/accounts`, { cache: "no-store" });
-  return parsePayload<WhmAccount[]>(response);
+  return parsePayload<WhmAccount[]>(response, { redirectOnAuthFailure: false });
 };
 
 export const createAccount = async (input: unknown): Promise<{ userId: string; accountId: string }> => {
@@ -102,22 +124,22 @@ export const createAccount = async (input: unknown): Promise<{ userId: string; a
     body: JSON.stringify(input)
   });
 
-  return parsePayload<{ userId: string; accountId: string }>(response);
+  return parsePayload<{ userId: string; accountId: string }>(response, { redirectOnAuthFailure: false });
 };
 
 export const suspendAccount = async (accountId: string): Promise<void> => {
   const response = await fetch(`${API_BASE}/whm/accounts/${accountId}/suspend`, { method: "POST" });
-  await parsePayload(response);
+  await parsePayload(response, { redirectOnAuthFailure: false });
 };
 
 export const resumeAccount = async (accountId: string): Promise<void> => {
   const response = await fetch(`${API_BASE}/whm/accounts/${accountId}/resume`, { method: "POST" });
-  await parsePayload(response);
+  await parsePayload(response, { redirectOnAuthFailure: false });
 };
 
 export const impersonateAccount = async (accountId: string): Promise<WhmImpersonation> => {
   const response = await fetch(`${API_BASE}/whm/accounts/${accountId}/impersonate`, { method: "POST" });
-  return parsePayload<WhmImpersonation>(response);
+  return parsePayload<WhmImpersonation>(response, { redirectOnAuthFailure: false });
 };
 
 export const resetAccountPassword = async (accountId: string, password?: string): Promise<{ message: string; password?: string }> => {
@@ -126,7 +148,7 @@ export const resetAccountPassword = async (accountId: string, password?: string)
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ password })
   });
-  return parsePayload<{ message: string; password?: string }>(response);
+  return parsePayload<{ message: string; password?: string }>(response, { redirectOnAuthFailure: false });
 };
 
 export const fetchWpSites = async (): Promise<WordPressSite[]> => {

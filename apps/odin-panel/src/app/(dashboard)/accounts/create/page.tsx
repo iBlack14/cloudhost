@@ -17,6 +17,7 @@ export default function CreateAccountPage() {
     username: "",
     password: "",
     email: "",
+    isReseller: false,
     planId: undefined,
     nameservers: {
       inheritRoot: true,

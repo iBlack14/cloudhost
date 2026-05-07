@@ -77,8 +77,9 @@ const toPercent = (value: number): number => {
 };
 
 const getDiskUsagePercent = (): number => {
+  if (os.platform() === "win32") return 0;
   try {
-    const output = execSync("df -P /", { encoding: "utf-8" });
+    const output = execSync("df -P /", { encoding: "utf-8", stdio: ["ignore", "pipe", "ignore"] });
     const lines = output.trim().split("\n");
     if (lines.length < 2) return 0;
     const columns = lines[1].trim().split(/\s+/);

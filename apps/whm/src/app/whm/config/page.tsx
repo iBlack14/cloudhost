@@ -77,24 +77,49 @@ export default function ServerConfigPage() {
          </ConfigCard>
       </section>
 
-      <div className="bg-white border border-slate-200 rounded-[2.5rem] p-10 relative overflow-hidden group shadow-sm">
-         <div className="flex items-center gap-5 mb-10 relative z-10">
-            <div className="w-14 h-14 rounded-2xl bg-[#00A3FF]/5 flex items-center justify-center text-[#00A3FF] border border-[#00A3FF]/10">
-               <span className="material-symbols-outlined text-3xl">dns</span>
-            </div>
-            <div>
-               <h3 className="text-2xl font-black text-slate-900 uppercase">Configuración Global de PHP</h3>
-               <p className="text-[11px] text-slate-500 font-bold tracking-widest uppercase">Gestión de Archivo Odisea.ini</p>
-            </div>
-         </div>
-         
-         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 relative z-10">
-            <SettingField label="Límite de Memoria" value="512M" />
-            <SettingField label="Subida Máxima" value="128M" />
-            <SettingField label="Tamaño Max. Post" value="128M" />
-            <SettingField label="Tiempo de Ejecución" value="300s" />
-         </div>
-         <div className="absolute -bottom-16 -right-16 w-64 h-64 bg-[#00A3FF]/5 blur-[100px] rounded-full pointer-events-none group-hover:bg-[#00A3FF]/10 transition-all duration-1000"></div>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className="bg-white border border-slate-200 rounded-[2.5rem] p-10 relative overflow-hidden group shadow-sm hover:border-[#00A3FF]/30 transition-all cursor-pointer" onClick={() => window.location.href = '/whm/config/basic-setup'}>
+           <div className="flex items-center gap-5 mb-10 relative z-10">
+              <div className="w-14 h-14 rounded-2xl bg-[#00A3FF]/5 flex items-center justify-center text-[#00A3FF] border border-[#00A3FF]/10">
+                 <span className="material-symbols-outlined text-3xl">settings_account_box</span>
+              </div>
+              <div>
+                 <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tight">Basic Setup</h3>
+                 <p className="text-[11px] text-slate-500 font-bold tracking-widest uppercase mt-1">Configuración base y Nameservers</p>
+              </div>
+              <div className="ml-auto w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center text-slate-400 group-hover:bg-[#00A3FF] group-hover:text-white transition-all">
+                 <span className="material-symbols-outlined">arrow_forward</span>
+              </div>
+           </div>
+           <p className="text-sm text-slate-500 font-medium leading-relaxed relative z-10">
+              Configura los nombres de servidor predeterminados y la información de contacto global del administrador.
+           </p>
+           <div className="absolute -bottom-16 -right-16 w-64 h-64 bg-[#00A3FF]/5 blur-[100px] rounded-full pointer-events-none group-hover:bg-[#00A3FF]/10 transition-all duration-1000"></div>
+        </div>
+
+        <div className="bg-white border border-slate-200 rounded-[2.5rem] p-10 relative overflow-hidden group shadow-sm">
+           <div className="flex items-center gap-5 mb-10 relative z-10">
+              <div className="w-14 h-14 rounded-2xl bg-[#00A3FF]/5 flex items-center justify-center text-[#00A3FF] border border-[#00A3FF]/10">
+                 <span className="material-symbols-outlined text-3xl">dns</span>
+              </div>
+              <div>
+                 <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tight">Global PHP</h3>
+                 <p className="text-[11px] text-slate-500 font-bold tracking-widest uppercase mt-1">Archivo Odisea.ini</p>
+              </div>
+           </div>
+           
+           <div className="grid grid-cols-2 gap-4 relative z-10">
+              <div className="p-4 rounded-xl bg-slate-50 border border-slate-100 flex flex-col gap-1">
+                 <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Memory Limit</span>
+                 <span className="text-lg font-black text-slate-900">512M</span>
+              </div>
+              <div className="p-4 rounded-xl bg-slate-50 border border-slate-100 flex flex-col gap-1">
+                 <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Post Max Size</span>
+                 <span className="text-lg font-black text-slate-900">128M</span>
+              </div>
+           </div>
+           <div className="absolute -bottom-16 -right-16 w-64 h-64 bg-[#00A3FF]/5 blur-[100px] rounded-full pointer-events-none group-hover:bg-[#00A3FF]/10 transition-all duration-1000"></div>
+        </div>
       </div>
     </div>
   );

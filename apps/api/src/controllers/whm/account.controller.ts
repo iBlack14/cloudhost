@@ -11,7 +11,8 @@ import {
   suspendWhmAccount,
   deleteWhmAccount,
   syncAllWhmAccountsDiskUsage,
-  resetWhmAccountPassword
+  resetWhmAccountPassword,
+  changeWhmAccountPlan
 } from "../../services/whm/account.service.js";
 
 const accountIdParamSchema = z.object({
@@ -247,6 +248,43 @@ export const syncWhmAccountsDiskUsageHandler = async (_req: Request, res: Respon
     return res.status(500).json({
       success: false,
       error: { code: "INTERNAL_ERROR", message: "No se pudo sincronizar el uso de disco" }
+    });
+  }
+};
+
+export const changeWhmAccountPlanHandler = async (req: Request, res: Response): Promise<Response> => {
+  const parsedParams = accountIdParamSchema.safeParse(req.params);
+  if (!parsedParams.success) {
+    return res.status(422).json({
+      success: false,
+      error: { code: "VALIDATION_ERROR", message: "accountId inválido" }
+    });
+  }
+
+  const schema = z.object({ planId: z.string().uuid() });
+  const parsedBody = schema.safeParse(req.body);
+
+  if (!parsedBody.success) {
+    return res.status(422).json({
+      success: false,
+      error: { code: "VALIDATION_ERROR", message: "planId inválido" }
+    });
+  }
+
+  try {
+    await changeWhmAccountPlan(parsedParams.data.accountId, parsedBody.data.planId);
+    return res.status(200).json({ success: true, data: { message: "Plan actualizado correctamente" } });
+  } catch (error) {
+    if (error instanceof Error && error.message === "ACCOUNT_NOT_FOUND") {
+      return res.status(404).json({ success: false, error: { message: "Cuenta no encontrada" } });
+    }
+    if (error instanceof Error && error.message === "PLAN_NOT_FOUND") {
+      return res.status(404).json({ success: false, error: { message: "Plan no encontrado" } });
+    }
+
+    return res.status(500).json({
+      success: false,
+      error: { code: "INTERNAL_ERROR", message: "No se pudo cambiar el plan" }
     });
   }
 };

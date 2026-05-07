@@ -2,12 +2,11 @@
 
 import { useState, useRef, useCallback } from "react";
 import { useFiles, useDeleteFile, useCreateFolder, useUploadFiles } from "../../../lib/hooks/use-files";
+import { getOdinAccessToken } from "../../../lib/api";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001/api/v1";
-const ODIN_KEY = "odin-access-token";
-const getToken = () => (typeof window !== "undefined" ? window.sessionStorage.getItem(ODIN_KEY) : null);
 const authHeaders = (extra: Record<string, string> = {}) => {
-  const t = getToken();
+  const t = getOdinAccessToken();
   return t ? { ...extra, Authorization: `Bearer ${t}` } : extra;
 };
 

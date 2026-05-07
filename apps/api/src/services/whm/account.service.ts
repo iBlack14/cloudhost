@@ -315,3 +315,47 @@ export const resetWhmAccountPassword = async (accountId: string, newPassword?: s
 
   return { password: generatedPass };
 };
+
+export const changeWhmAccountPlan = async (accountId: string, planId: string): Promise<void> => {
+  const client = await db.connect();
+
+  try {
+    await client.query("BEGIN");
+
+    // 1. Verify account exists
+    const accountResult = await client.query<{ user_id: string }>(
+      "SELECT user_id FROM hosting_accounts WHERE id = $1",
+      [accountId]
+    );
+
+    if (accountResult.rowCount === 0) {
+      throw new Error("ACCOUNT_NOT_FOUND");
+    }
+
+    const { user_id: userId } = accountResult.rows[0];
+
+    // 2. Verify plan exists
+    const planResult = await client.query<{ id: string; name: string }>("SELECT id, name FROM plans WHERE id = $1", [planId]);
+    if (planResult.rowCount === 0) {
+      throw new Error("PLAN_NOT_FOUND");
+    }
+    const planName = planResult.rows[0].name;
+
+    // 3. Update user plan
+    await client.query("UPDATE users SET plan_id = $1, updated_at = NOW() WHERE id = $2", [planId, userId]);
+
+    // 4. Log activity
+    await client.query(
+      `INSERT INTO activity_logs (user_id, action, resource, details)
+       VALUES ($1, 'change_plan', 'hosting_account', $2::jsonb)`,
+      [userId, JSON.stringify({ accountId, planId, planName })]
+    );
+
+    await client.query("COMMIT");
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+};

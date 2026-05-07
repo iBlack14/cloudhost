@@ -16,6 +16,7 @@ export {
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001/api/v1";
 const WHM_ACCESS_TOKEN_KEY = "whm-access-token";
+const WHM_ROLE_KEY = "whm-role";
 
 interface AuthLoginResponse {
   token: string;
@@ -29,6 +30,14 @@ const getWhmAccessToken = (): string | null => {
   }
 
   return window.sessionStorage.getItem(WHM_ACCESS_TOKEN_KEY);
+};
+
+export const getWhmRole = (): "admin" | "reseller" | "user" | null => {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  return window.sessionStorage.getItem(WHM_ROLE_KEY) as any;
 };
 
 const withWhmAuth = (headers: Record<string, string> = {}): Record<string, string> => {
@@ -45,6 +54,7 @@ const withWhmAuth = (headers: Record<string, string> = {}): Record<string, strin
 const clearWhmAccessToken = (): void => {
   if (typeof window !== "undefined") {
     window.sessionStorage.removeItem(WHM_ACCESS_TOKEN_KEY);
+    window.sessionStorage.removeItem(WHM_ROLE_KEY);
   }
 };
 
@@ -88,6 +98,7 @@ export const loginWhm = async (username: string, password: string): Promise<Auth
 
   if (typeof window !== "undefined") {
     window.sessionStorage.setItem(WHM_ACCESS_TOKEN_KEY, data.token);
+    window.sessionStorage.setItem(WHM_ROLE_KEY, data.role);
   }
 
   return data;
@@ -224,6 +235,15 @@ export const syncDiskUsage = async (): Promise<void> => {
   const response = await fetch(`${API_BASE}/whm/accounts/sync-disk`, {
     method: "POST",
     headers: withWhmAuth()
+  });
+  await parsePayload(response);
+};
+
+export const changeAccountPlan = async (accountId: string, planId: string): Promise<void> => {
+  const response = await fetch(`${API_BASE}/whm/accounts/${accountId}/plan`, {
+    method: "PATCH",
+    headers: withWhmAuth({ "Content-Type": "application/json" }),
+    body: JSON.stringify({ planId })
   });
   await parsePayload(response);
 };

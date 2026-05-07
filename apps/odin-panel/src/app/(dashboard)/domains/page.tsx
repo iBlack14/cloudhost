@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { fetchDomains, addDomain, deleteDomain, verifyDomain } from "../../../lib/api";
+import { fetchDomains, addDomain, deleteDomain, verifyDomain, getOdinAccessToken } from "../../../lib/api";
 
 export default function DomainsPage() {
   const [newDomain, setNewDomain] = useState("");
@@ -19,28 +19,31 @@ export default function DomainsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["odin", "domains"] });
       setNewDomain("");
-    }
+    },
+    onError: (err: any) => alert(`Error al añadir dominio: ${err.message}`)
   });
 
   const deleteMutation = useMutation({
     mutationFn: deleteDomain,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["odin", "domains"] });
-    }
+    },
+    onError: (err: any) => alert(`Error al eliminar dominio: ${err.message}`)
   });
 
   const verifyMutation = useMutation({
     mutationFn: verifyDomain,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["odin", "domains"] });
-    }
+    },
+    onError: (err: any) => alert(`Error al verificar dominio: ${err.message}`)
   });
 
   const sslMutation = useMutation({
     mutationFn: async (domainId: string) => {
       const res = await fetch(`http://localhost:3001/api/v1/odin-panel/domains/${domainId}/ssl/issue`, {
          method: "POST",
-         headers: { Authorization: `Bearer ${window.sessionStorage.getItem("odin-access-token")}` }
+         headers: { Authorization: `Bearer ${getOdinAccessToken()}` }
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error?.message ?? "Fallo al emitir SSL");
@@ -57,6 +60,12 @@ export default function DomainsPage() {
     e.preventDefault();
     if (!newDomain) return;
     await addMutation.mutateAsync(newDomain);
+  };
+
+  const handleDelete = async (domainId: string) => {
+    if (confirm("¿Estás seguro de que quieres eliminar este dominio?")) {
+      await deleteMutation.mutateAsync(domainId);
+    }
   };
 
   return (
