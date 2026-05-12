@@ -93,6 +93,12 @@ export interface Plan {
   name: string;
   disk_quota_mb: number;
   bandwidth_mb: number;
+  price_usd: number;
+  price_pen: number;
+  type: "shared" | "reseller" | "dedicated";
+  features: string[];
+  is_popular: boolean;
+  description: string;
 }
 
 export interface WhmAccountRow {
