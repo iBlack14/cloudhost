@@ -95,7 +95,7 @@ export interface Plan {
   bandwidth_mb: number;
   price_usd: number;
   price_pen: number;
-  type: "shared" | "reseller" | "dedicated";
+  type: "reseller" | "shared" | "dedicated" | "web-design" | "web-system" | "addon" | "combo";
   features: string[];
   is_popular: boolean;
   description: string;
