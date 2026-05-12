@@ -112,6 +112,32 @@ export const fetchPlans = async (): Promise<Plan[]> => {
   return parsePayload<Plan[]>(response);
 };
 
+export const createPlan = async (input: Partial<Plan>): Promise<Plan> => {
+  const response = await fetch(`${API_BASE}/whm/plans`, {
+    method: "POST",
+    headers: withWhmAuth({ "Content-Type": "application/json" }),
+    body: JSON.stringify(input)
+  });
+  return parsePayload<Plan>(response);
+};
+
+export const updatePlan = async (id: string, input: Partial<Plan>): Promise<Plan> => {
+  const response = await fetch(`${API_BASE}/whm/plans/${id}`, {
+    method: "PATCH",
+    headers: withWhmAuth({ "Content-Type": "application/json" }),
+    body: JSON.stringify(input)
+  });
+  return parsePayload<Plan>(response);
+};
+
+export const deletePlan = async (id: string): Promise<void> => {
+  const response = await fetch(`${API_BASE}/whm/plans/${id}`, {
+    method: "DELETE",
+    headers: withWhmAuth()
+  });
+  await parsePayload(response);
+};
+
 export interface DashboardStats {
   server: {
     cpu: number;

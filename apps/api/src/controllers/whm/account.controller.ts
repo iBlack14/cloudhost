@@ -12,11 +12,18 @@ import {
   deleteWhmAccount,
   syncAllWhmAccountsDiskUsage,
   resetWhmAccountPassword,
-  changeWhmAccountPlan
+  changeWhmAccountPlan,
+  createWhmPlan,
+  updateWhmPlan,
+  deleteWhmPlan
 } from "../../services/whm/account.service.js";
 
 const accountIdParamSchema = z.object({
   accountId: z.string().uuid()
+});
+
+const planIdParamSchema = z.object({
+  planId: z.string().uuid()
 });
 
 export const createWhmAccountHandler = async (req: Request, res: Response): Promise<Response> => {
@@ -73,6 +80,59 @@ export const listWhmPlansHandler = async (_req: Request, res: Response): Promise
     return res.status(500).json({
       success: false,
       error: { code: "INTERNAL_ERROR", message: "No se pudieron obtener los planes" }
+    });
+  }
+};
+
+export const createWhmPlanHandler = async (req: Request, res: Response): Promise<Response> => {
+  try {
+    const plan = await createWhmPlan(req.body);
+    return res.status(201).json({ success: true, data: plan });
+  } catch (error) {
+    console.error("[whm:plans:create:error]", error);
+    return res.status(500).json({
+      success: false,
+      error: { code: "INTERNAL_ERROR", message: "No se pudo crear el plan" }
+    });
+  }
+};
+
+export const updateWhmPlanHandler = async (req: Request, res: Response): Promise<Response> => {
+  const parsed = planIdParamSchema.safeParse(req.params);
+  if (!parsed.success) {
+    return res.status(422).json({ success: false, error: { message: "planId inválido" } });
+  }
+
+  try {
+    const plan = await updateWhmPlan(parsed.data.planId, req.body);
+    return res.status(200).json({ success: true, data: plan });
+  } catch (error) {
+    if (error instanceof Error && error.message === "PLAN_NOT_FOUND") {
+      return res.status(404).json({ success: false, error: { message: "Plan no encontrado" } });
+    }
+    return res.status(500).json({
+      success: false,
+      error: { code: "INTERNAL_ERROR", message: "No se pudo actualizar el plan" }
+    });
+  }
+};
+
+export const deleteWhmPlanHandler = async (req: Request, res: Response): Promise<Response> => {
+  const parsed = planIdParamSchema.safeParse(req.params);
+  if (!parsed.success) {
+    return res.status(422).json({ success: false, error: { message: "planId inválido" } });
+  }
+
+  try {
+    await deleteWhmPlan(parsed.data.planId);
+    return res.status(200).json({ success: true, data: { message: "Plan eliminado" } });
+  } catch (error) {
+    if (error instanceof Error && error.message === "PLAN_NOT_FOUND") {
+      return res.status(404).json({ success: false, error: { message: "Plan no encontrado" } });
+    }
+    return res.status(500).json({
+      success: false,
+      error: { code: "INTERNAL_ERROR", message: "No se pudo eliminar el plan" }
     });
   }
 };

@@ -13,7 +13,10 @@ import {
   deleteAccount,
   syncDiskUsage,
   resetAccountPassword,
-  changeAccountPlan
+  changeAccountPlan,
+  createPlan,
+  updatePlan,
+  deletePlan
 } from "../api";
 
 import { whmCreateAccountSchema, type WhmCreateAccountInput } from "../schemas/whm-create-account";
@@ -117,6 +120,36 @@ export const useChangeWhmAccountPlan = () => {
     mutationFn: ({ accountId, planId }: { accountId: string; planId: string }) => changeAccountPlan(accountId, planId),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["whm-accounts"] });
+    }
+  });
+};
+
+export const useCreateWhmPlan = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: createPlan,
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["whm-plans"] });
+    }
+  });
+};
+
+export const useUpdateWhmPlan = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, input }: { id: string; input: any }) => updatePlan(id, input),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["whm-plans"] });
+    }
+  });
+};
+
+export const useDeleteWhmPlan = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: deletePlan,
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["whm-plans"] });
     }
   });
 };

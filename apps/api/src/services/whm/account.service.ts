@@ -94,9 +94,60 @@ export const createWhmAccount = async (
 
 export const listWhmPlans = async (): Promise<WhmPlan[]> => {
   const result = await db.query<WhmPlan>(
-    "SELECT id, name, disk_quota_mb, bandwidth_mb FROM plans ORDER BY created_at DESC"
+    `SELECT 
+      id, name, disk_quota_mb, bandwidth_mb, 
+      price_usd, price_pen, type, features, is_popular, description
+     FROM plans 
+     ORDER BY created_at DESC`
   );
   return result.rows;
+};
+
+export const createWhmPlan = async (input: Partial<WhmPlan>): Promise<WhmPlan> => {
+  const result = await db.query<WhmPlan>(
+    `INSERT INTO plans (
+      name, disk_quota_mb, bandwidth_mb, price_usd, price_pen, type, features, is_popular, description
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+    RETURNING *`,
+    [
+      input.name, input.disk_quota_mb || 0, input.bandwidth_mb || 0, 
+      input.price_usd || 0, input.price_pen || 0, input.type || 'shared',
+      JSON.stringify(input.features || []), input.is_popular || false, input.description || ''
+    ]
+  );
+  return result.rows[0];
+};
+
+export const updateWhmPlan = async (id: string, input: Partial<WhmPlan>): Promise<WhmPlan> => {
+  const result = await db.query<WhmPlan>(
+    `UPDATE plans SET
+      name = COALESCE($1, name),
+      disk_quota_mb = COALESCE($2, disk_quota_mb),
+      bandwidth_mb = COALESCE($3, bandwidth_mb),
+      price_usd = COALESCE($4, price_usd),
+      price_pen = COALESCE($5, price_pen),
+      type = COALESCE($6, type),
+      features = COALESCE($7, features),
+      is_popular = COALESCE($8, is_popular),
+      description = COALESCE($9, description),
+      updated_at = NOW()
+    WHERE id = $10
+    RETURNING *`,
+    [
+      input.name, input.disk_quota_mb, input.bandwidth_mb,
+      input.price_usd, input.price_pen, input.type,
+      input.features ? JSON.stringify(input.features) : null,
+      input.is_popular, input.description, id
+    ]
+  );
+  
+  if (result.rowCount === 0) throw new Error("PLAN_NOT_FOUND");
+  return result.rows[0];
+};
+
+export const deleteWhmPlan = async (id: string): Promise<void> => {
+  const result = await db.query("DELETE FROM plans WHERE id = $1", [id]);
+  if (result.rowCount === 0) throw new Error("PLAN_NOT_FOUND");
 };
 
 export const listWhmAccounts = async (): Promise<WhmAccountRow[]> => {

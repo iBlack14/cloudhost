@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { useWhmPlans } from "../../../lib/hooks/use-whm-accounts";
+import { useWhmPlans, useCreateWhmPlan, useUpdateWhmPlan, useDeleteWhmPlan } from "../../../lib/hooks/use-whm-accounts";
 import { getWhmRole } from "../../../lib/api";
 
 interface Plan {
@@ -10,11 +10,16 @@ interface Plan {
   name: string;
   disk_quota_mb: number;
   bandwidth_mb: number;
+  price_usd: number;
+  price_pen: number;
+  type: 'shared' | 'reseller' | 'web-design' | 'web-system' | 'addon' | 'combo';
+  description: string;
+  features: string[];
+  is_popular: boolean;
 }
 
 export default function WhmPlansPage() {
   const plansQuery = useWhmPlans();
-  const [localPlans, setLocalPlans] = useState<Plan[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingPlan, setEditingPlan] = useState<Plan | null>(null);
   const [mounted, setMounted] = useState(false);
@@ -23,17 +28,27 @@ export default function WhmPlansPage() {
     setMounted(true);
   }, []);
 
+  const createMutation = useCreateWhmPlan();
+  const updateMutation = useUpdateWhmPlan();
+  const deleteMutation = useDeleteWhmPlan();
+
   const role = mounted ? getWhmRole() : null;
   const isAdmin = role === "admin";
 
-  const plans = plansQuery.data || localPlans;
+  const plans = plansQuery.data || [];
 
   const openCreateModal = () => {
     setEditingPlan({
-      id: `plan-${Math.random().toString(36).substr(2, 5)}`,
+      id: "",
       name: "",
       disk_quota_mb: 5120,
-      bandwidth_mb: 51200
+      bandwidth_mb: 51200,
+      price_usd: 5,
+      price_pen: 19,
+      type: 'shared',
+      description: "",
+      features: [],
+      is_popular: false
     });
     setIsModalOpen(true);
   };
@@ -43,16 +58,30 @@ export default function WhmPlansPage() {
     setIsModalOpen(true);
   };
 
-  const savePlan = (e: React.FormEvent) => {
+  const savePlan = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingPlan) return;
-    setLocalPlans(prev => {
-       if (prev.find(p => p.id === editingPlan.id)) {
-          return prev.map(p => p.id === editingPlan.id ? editingPlan : p);
-       }
-       return [...prev, editingPlan];
-    });
-    setIsModalOpen(false);
+
+    try {
+      if (editingPlan.id) {
+        await updateMutation.mutateAsync({ id: editingPlan.id, input: editingPlan });
+      } else {
+        await createMutation.mutateAsync(editingPlan);
+      }
+      setIsModalOpen(false);
+    } catch (err) {
+      alert("Error al guardar el plan");
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (confirm("¿Estás seguro de eliminar este plan?")) {
+      try {
+        await deleteMutation.mutateAsync(id);
+      } catch (err) {
+        alert("Error al eliminar el plan");
+      }
+    }
   };
 
   return (
@@ -114,7 +143,12 @@ export default function WhmPlansPage() {
               </div>
 
               <div className="mt-12 pt-8 border-t border-slate-100 flex justify-between items-center relative z-10">
-                 <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Nodos activos: 0</span>
+                 <button 
+                  onClick={() => handleDelete(plan.id)}
+                  className="text-red-500 text-[10px] font-bold uppercase tracking-widest hover:underline"
+                 >
+                   Eliminar
+                 </button>
                  <button 
                   onClick={() => openEditModal(plan)}
                   className="text-[#00A3FF] text-[10px] font-bold uppercase tracking-widest hover:underline"
@@ -154,6 +188,73 @@ export default function WhmPlansPage() {
                         className="w-full bg-slate-50 border border-slate-200 rounded-xl px-5 py-3.5 text-sm font-bold text-slate-900 focus:border-[#00A3FF]/50 outline-none transition-all shadow-inner" 
                         placeholder="Ej: Starter Plan"
                        />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-6">
+                       <div className="space-y-3">
+                          <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">Precio (USD)</label>
+                          <input 
+                            type="number" step="0.01"
+                            value={editingPlan.price_usd}
+                            onChange={(e) => setEditingPlan({...editingPlan, price_usd: parseFloat(e.target.value)})}
+                            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-5 py-3.5 text-sm font-bold text-slate-900 focus:border-[#00A3FF]/50 outline-none transition-all shadow-inner" 
+                          />
+                       </div>
+                       <div className="space-y-3">
+                          <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">Precio (PEN)</label>
+                          <input 
+                            type="number" step="0.01"
+                            value={editingPlan.price_pen}
+                            onChange={(e) => setEditingPlan({...editingPlan, price_pen: parseFloat(e.target.value)})}
+                            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-5 py-3.5 text-sm font-bold text-slate-900 focus:border-[#00A3FF]/50 outline-none transition-all shadow-inner" 
+                          />
+                       </div>
+                    </div>
+
+                    <div className="space-y-3">
+                       <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">Tipo de Servicio</label>
+                       <select 
+                        value={editingPlan.type}
+                        onChange={(e) => setEditingPlan({...editingPlan, type: e.target.value as any})}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-5 py-3.5 text-sm font-bold text-slate-900 focus:border-[#00A3FF]/50 outline-none transition-all shadow-inner"
+                       >
+                         <option value="shared">Hosting Compartido</option>
+                         <option value="reseller">Reseller WHM</option>
+                         <option value="web-design">Web Design</option>
+                         <option value="web-system">Web System</option>
+                         <option value="addon">Addon / Complemento</option>
+                         <option value="combo">Combo Especial</option>
+                       </select>
+                    </div>
+
+                    <div className="space-y-3">
+                       <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">Descripción Corta</label>
+                       <textarea 
+                        value={editingPlan.description}
+                        onChange={(e) => setEditingPlan({...editingPlan, description: e.target.value})}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-5 py-3.5 text-sm font-bold text-slate-900 focus:border-[#00A3FF]/50 outline-none transition-all shadow-inner h-24"
+                        placeholder="Breve descripción del plan..."
+                       />
+                    </div>
+
+                    <div className="space-y-3">
+                       <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">Características (una por línea)</label>
+                       <textarea 
+                        value={editingPlan.features.join('\n')}
+                        onChange={(e) => setEditingPlan({...editingPlan, features: e.target.value.split('\n')})}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-5 py-3.5 text-sm font-bold text-slate-900 focus:border-[#00A3FF]/50 outline-none transition-all shadow-inner h-32"
+                        placeholder="Ej: SSL Gratis\n10GB Disco..."
+                       />
+                    </div>
+
+                    <div className="flex items-center gap-3 ml-1">
+                      <input 
+                        type="checkbox"
+                        checked={editingPlan.is_popular}
+                        onChange={(e) => setEditingPlan({...editingPlan, is_popular: e.target.checked})}
+                        className="w-4 h-4 text-[#00A3FF]"
+                      />
+                      <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Destacar como Popular</label>
                     </div>
 
                     <div className="grid grid-cols-2 gap-6">

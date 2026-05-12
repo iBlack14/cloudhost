@@ -12,7 +12,10 @@ import {
   deleteWhmAccountHandler,
   syncWhmAccountsDiskUsageHandler,
   resetWhmAccountPasswordHandler,
-  changeWhmAccountPlanHandler
+  changeWhmAccountPlanHandler,
+  createWhmPlanHandler,
+  updateWhmPlanHandler,
+  deleteWhmPlanHandler
 } from "../../controllers/whm/account.controller.js";
 import { listAllDomainsHandler } from "../../controllers/odin/domain.controller.js";
 import { getDnsZoneHandler, addDnsRecordHandler, deleteDnsRecordHandler } from "../../controllers/odin/dns.controller.js";
@@ -142,6 +145,9 @@ whmRouter.get("/dashboard", async (_req, res) => {
 });
 
 whmRouter.get("/plans", listWhmPlansHandler);
+whmRouter.post("/plans", createWhmPlanHandler);
+whmRouter.patch("/plans/:planId", updateWhmPlanHandler);
+whmRouter.delete("/plans/:planId", deleteWhmPlanHandler);
 whmRouter.get("/accounts", listWhmAccountsHandler);
 whmRouter.post("/accounts", createWhmAccountHandler);
 whmRouter.post("/accounts/:accountId/suspend", suspendWhmAccountHandler);
