@@ -142,6 +142,30 @@ MYSQL_HOST_PORT="${MYSQL_HOST_PORT:-$DEFAULT_MYSQL_PORT}"
 WEBMAIL_PORT="${WEBMAIL_PORT:-$DEFAULT_WEBMAIL_PORT}"
 PMA_PORT="${PMA_PORT:-$DEFAULT_PMA_PORT}"
 
+# --- NUEVA SECCIÓN DE DOMINIO ---
+echo -e "\n${YELLOW}🌐 Domain Configuration${NC}"
+if [ "$AUTO_MODE" = "1" ]; then
+    BASE_DOMAIN=""
+else
+    echo "Tip: Leave empty to use VPS IP ($VPS_IP) instead of a domain."
+    read -p "Enter Base Domain (e.g., odisea.cloud): " BASE_DOMAIN
+fi
+
+if [ -n "$BASE_DOMAIN" ]; then
+    API_URL="http://api.$BASE_DOMAIN"
+    WHM_URL="http://whm.$BASE_DOMAIN"
+    ODIN_URL="http://panel.$BASE_DOMAIN"
+    WEBMAIL_URL="http://panel.$BASE_DOMAIN/mail"
+    echo -e "${GREEN}✅ Using Domain: $BASE_DOMAIN${NC}"
+else
+    API_URL="http://$VPS_IP:$API_PORT"
+    WHM_URL="http://$VPS_IP:$WHM_PORT"
+    ODIN_URL="http://$VPS_IP:$ODIN_PORT"
+    WEBMAIL_URL="http://$VPS_IP:$WEBMAIL_PORT/mail"
+    echo -e "${GREEN}✅ Using IP: $VPS_IP${NC}"
+fi
+# -------------------------------
+
 echo -e "${GREEN}🌐 Selected VPS IP: ${VPS_IP}${NC}"
 echo -e "${CYAN}Tip:${NC} By default everything runs automatic. You only choose ports if needed."
 if [ "$AUTO_MODE" != "1" ]; then
@@ -219,14 +243,14 @@ fi
 
 echo ""
 echo -e "${CYAN}Configuration Summary:${NC}"
-echo "  VPS IP:     $VPS_IP"
-echo "  API Port:   $API_PORT"
-echo "  WHM Port:   $WHM_PORT"
-echo "  ODIN Port:  $ODIN_PORT"
-echo "  Webmail:    $WEBMAIL_PORT"
-echo "  PG Port:    $PG_PORT"
-echo "  PG Pass:    [auto-generated]"
-echo "  Admin User: $ADMIN_USER"
+echo "  VPS IP:      $VPS_IP"
+if [ -n "$BASE_DOMAIN" ]; then
+echo "  Base Domain: $BASE_DOMAIN"
+fi
+echo "  API URL:     $API_URL"
+echo "  WHM URL:     $WHM_URL"
+echo "  ODIN URL:    $ODIN_URL"
+echo "  Admin User:  $ADMIN_USER"
 if [ "$ADMIN_PASS_GENERATED" = "1" ]; then
   echo "  Admin Pass: [auto-generated]"
 else
@@ -353,8 +377,8 @@ NODE_ENV=production
 PORT=$API_PORT
 JWT_SECRET=$JWT_SECRET
 DATABASE_URL=postgresql://postgres:${PG_PASS}@127.0.0.1:${PG_PORT}/odisea_cloud
-ODIN_PANEL_URL=http://$VPS_IP:$ODIN_PORT
-WEBMAIL_URL=http://$VPS_IP:$WEBMAIL_PORT/mail
+ODIN_PANEL_URL=$ODIN_URL
+WEBMAIL_URL=$WEBMAIL_URL
 PHPMYADMIN_URL=http://$VPS_IP:$PMA_PORT
 IMPERSONATE_EXPIRES_IN=2h
 MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASS}
@@ -363,20 +387,21 @@ echo -e "  ${GREEN}✅ apps/api/.env${NC}"
 
 # WHM .env.local
 cat <<EOT > apps/whm/.env.local
-NEXT_PUBLIC_API_URL=http://$VPS_IP:$API_PORT/api/v1
+NEXT_PUBLIC_API_URL=$API_URL/api/v1
 PORT=$WHM_PORT
 EOT
 echo -e "  ${GREEN}✅ apps/whm/.env.local${NC}"
 
 # ODIN Panel .env.local
 cat <<EOT > apps/odin-panel/.env.local
-NEXT_PUBLIC_API_URL=http://$VPS_IP:$API_PORT/api/v1
+NEXT_PUBLIC_API_URL=$API_URL/api/v1
 PORT=$ODIN_PORT
 EOT
+echo -e "  ${GREEN}✅ apps/odin-panel/.env.local${NC}"
 
 # Webmail .env.local
 cat <<EOT > apps/webmail/.env.local
-NEXT_PUBLIC_API_URL=http://$VPS_IP:$API_PORT/api/v1
+NEXT_PUBLIC_API_URL=$API_URL/api/v1
 PORT=$WEBMAIL_PORT
 EOT
 echo -e "  ${GREEN}✅ apps/webmail/.env.local${NC}"
@@ -428,6 +453,56 @@ echo -e "  ${GREEN}✅ odisea-webmail started on :$WEBMAIL_PORT${NC}"
 
 pm2 save
 pm2 startup systemd -u root --hp /root 2>/dev/null || true
+
+# 8.5 Nginx Auto-Config
+if [ -n "$BASE_DOMAIN" ]; then
+    echo -e "\n${YELLOW}🌐 Configuring Nginx for $BASE_DOMAIN...${NC}"
+    cat <<EOT > /etc/nginx/sites-available/odisea
+server {
+    listen 80;
+    server_name api.$BASE_DOMAIN;
+    location / {
+        proxy_pass http://127.0.0.1:$API_PORT;
+        include proxy_params;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection 'upgrade';
+    }
+}
+
+server {
+    listen 80;
+    server_name panel.$BASE_DOMAIN;
+    location / {
+        proxy_pass http://127.0.0.1:$ODIN_PORT;
+        include proxy_params;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection 'upgrade';
+    }
+    location /mail {
+        proxy_pass http://127.0.0.1:$WEBMAIL_PORT;
+        include proxy_params;
+    }
+}
+
+server {
+    listen 80;
+    server_name whm.$BASE_DOMAIN;
+    location / {
+        proxy_pass http://127.0.0.1:$WHM_PORT;
+        include proxy_params;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection 'upgrade';
+    }
+}
+EOT
+    ln -sf /etc/nginx/sites-available/odisea /etc/nginx/sites-enabled/
+    rm -f /etc/nginx/sites-enabled/default
+    systemctl restart nginx
+    echo -e "${GREEN}✅ Nginx configured for subdomains${NC}"
+fi
 
 # 9. Health Check
 echo -e "\n${YELLOW}🔍 Running health checks...${NC}"
