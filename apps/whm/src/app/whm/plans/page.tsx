@@ -4,19 +4,8 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useWhmPlans, useCreateWhmPlan, useUpdateWhmPlan, useDeleteWhmPlan } from "../../../lib/hooks/use-whm-accounts";
 import { getWhmRole } from "../../../lib/api";
+import { type Plan } from "@odisea/types";
 
-interface Plan {
-  id: string;
-  name: string;
-  disk_quota_mb: number;
-  bandwidth_mb: number;
-  price_usd: number;
-  price_pen: number;
-  type: 'shared' | 'reseller' | 'web-design' | 'web-system' | 'addon' | 'combo';
-  description: string;
-  features: string[];
-  is_popular: boolean;
-}
 
 export default function WhmPlansPage() {
   const plansQuery = useWhmPlans();
@@ -220,6 +209,7 @@ export default function WhmPlansPage() {
                        >
                          <option value="shared">Hosting Compartido</option>
                          <option value="reseller">Reseller WHM</option>
+                         <option value="dedicated">Servidor Dedicado</option>
                          <option value="web-design">Web Design</option>
                          <option value="web-system">Web System</option>
                          <option value="addon">Addon / Complemento</option>
