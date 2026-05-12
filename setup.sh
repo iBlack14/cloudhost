@@ -119,7 +119,7 @@ DEFAULT_WEBMAIL_PORT=3007
 DEFAULT_PMA_PORT=8080
 DEFAULT_PG_PORT=5434
 DEFAULT_MYSQL_PORT=3307
-AUTO_MODE="${AUTO_MODE:-1}"
+AUTO_MODE="${AUTO_MODE:-0}"
 
 if [ -z "${VPS_IP:-}" ] && [ -z "$DEFAULT_VPS_IP" ]; then
   echo -e "${YELLOW}⚠️  Could not auto-detect public IP. Please enter it manually.${NC}"
