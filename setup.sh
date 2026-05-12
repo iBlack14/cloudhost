@@ -222,8 +222,12 @@ if [ "$AUTO_MODE" = "1" ]; then
 else
   ADMIN_USER=$(prompt_with_default "WHM admin username" "$ADMIN_USER")
   if [ -z "$ADMIN_PASS" ]; then
-    read -rsp "WHM admin password (min 8 chars): " ADMIN_PASS
+    read -rsp "WHM admin password (leave empty for auto-generate): " ADMIN_PASS
     echo ""
+    if [ -z "$ADMIN_PASS" ]; then
+      ADMIN_PASS=$(openssl rand -base64 18 | tr -d '=+/' | cut -c1-16)
+      ADMIN_PASS_GENERATED=1
+    fi
   fi
   read -rp "WHM admin email [${ADMIN_EMAIL}]: " _admin_email_input
   ADMIN_EMAIL="${_admin_email_input:-$ADMIN_EMAIL}"
