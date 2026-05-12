@@ -146,12 +146,12 @@ WEBMAIL_PORT="${WEBMAIL_PORT:-$DEFAULT_WEBMAIL_PORT}"
 PMA_PORT="${PMA_PORT:-$DEFAULT_PMA_PORT}"
 
 # --- NUEVA SECCIÓN DE DOMINIO ---
-echo -e "\n${YELLOW}🌐 Domain Configuration${NC}"
+echo -e "\n${YELLOW}🌐 Configuración de Dominio${NC}"
 if [ "$AUTO_MODE" = "1" ]; then
     BASE_DOMAIN=""
 else
-    echo "Tip: Leave empty to use VPS IP ($VPS_IP) instead of a domain."
-    read -p "Enter Base Domain (e.g., odisea.cloud): " BASE_DOMAIN
+    echo "Tip: Deja vacío para usar la IP del VPS ($VPS_IP) en lugar de un dominio."
+    read -p "Ingresa el Dominio Base (ej. odisea.cloud): " BASE_DOMAIN
 fi
 
 if [ -n "$BASE_DOMAIN" ]; then
@@ -159,31 +159,31 @@ if [ -n "$BASE_DOMAIN" ]; then
     WHM_URL="http://whm.$BASE_DOMAIN"
     ODIN_URL="http://panel.$BASE_DOMAIN"
     WEBMAIL_URL="http://panel.$BASE_DOMAIN/mail"
-    echo -e "${GREEN}✅ Using Domain: $BASE_DOMAIN${NC}"
+    echo -e "${GREEN}✅ Usando Dominio: $BASE_DOMAIN${NC}"
 else
     API_URL="http://$VPS_IP:$API_PORT"
     WHM_URL="http://$VPS_IP:$WHM_PORT"
     ODIN_URL="http://$VPS_IP:$ODIN_PORT"
     WEBMAIL_URL="http://$VPS_IP:$WEBMAIL_PORT/mail"
-    echo -e "${GREEN}✅ Using IP: $VPS_IP${NC}"
+    echo -e "${GREEN}✅ Usando IP: $VPS_IP${NC}"
 fi
 # -------------------------------
 
-echo -e "${GREEN}🌐 Selected VPS IP: ${VPS_IP}${NC}"
-echo -e "${CYAN}Tip:${NC} By default everything runs automatic. You only choose ports if needed."
+echo -e "${GREEN}🌐 IP del VPS Seleccionada: ${VPS_IP}${NC}"
+echo -e "${CYAN}Tip:${NC} Por defecto todo es automático. Solo elige puertos si es necesario."
 if [ "$AUTO_MODE" != "1" ]; then
-  read -p "Customize ports? [y/N]: " CUSTOM_PORTS
+  read -p "¿Personalizar puertos? [y/N]: " CUSTOM_PORTS
   CUSTOM_PORTS=${CUSTOM_PORTS:-N}
 
   if [[ "$CUSTOM_PORTS" =~ ^[Yy]$ ]]; then
     while true; do
-      API_PORT=$(prompt_with_default "API Port" "$DEFAULT_API_PORT")
-      WHM_PORT=$(prompt_with_default "WHM Port" "$DEFAULT_WHM_PORT")
-      ODIN_PORT=$(prompt_with_default "ODIN Panel Port" "$DEFAULT_ODIN_PORT")
-      PG_PORT=$(prompt_with_default "PostgreSQL Port" "$DEFAULT_PG_PORT")
+      API_PORT=$(prompt_with_default "Puerto API" "$DEFAULT_API_PORT")
+      WHM_PORT=$(prompt_with_default "Puerto WHM" "$DEFAULT_WHM_PORT")
+      ODIN_PORT=$(prompt_with_default "Puerto Panel ODIN" "$DEFAULT_ODIN_PORT")
+      PG_PORT=$(prompt_with_default "Puerto PostgreSQL" "$DEFAULT_PG_PORT")
 
       if ! is_valid_port "$API_PORT" || ! is_valid_port "$WHM_PORT" || ! is_valid_port "$ODIN_PORT" || ! is_valid_port "$PG_PORT"; then
-        echo -e "${YELLOW}⚠️  Invalid port detected. Use values between 1 and 65535.${NC}"
+        echo -e "${YELLOW}⚠️ Puerto inválido. Usa valores entre 1 y 65535.${NC}"
         continue
       fi
 
@@ -220,16 +220,16 @@ if [ "$AUTO_MODE" = "1" ]; then
     ADMIN_PASS_GENERATED=1
   fi
 else
-  ADMIN_USER=$(prompt_with_default "WHM admin username" "$ADMIN_USER")
+  ADMIN_USER=$(prompt_with_default "Usuario administrador de WHM" "$ADMIN_USER")
   if [ -z "$ADMIN_PASS" ]; then
-    read -rsp "WHM admin password (leave empty for auto-generate): " ADMIN_PASS
+    read -rsp "Contraseña de administrador (deja vacío para auto-generar): " ADMIN_PASS
     echo ""
     if [ -z "$ADMIN_PASS" ]; then
       ADMIN_PASS=$(openssl rand -base64 18 | tr -d '=+/' | cut -c1-16)
       ADMIN_PASS_GENERATED=1
     fi
   fi
-  read -rp "WHM admin email [${ADMIN_EMAIL}]: " _admin_email_input
+  read -rp "Correo del administrador [${ADMIN_EMAIL}]: " _admin_email_input
   ADMIN_EMAIL="${_admin_email_input:-$ADMIN_EMAIL}"
 fi
 
@@ -249,26 +249,26 @@ if ! is_valid_email "$ADMIN_EMAIL"; then
 fi
 
 echo ""
-echo -e "${CYAN}Configuration Summary:${NC}"
-echo "  VPS IP:      $VPS_IP"
+echo -e "${CYAN}Resumen de Configuración:${NC}"
+echo "  IP del VPS:      $VPS_IP"
 if [ -n "$BASE_DOMAIN" ]; then
-echo "  Base Domain: $BASE_DOMAIN"
+echo "  Dominio Base:    $BASE_DOMAIN"
 fi
-echo "  API URL:     $API_URL"
-echo "  WHM URL:     $WHM_URL"
-echo "  ODIN URL:    $ODIN_URL"
-echo "  Admin User:  $ADMIN_USER"
+echo "  URL de API:      $API_URL"
+echo "  URL de WHM:      $WHM_URL"
+echo "  URL de ODIN:     $ODIN_URL"
+echo "  Usuario Admin:   $ADMIN_USER"
 if [ "$ADMIN_PASS_GENERATED" = "1" ]; then
-  echo "  Admin Pass: [auto-generated]"
+  echo "  Pass Admin:      [auto-generada]"
 else
-  echo "  Admin Pass: [provided]"
+  echo "  Pass Admin:      [proporcionada]"
 fi
 echo ""
 if [ "$AUTO_MODE" != "1" ]; then
-  read -p "Continue? [Y/n]: " CONFIRM
+  read -p "¿Continuar? [Y/n]: " CONFIRM
   CONFIRM=${CONFIRM:-Y}
   if [[ ! "$CONFIRM" =~ ^[Yy]$ ]]; then
-    echo "Aborted."
+    echo "Abortado."
     exit 0
   fi
 fi
