@@ -9,3 +9,8 @@ apps/api/dist/
 .cursor/
 .agent/
 .gemini/skills
+# Cache de Turbo
+.turbo
+
+# Configuraciones de VS Code
+.vscode/
