@@ -5,6 +5,7 @@ import { databaseSsoBridgeHandler } from "../controllers/database-sso.controller
 import { mailRouter } from "./modules/mail.routes.js";
 import { whmRouter } from "./modules/whm.routes.js";
 import { odinRouter } from "./modules/odin.routes.js";
+import { publicRouter } from "./modules/public.routes.js";
 
 export const apiRouter = Router();
 
@@ -13,3 +14,4 @@ apiRouter.get("/database-auth/sso", databaseSsoBridgeHandler);
 apiRouter.use("/mail", mailRouter);
 apiRouter.use("/whm", whmRouter);
 apiRouter.use("/odin-panel", odinRouter);
+apiRouter.use("/public", publicRouter);
