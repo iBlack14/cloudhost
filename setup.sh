@@ -519,7 +519,7 @@ sleep 3
 API_STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:$API_PORT/health 2>/dev/null || echo "000")
 WHM_STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:$WHM_PORT 2>/dev/null || echo "000")
 ODIN_STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:$ODIN_PORT 2>/dev/null || echo "000")
-MAIL_STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:$WEBMAIL_PORT/mail/login 2>/dev/null || echo "000")
+MAIL_STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:$WEBMAIL_PORT/login 2>/dev/null || echo "000")
 
 if [ "$API_STATUS" = "200" ]; then
   echo -e "  ${GREEN}✅ API health: OK (200)${NC}"
