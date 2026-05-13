@@ -14,6 +14,12 @@ CREATE TABLE IF NOT EXISTS plans (
   max_databases INTEGER DEFAULT 5,
   allow_nodejs BOOLEAN DEFAULT false,
   allow_docker BOOLEAN DEFAULT false,
+  price_usd DECIMAL(10, 2) DEFAULT 0.00,
+  price_pen DECIMAL(10, 2) DEFAULT 0.00,
+  type VARCHAR(50) DEFAULT 'shared',
+  features JSONB DEFAULT '[]',
+  is_popular BOOLEAN DEFAULT false,
+  description TEXT DEFAULT '',
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 

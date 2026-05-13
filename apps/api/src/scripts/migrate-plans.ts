@@ -15,7 +15,8 @@ async function migrate() {
       ADD COLUMN IF NOT EXISTS price_pen DECIMAL(10, 2) DEFAULT 0.00,
       ADD COLUMN IF NOT EXISTS type VARCHAR(50) DEFAULT 'shared',
       ADD COLUMN IF NOT EXISTS features JSONB DEFAULT '[]',
-      ADD COLUMN IF NOT EXISTS is_popular BOOLEAN DEFAULT false;
+      ADD COLUMN IF NOT EXISTS is_popular BOOLEAN DEFAULT false,
+      ADD COLUMN IF NOT EXISTS description TEXT DEFAULT '';
       
       ALTER TABLE plans DROP CONSTRAINT IF EXISTS plans_name_key;
       ALTER TABLE plans ADD CONSTRAINT plans_name_key UNIQUE (name);
@@ -52,12 +53,12 @@ async function migrate() {
 
     for (const p of fullCatalog) {
       await pool.query(`
-        INSERT INTO plans (name, disk_quota_mb, bandwidth_mb, price_usd, price_pen, type, features, is_popular)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        INSERT INTO plans (name, disk_quota_mb, bandwidth_mb, price_usd, price_pen, type, features, is_popular, description)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
         ON CONFLICT (name) DO UPDATE SET 
           price_usd = EXCLUDED.price_usd, price_pen = EXCLUDED.price_pen, 
-          type = EXCLUDED.type, features = EXCLUDED.features, is_popular = EXCLUDED.is_popular
-      `, [p.name, p.disk, p.disk * 10, p.price, p.pen, p.type, JSON.stringify(p.features), p.popular || false]);
+          type = EXCLUDED.type, features = EXCLUDED.features, is_popular = EXCLUDED.is_popular, description = EXCLUDED.description
+      `, [p.name, p.disk, p.disk * 10, p.price, p.pen, p.type, JSON.stringify(p.features), p.popular || false, '']);
     }
 
     console.log("✅ Los 15 planes han sido sincronizados en la base de datos.");
