@@ -155,10 +155,10 @@ else
 fi
 
 if [ -n "$BASE_DOMAIN" ]; then
-    API_URL="http://api.$BASE_DOMAIN"
-    WHM_URL="http://whm.$BASE_DOMAIN"
-    ODIN_URL="http://panel.$BASE_DOMAIN"
-    WEBMAIL_URL="http://panel.$BASE_DOMAIN/mail"
+    API_URL="https://api.$BASE_DOMAIN"
+    WHM_URL="https://whm.$BASE_DOMAIN"
+    ODIN_URL="https://panel.$BASE_DOMAIN"
+    WEBMAIL_URL="https://panel.$BASE_DOMAIN/mail"
     echo -e "${GREEN}✅ Usando Dominio: $BASE_DOMAIN${NC}"
 else
     API_URL="http://$VPS_IP:$API_PORT"
