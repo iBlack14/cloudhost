@@ -6,7 +6,7 @@ CREATE TYPE user_status AS ENUM ('active', 'suspended', 'terminated');
 
 CREATE TABLE IF NOT EXISTS plans (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  name VARCHAR(100) NOT NULL,
+  name VARCHAR(100) UNIQUE NOT NULL,
   disk_quota_mb INTEGER NOT NULL,
   bandwidth_mb INTEGER NOT NULL,
   max_domains INTEGER DEFAULT 1,
@@ -55,3 +55,23 @@ CREATE TABLE IF NOT EXISTS activity_logs (
   ip_address INET,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Pre-populate default plans
+INSERT INTO plans (name, disk_quota_mb, bandwidth_mb, price_usd, price_pen, type, features, is_popular, description)
+VALUES 
+  ('Unlimited Hosting Plan', 999999, 9999990, 49.99, 185, 'shared', '["NVMe Ilimitado", "SSL Wildcard", "Soporte VIP"]', true, ''),
+  ('Starter', 5120, 51200, 4.99, 19, 'shared', '["5GB NVMe", "SSL Gratis", "1 Sitio"]', false, ''),
+  ('Business', 20480, 204800, 14.99, 55, 'shared', '["20GB NVMe", "10 Sitios", "Backups Diarios"]', true, ''),
+  ('Pro', 61440, 614400, 29.99, 110, 'shared', '["60GB NVMe", "Sitios Ilimitados", "IP Dedicada"]', false, ''),
+  ('Reseller Bronze', 102400, 1024000, 29.99, 110, 'reseller', '["10 cuentas", "100GB NVMe", "WHM"]', false, ''),
+  ('Reseller Silver', 512000, 5120000, 89.99, 330, 'reseller', '["50 cuentas", "500GB NVMe", "Overselling"]', true, ''),
+  ('Reseller Gold', 2048000, 20480000, 199.99, 750, 'reseller', '["Cuentas Ilimitadas", "2TB NVMe", "IP Dedicada"]', false, ''),
+  ('Web Básica', 5120, 51200, 349.00, 1290, 'web-design', '["5 páginas", "Responsive", "Hosting Gratis"]', false, ''),
+  ('Web Corporativa', 10240, 102400, 799.00, 2950, 'web-design', '["Páginas Ilimitadas", "CMS Blog", "Google Analytics"]', true, ''),
+  ('Sistema de Gestión', 20480, 204800, 1299.00, 4800, 'web-system', '["Ventas e Inventario", "CRM Clientes", "PDFs"]', true, ''),
+  ('Sistema a Medida', 40960, 409600, 2499.00, 9200, 'web-system', '["Arquitectura a medida", "APIs", "Garantía 12m"]', false, ''),
+  ('SSL Wildcard (Addon)', 0, 0, 89.00, 330, 'addon', '["Subdominios ilimitados", "256-bit"]', false, ''),
+  ('IP Dedicada (Addon)', 0, 0, 5.00, 19, 'addon', '["IP Propia", "Mejor reputación"]', false, ''),
+  ('Combo Emprendedor', 5120, 51200, 12.99, 48, 'combo', '["Dominio .COM gratis", "Hosting 5GB", "SSL"]', false, ''),
+  ('Combo Local Perú', 20480, 204800, 24.99, 92, 'combo', '["Dominio .PE gratis", "Hosting 20GB", "Backup"]', true, '')
+ON CONFLICT (name) DO NOTHING;
