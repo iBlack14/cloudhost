@@ -25,6 +25,14 @@ export default function EmailAccountsPage() {
   const [filter, setFilter] = useState<EmailAccountFilter>("all");
   const [page, setPage] = useState(1);
   const [feedback, setFeedback] = useState<string | null>(null);
+  
+  // Modal states
+  const [selectedAccount, setSelectedAccount] = useState<EmailAccount | null>(null);
+  const [showManageModal, setShowManageModal] = useState(false);
+  const [showDevicesModal, setShowDevicesModal] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   const { data: accounts = [], isLoading } = useEmailAccounts();
   const actionMutation = useEmailAccountAction();
 
@@ -51,10 +59,44 @@ export default function EmailAccountsPage() {
     setPage(1);
   }, [search, filter]);
 
+  const handleManagePassword = async () => {
+    if (!selectedAccount || !newPassword) return;
+    setIsSubmitting(true);
+    try {
+      const result = await actionMutation.mutateAsync({ 
+        accountId: selectedAccount.id, 
+        action: "manage",
+        payload: { password: newPassword }
+      });
+      setFeedback(result.message);
+      setShowManageModal(false);
+      setNewPassword("");
+    } catch (error) {
+      setFeedback(error instanceof Error ? error.message : "Error al cambiar contraseña.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const runAction = async (
     accountId: string,
     action: "check-email" | "manage" | "connect-devices"
   ) => {
+    const account = accounts.find(a => a.id === accountId);
+    if (!account) return;
+
+    if (action === "manage") {
+      setSelectedAccount(account);
+      setShowManageModal(true);
+      return;
+    }
+
+    if (action === "connect-devices") {
+      setSelectedAccount(account);
+      setShowDevicesModal(true);
+      return;
+    }
+
     try {
       const result = await actionMutation.mutateAsync({ accountId, action });
       setFeedback(result.message);
@@ -100,6 +142,9 @@ export default function EmailAccountsPage() {
         <div className="rounded-[2rem] border border-[#00A3FF]/20 bg-[#00A3FF]/5 px-8 py-5 text-sm text-[#00A3FF] font-bold flex items-center gap-3">
           <span className="material-symbols-outlined">info</span>
           {feedback}
+          <button onClick={() => setFeedback(null)} className="ml-auto opacity-50 hover:opacity-100 transition-opacity">
+            <span className="material-symbols-outlined text-sm">close</span>
+          </button>
         </div>
       )}
 
@@ -192,6 +237,152 @@ export default function EmailAccountsPage() {
           )}
         </div>
       </div>
+
+      {/* Modal de Gestión de Contraseña */}
+      {showManageModal && selectedAccount && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
+          <div className="bg-white w-full max-w-md rounded-[2.5rem] p-10 shadow-2xl space-y-8 animate-in zoom-in duration-300">
+            <div className="space-y-2">
+              <h3 className="text-2xl font-black tracking-tight text-slate-900">Seguridad de Cuenta</h3>
+              <p className="text-sm font-bold text-slate-500 uppercase tracking-widest">{selectedAccount.address}</p>
+            </div>
+            
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-4">Nueva Contraseña</label>
+                <div className="relative group">
+                  <span className="material-symbols-outlined absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-[#00A3FF] transition-colors">lock</span>
+                  <input 
+                    type="password" 
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="Min. 10 caracteres"
+                    className="w-full h-16 pl-14 pr-6 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold focus:bg-white focus:border-[#00A3FF] focus:ring-4 focus:ring-[#00A3FF]/5 transition-all outline-none"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-3 pt-4">
+              <button 
+                onClick={() => setShowManageModal(false)}
+                className="flex-1 h-16 rounded-2xl text-[11px] font-black uppercase tracking-widest text-slate-500 hover:bg-slate-50 transition-all active:scale-95"
+              >
+                Cancelar
+              </button>
+              <button 
+                onClick={handleManagePassword}
+                disabled={isSubmitting || newPassword.length < 10}
+                className="flex-[2] h-16 bg-[#00A3FF] rounded-2xl text-[11px] font-black uppercase tracking-widest text-white shadow-lg shadow-[#00A3FF]/20 hover:bg-[#008EE0] transition-all active:scale-95 disabled:opacity-50 disabled:grayscale"
+              >
+                {isSubmitting ? "Actualizando..." : "Guardar Cambios"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Guía Gmail / Dispositivos */}
+      {showDevicesModal && selectedAccount && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
+          <div className="bg-white w-full max-w-2xl rounded-[2.5rem] shadow-2xl overflow-hidden animate-in zoom-in duration-300 max-h-[90vh] flex flex-col">
+            <div className="bg-slate-50/50 p-10 border-b border-slate-100 flex items-center justify-between">
+              <div className="space-y-2">
+                <h3 className="text-2xl font-black tracking-tight text-slate-900">Conectar Dispositivos</h3>
+                <p className="text-xs font-bold text-[#00A3FF] uppercase tracking-widest">Guía de integración para Gmail y clientes externos</p>
+              </div>
+              <button onClick={() => setShowDevicesModal(false)} className="w-12 h-12 flex items-center justify-center rounded-2xl bg-white border border-slate-200 text-slate-400 hover:text-slate-900 transition-colors">
+                <span className="material-symbols-outlined">close</span>
+              </button>
+            </div>
+            
+            <div className="p-10 overflow-y-auto space-y-10">
+              {/* Bloque: Parámetros Técnicos */}
+              <div className="grid md:grid-cols-2 gap-8">
+                <div className="p-8 rounded-3xl border border-slate-100 bg-slate-50/30 space-y-4">
+                  <div className="flex items-center gap-3 text-[#00A3FF]">
+                    <span className="material-symbols-outlined">download</span>
+                    <span className="text-[10px] font-black uppercase tracking-widest">Correo Entrante (POP3/IMAP)</span>
+                  </div>
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-end border-b border-slate-100 pb-2">
+                      <span className="text-[10px] font-black uppercase text-slate-400">Servidor</span>
+                      <span className="text-sm font-bold text-slate-900">mail.{selectedAccount.domain}</span>
+                    </div>
+                    <div className="flex justify-between items-end border-b border-slate-100 pb-2">
+                      <span className="text-[10px] font-black uppercase text-slate-400">Puerto IMAP</span>
+                      <span className="text-sm font-bold text-slate-900">993 (SSL)</span>
+                    </div>
+                    <div className="flex justify-between items-end">
+                      <span className="text-[10px] font-black uppercase text-slate-400">Puerto POP3</span>
+                      <span className="text-sm font-bold text-slate-900">995 (SSL)</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="p-8 rounded-3xl border border-slate-100 bg-slate-50/30 space-y-4">
+                  <div className="flex items-center gap-3 text-[#00A3FF]">
+                    <span className="material-symbols-outlined">upload</span>
+                    <span className="text-[10px] font-black uppercase tracking-widest">Correo Saliente (SMTP)</span>
+                  </div>
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-end border-b border-slate-100 pb-2">
+                      <span className="text-[10px] font-black uppercase text-slate-400">Servidor</span>
+                      <span className="text-sm font-bold text-slate-900">mail.{selectedAccount.domain}</span>
+                    </div>
+                    <div className="flex justify-between items-end border-b border-slate-100 pb-2">
+                      <span className="text-[10px] font-black uppercase text-slate-400">Puerto</span>
+                      <span className="text-sm font-bold text-slate-900">465 (SSL)</span>
+                    </div>
+                    <div className="flex justify-between items-end">
+                      <span className="text-[10px] font-black uppercase text-slate-400">Autenticación</span>
+                      <span className="text-sm font-bold text-slate-900">Requerida</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Bloque: Guía Gmail */}
+              <div className="space-y-6">
+                <div className="flex items-center gap-3">
+                  <img src="https://upload.wikimedia.org/wikipedia/commons/7/7e/Gmail_icon_%282020%29.svg" className="w-6 h-6" alt="Gmail" />
+                  <span className="text-sm font-black uppercase tracking-widest text-slate-900">Instrucciones para Gmail</span>
+                </div>
+                
+                <div className="space-y-4">
+                  <div className="flex gap-4 p-5 rounded-2xl bg-slate-50/50 border border-slate-100">
+                    <div className="w-8 h-8 rounded-full bg-[#00A3FF] text-white flex items-center justify-center font-black text-xs shrink-0">1</div>
+                    <p className="text-xs font-bold leading-relaxed text-slate-600">
+                      Ve a <span className="text-slate-900">Configuración &gt; Cuentas e importación</span> y busca la sección "Consultar el correo de otras cuentas".
+                    </p>
+                  </div>
+                  <div className="flex gap-4 p-5 rounded-2xl bg-slate-50/50 border border-slate-100">
+                    <div className="w-8 h-8 rounded-full bg-[#00A3FF] text-white flex items-center justify-center font-black text-xs shrink-0">2</div>
+                    <p className="text-xs font-bold leading-relaxed text-slate-600">
+                      Usa tu correo completo <span className="text-[#00A3FF]">{selectedAccount.address}</span> como nombre de usuario y la contraseña que definiste.
+                    </p>
+                  </div>
+                  <div className="flex gap-4 p-5 rounded-2xl bg-slate-50/50 border border-slate-100">
+                    <div className="w-8 h-8 rounded-full bg-[#00A3FF] text-white flex items-center justify-center font-black text-xs shrink-0">3</div>
+                    <p className="text-xs font-bold leading-relaxed text-slate-600">
+                      Para enviar, agrega la cuenta en "Enviar como". Selecciona servidor <span className="text-slate-900">mail.{selectedAccount.domain}</span> en el puerto <span className="text-slate-900">465</span> con conexión SSL.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-10 bg-slate-50/50 border-t border-slate-100 flex justify-end">
+              <button 
+                onClick={() => setShowDevicesModal(false)}
+                className="px-10 h-16 bg-slate-900 rounded-2xl text-[11px] font-black uppercase tracking-widest text-white hover:bg-slate-800 transition-all active:scale-95"
+              >
+                Entendido
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

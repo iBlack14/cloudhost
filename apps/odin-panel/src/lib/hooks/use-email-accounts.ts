@@ -8,7 +8,8 @@ import {
   fetchEmailAccounts,
   fetchMailboxMessages,
   fetchEmailDomains,
-  runEmailAccountAction
+  runEmailAccountAction,
+  updateEmailAccountPassword
 } from "../email";
 import {
   createEmailAccountSchema,
@@ -64,10 +65,17 @@ export const useEmailAccountAction = () => {
   return useMutation({
     mutationFn: ({
       accountId,
-      action
+      action,
+      payload
     }: {
       accountId: string;
       action: "check-email" | "manage" | "connect-devices";
-    }) => runEmailAccountAction(accountId, action)
+      payload?: { password?: string };
+    }) => {
+      if (action === "manage" && payload?.password) {
+        return updateEmailAccountPassword(accountId, payload.password);
+      }
+      return runEmailAccountAction(accountId, action);
+    }
   });
 };

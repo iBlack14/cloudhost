@@ -5,7 +5,8 @@ import {
   fetchDomains,
   fetchMailAccountById,
   fetchMailAccounts,
-  issueMailSsoLink
+  issueMailSsoLink,
+  updateMailAccountPassword
 } from "./api";
 import type { MailAccountSummary } from "@odisea/types";
 
@@ -140,6 +141,15 @@ export const fetchEmailWebmailSsoLink = async (accountId: string): Promise<strin
   await wait(60);
   const link = await issueMailSsoLink(accountId);
   return link.url;
+};
+
+export const updateEmailAccountPassword = async (accountId: string, password: string): Promise<EmailAccountActionResult> => {
+  await wait(100);
+  await updateMailAccountPassword(accountId, password);
+  return {
+    success: true,
+    message: "Contraseña actualizada exitosamente."
+  };
 };
 
 const createMailboxSeed = (account: EmailAccount): EmailMailboxMessage[] => {

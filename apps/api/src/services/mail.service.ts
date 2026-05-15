@@ -276,6 +276,32 @@ export const getMailAccountForUser = async (userId: string, accountId: string): 
   return result.rowCount ? mapAccount(result.rows[0]) : null;
 };
 
+export const updateMailAccountPasswordForUser = async (
+  userId: string,
+  mailboxId: string,
+  newPassword: string
+): Promise<void> => {
+  await ensureMailSchema();
+
+  const result = await db.query(
+    `UPDATE mail_accounts
+     SET password_hash = $3,
+         updated_at = CURRENT_TIMESTAMP
+     WHERE user_id = $1 AND id = $2`,
+    [userId, mailboxId, hashPassword(newPassword)]
+  );
+
+  if (result.rowCount === 0) {
+    throw new Error("MAILBOX_NOT_FOUND");
+  }
+
+  await db.query(
+    `INSERT INTO activity_logs (user_id, action, resource, details)
+     VALUES ($1, 'change_mail_password', 'mail_account', $2::jsonb)`,
+    [userId, JSON.stringify({ mailboxId })]
+  );
+};
+
 export const createMailAccountForUser = async (
   userId: string,
   input: {

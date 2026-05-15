@@ -338,6 +338,15 @@ export const issueMailSsoLink = async (accountId: string): Promise<MailSsoLink> 
   return parsePayload<MailSsoLink>(response);
 };
 
+export const updateMailAccountPassword = async (accountId: string, password: string): Promise<void> => {
+  const response = await fetch(`${API_BASE}/odin-panel/mail/accounts/${accountId}/password`, {
+    method: "PATCH",
+    headers: withOdinAuth({ "Content-Type": "application/json" }),
+    body: JSON.stringify({ password })
+  });
+  await parsePayload(response);
+};
+
 export const fetchOdinDashboard = async (): Promise<OdinDashboardStats> => {
   const response = await fetch(`${API_BASE}/odin-panel/dashboard`, {
     cache: "no-store",

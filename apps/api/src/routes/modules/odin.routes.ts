@@ -64,7 +64,8 @@ import {
   createMailAccountHandler,
   getMailAccountHandler,
   issueMailSsoHandler,
-  listMailAccountsHandler
+  listMailAccountsHandler,
+  changeMailPasswordHandler
 } from "../../controllers/odin/mail.controller.js";
 
 export const odinRouter = Router();
@@ -212,6 +213,7 @@ odinRouter.get("/mail/accounts", listMailAccountsHandler);
 odinRouter.post("/mail/accounts", createMailAccountHandler);
 odinRouter.get("/mail/accounts/:accountId", getMailAccountHandler);
 odinRouter.post("/mail/accounts/:accountId/sso", issueMailSsoHandler);
+odinRouter.patch("/mail/accounts/:accountId/password", changeMailPasswordHandler);
 
 odinRouter.get("/databases", listDatabasesHandler);
 odinRouter.post("/databases", createDatabaseHandler);

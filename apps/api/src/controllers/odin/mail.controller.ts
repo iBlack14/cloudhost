@@ -5,7 +5,8 @@ import {
   createMailAccountForUser,
   getMailAccountForUser,
   issueMailSsoLinkForUser,
-  listMailAccountsForUser
+  listMailAccountsForUser,
+  updateMailAccountPasswordForUser
 } from "../../services/mail.service.js";
 import { getUserId } from "../../utils/get-user-id.js";
 
@@ -175,6 +176,57 @@ export const issueMailSsoHandler = async (req: Request, res: Response): Promise<
     return res.status(500).json({
       success: false,
       error: { code: "INTERNAL_ERROR", message: "No se pudo generar el acceso directo al webmail" }
+    });
+  }
+};
+
+export const changeMailPasswordHandler = async (req: Request, res: Response): Promise<Response> => {
+  const parsedParams = mailboxParamSchema.safeParse(req.params);
+  const passwordSchema = z.object({
+    password: z.string().min(10, "La contraseña debe tener al menos 10 caracteres.")
+  });
+  const parsedBody = passwordSchema.safeParse(req.body);
+
+  if (!parsedParams.success) {
+    return res.status(422).json({
+      success: false,
+      error: { code: "VALIDATION_ERROR", message: "ID de buzón inválido" }
+    });
+  }
+
+  if (!parsedBody.success) {
+    return res.status(422).json({
+      success: false,
+      error: { code: "VALIDATION_ERROR", message: parsedBody.error.issues[0]?.message ?? "Contraseña inválida" }
+    });
+  }
+
+  try {
+    const userId = await getUserId(req);
+    await updateMailAccountPasswordForUser(userId, parsedParams.data.accountId, parsedBody.data.password);
+    
+    return res.status(200).json({
+      success: true,
+      data: { message: "Contraseña actualizada correctamente" }
+    });
+  } catch (error) {
+    if (error instanceof Error && error.message === "AUTH_REQUIRED") {
+      return res.status(401).json({
+        success: false,
+        error: { code: "AUTH_REQUIRED", message: "Autenticación requerida" }
+      });
+    }
+
+    if (error instanceof Error && error.message === "MAILBOX_NOT_FOUND") {
+      return res.status(404).json({
+        success: false,
+        error: { code: "MAILBOX_NOT_FOUND", message: "Buzón no encontrado" }
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      error: { code: "INTERNAL_ERROR", message: "No se pudo cambiar la contraseña" }
     });
   }
 };
