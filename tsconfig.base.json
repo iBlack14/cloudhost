@@ -8,14 +8,6 @@
     "resolveJsonModule": true,
     "forceConsistentCasingInFileNames": true,
     "isolatedModules": true,
-    "esModuleInterop": true,
-    "ignoreDeprecations": "6.0",
-    "baseUrl": ".",
-    "paths": {
-      "@odisea/types": ["packages/types/src/index.ts"],
-      "@odisea/types/*": ["packages/types/src/*"],
-      "@odisea/ui": ["packages/ui/src/index.ts"],
-      "@odisea/ui/*": ["packages/ui/src/*"]
-    }
+    "esModuleInterop": true
   }
 }

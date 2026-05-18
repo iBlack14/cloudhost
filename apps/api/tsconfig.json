@@ -5,11 +5,7 @@
     "rootDir": "src",
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
-    "types": ["node"],
-    "paths": {
-      "@odisea/types": ["../../packages/types/src/index.ts"],
-      "@odisea/types/*": ["../../packages/types/src/*"]
-    }
+    "types": ["node"]
   },
   "include": ["src/**/*.ts", "src/**/*.d.ts"]
 }
