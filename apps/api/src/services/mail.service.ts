@@ -158,15 +158,7 @@ const mapMessageDetail = (row: MailMessageRow): MailMessageDetail => ({
 });
 
 const getPublicMailBaseUrl = (domain: string): string => {
-  // If we are testing on a VPS with an IP address, we should use the configured WEBMAIL_URL
-  const isIP = /^(?:http|https):\/\/\d+\.\d+\.\d+\.\d+/.test(env.WEBMAIL_URL);
-
-  if (env.NODE_ENV !== "production" || isIP || !domain.includes(".")) {
-    return env.WEBMAIL_URL;
-  }
-
-  // In production with a real domain, we assume the webmail is at https://domain
-  return `https://${domain}`;
+  return env.WEBMAIL_URL;
 };
 
 const seedMailboxMessages = (mailbox: MailAccountRow) => {

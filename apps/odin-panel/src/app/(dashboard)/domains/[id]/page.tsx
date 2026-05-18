@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, use } from "react";
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useRouter } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { getOdinAccessToken } from "../../../../lib/api";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001/api/v1";
@@ -22,19 +22,19 @@ interface DnsRecord {
   ttl: number;
 }
 
-export default function OdinDnsZoneEditor({ params }: { params: Promise<{ id: string }> }) {
+export default function OdinDnsZoneEditor() {
   const queryClient = useQueryClient();
   const router = useRouter();
-  const unwrappedParams = use(params);
+  const { id } = useParams<{ id: string }>();
   
   const [newRec, setNewRec] = useState<{ name: string; type: RecordType; content: string; priority: string }>({
     name: "", type: "A", content: "", priority: ""
   });
 
   const { data, isLoading } = useQuery({
-    queryKey: ["odin_dns_zone", unwrappedParams.id],
+    queryKey: ["odin_dns_zone", id],
     queryFn: async () => {
-      const res = await fetch(`${API_BASE}/odin-panel/domains/${unwrappedParams.id}/dns`, { headers: authHeaders() });
+      const res = await fetch(`${API_BASE}/odin-panel/domains/${id}/dns`, { headers: authHeaders() });
       if (!res.ok) throw new Error("Error fetching zone");
       const json = await res.json();
       return json.data;
@@ -53,7 +53,7 @@ export default function OdinDnsZoneEditor({ params }: { params: Promise<{ id: st
     },
     onSuccess: () => {
       setNewRec({ name: "", type: "A", content: "", priority: "" });
-      queryClient.invalidateQueries({ queryKey: ["odin_dns_zone", unwrappedParams.id] });
+      queryClient.invalidateQueries({ queryKey: ["odin_dns_zone", id] });
     }
   });
 
@@ -67,7 +67,7 @@ export default function OdinDnsZoneEditor({ params }: { params: Promise<{ id: st
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["odin_dns_zone", unwrappedParams.id] });
+      queryClient.invalidateQueries({ queryKey: ["odin_dns_zone", id] });
     }
   });
 
