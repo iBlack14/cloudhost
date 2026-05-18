@@ -56,7 +56,7 @@ export const fetchMailMessages = (folder: MailFolder) =>
   request<MailMessageSummary[]>(`/messages?folder=${encodeURIComponent(folder)}`);
 export const fetchMailMessage = (messageId: string) => request<MailMessageDetail>(`/messages/${messageId}`);
 export const sendMailMessage = (input: { to: string[]; subject: string; body: string }) =>
-  request<{ success: boolean }>("/messages/send", {
+  request<{ success: boolean }>("/messages", {
     method: "POST",
     body: JSON.stringify(input)
   });
