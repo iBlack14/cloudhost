@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import nodemailer from "nodemailer";
 
 import type {
   MailAccountSummary,
@@ -202,7 +203,7 @@ const seedMailboxMessages = (mailbox: MailAccountRow) => {
   ];
 };
 
-const appendMessageToMailbox = async ({
+export const appendMessageToMailbox = async ({
   mailboxId,
   folder,
   fromName,
@@ -736,6 +737,7 @@ export const sendMailMessage = async (
     [input.to.map(normalizeAddress)]
   );
 
+  // 1. Deliver to local recipients within the database
   for (const recipient of localRecipients.rows) {
     await appendMessageToMailbox({
       mailboxId: recipient.id,
@@ -746,5 +748,39 @@ export const sendMailMessage = async (
       subject: input.subject,
       body: input.body
     });
+  }
+
+  // 2. Deliver to external recipients via SMTP
+  const localAddresses = new Set(localRecipients.rows.map((r) => normalizeAddress(r.address)));
+  const externalRecipients = input.to.filter((addr) => !localAddresses.has(normalizeAddress(addr)));
+
+  if (externalRecipients.length > 0) {
+    try {
+      const transporter = nodemailer.createTransport({
+        host: env.SMTP_HOST,
+        port: env.SMTP_PORT,
+        secure: env.SMTP_SECURE,
+        auth: env.SMTP_USER && env.SMTP_PASS ? {
+          user: env.SMTP_USER,
+          pass: env.SMTP_PASS
+        } : undefined,
+        tls: {
+          rejectUnauthorized: false
+        }
+      });
+
+      await transporter.sendMail({
+        from: `"${me.username}" <${me.address}>`,
+        to: externalRecipients.join(", "),
+        subject: input.subject,
+        text: input.body,
+        html: input.body.includes("<") && input.body.includes(">") ? input.body : undefined
+      });
+    } catch (smtpError) {
+      console.error("[SMTP_SEND_FAILED] Error sending mail via SMTP:", smtpError);
+      throw new Error(
+        `SMTP_SEND_FAILED: ${smtpError instanceof Error ? smtpError.message : "Error al enviar correo externo"}`
+      );
+    }
   }
 };

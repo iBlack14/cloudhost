@@ -50,6 +50,7 @@ export const getOrCreateZone = async (domainId: string, domainName: string) => {
     // Add default A record for the domain (Mock IP for now)
     await addDnsRecord(zone.id, "@", "A", "1.2.3.4");
     await addDnsRecord(zone.id, "www", "CNAME", domainName);
+    await addDnsRecord(zone.id, "@", "MX", domainName, 10);
 
     return zone;
 };

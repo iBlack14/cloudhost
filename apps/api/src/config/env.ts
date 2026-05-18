@@ -17,7 +17,14 @@ const envSchema = z.object({
   MYSQL_CONTAINER_NAME: z.string().default("odisea-mysql"),
   MYSQL_ROOT_PASSWORD: z.string().default("root"),
   MYSQL_HOST_PORT: z.coerce.number().int().positive().default(3307),
-  CORS_ORIGIN: z.string().default("*")
+  CORS_ORIGIN: z.string().default("*"),
+  SMTP_HOST: z.string().default("127.0.0.1"),
+  SMTP_PORT: z.coerce.number().int().positive().default(25),
+  SMTP_USER: z.string().optional().default(""),
+  SMTP_PASS: z.string().optional().default(""),
+  SMTP_SECURE: z.preprocess((val) => val === "true" || val === true, z.boolean()).default(false),
+  SMTP_RECEIVER_ENABLED: z.preprocess((val) => val === "true" || val === true, z.boolean()).default(true),
+  SMTP_RECEIVER_PORT: z.coerce.number().int().positive().default(2525)
 });
 
 export const env = envSchema.parse(process.env);
