@@ -96,8 +96,10 @@ export const startSmtpReceiver = (): void => {
     console.error("[SMTP_RECEIVER] SMTP Server error:", err);
   });
 
-  server.listen(env.SMTP_RECEIVER_PORT, "0.0.0.0", () => {
-    console.log(`[SMTP_RECEIVER] Incoming SMTP server listening on port ${env.SMTP_RECEIVER_PORT}`);
+  server.listen(env.SMTP_RECEIVER_PORT, env.SMTP_RECEIVER_HOST, () => {
+    console.log(
+      `[SMTP_RECEIVER] Incoming SMTP server listening on ${env.SMTP_RECEIVER_HOST}:${env.SMTP_RECEIVER_PORT}`
+    );
   });
 };
 

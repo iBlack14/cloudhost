@@ -158,7 +158,7 @@ if [ -n "$BASE_DOMAIN" ]; then
     API_URL="https://api.$BASE_DOMAIN"
     WHM_URL="https://whm.$BASE_DOMAIN"
     ODIN_URL="https://panel.$BASE_DOMAIN"
-    WEBMAIL_URL="https://panel.$BASE_DOMAIN/mail"
+    WEBMAIL_URL="https://mail.$BASE_DOMAIN"
     echo -e "${GREEN}✅ Usando Dominio: $BASE_DOMAIN${NC}"
 else
     API_URL="http://$VPS_IP:$API_PORT"
@@ -283,6 +283,7 @@ ufw allow $API_PORT/tcp > /dev/null 2>&1
 ufw allow $WHM_PORT/tcp > /dev/null 2>&1
 ufw allow $ODIN_PORT/tcp > /dev/null 2>&1
 ufw allow $WEBMAIL_PORT/tcp > /dev/null 2>&1
+ufw allow 25/tcp > /dev/null 2>&1
 ufw --force enable > /dev/null 2>&1
 echo -e "${GREEN}✅ Firewall configured${NC}"
 
@@ -390,6 +391,9 @@ PHPMYADMIN_URL=http://$VPS_IP:$PMA_PORT
 IMPERSONATE_EXPIRES_IN=2h
 MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASS}
 ODISEA_API_KEY=odisea_master_key_secret
+SMTP_RECEIVER_ENABLED=true
+SMTP_RECEIVER_HOST=0.0.0.0
+SMTP_RECEIVER_PORT=25
 EOT
 echo -e "  ${GREEN}✅ apps/api/.env${NC}"
 
@@ -496,6 +500,18 @@ server {
 
 server {
     listen 80;
+    server_name mail.$BASE_DOMAIN;
+    location / {
+        proxy_pass http://127.0.0.1:$WEBMAIL_PORT;
+        include proxy_params;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection 'upgrade';
+    }
+}
+
+server {
+    listen 80;
     server_name whm.$BASE_DOMAIN;
     location / {
         proxy_pass http://127.0.0.1:$WHM_PORT;
@@ -550,14 +566,14 @@ echo "╠═══════════════════════�
 echo "║                                                       ║"
 echo "║  🌐 WHM Dashboard:  http://$VPS_IP:$WHM_PORT"
 echo "║  👤 ODIN Panel:     http://$VPS_IP:$ODIN_PORT"
-echo "║  📧 Webmail:        http://$VPS_IP:$WEBMAIL_PORT/mail"
+echo "║  📧 Webmail:        $WEBMAIL_URL"
 echo "║  🔌 API Service:    http://$VPS_IP:$API_PORT"
 echo "║  💚 API Health:     http://$VPS_IP:$API_PORT/health"
 echo "║  🔐 WHM User:       $ADMIN_USER"
 echo "║  🔐 WHM Pass:       $ADMIN_PASS"
 echo "║  ✅ WHM Health:     http://$VPS_IP:$WHM_PORT"
 echo "║  ✅ ODIN Health:    http://$VPS_IP:$ODIN_PORT"
-echo "║  ✅ Mail Health:    http://$VPS_IP:$WEBMAIL_PORT/mail"
+echo "║  ✅ Mail Health:    http://$VPS_IP:$WEBMAIL_PORT/login"
 echo "║                                                       ║"
 echo "║  📋 PM2 Status:     pm2 status                       ║"
 echo "║  📋 PM2 Logs:       pm2 logs                         ║"

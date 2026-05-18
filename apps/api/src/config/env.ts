@@ -24,6 +24,7 @@ const envSchema = z.object({
   SMTP_PASS: z.string().optional().default(""),
   SMTP_SECURE: z.preprocess((val) => val === "true" || val === true, z.boolean()).default(false),
   SMTP_RECEIVER_ENABLED: z.preprocess((val) => val === "true" || val === true, z.boolean()).default(true),
+  SMTP_RECEIVER_HOST: z.string().default("0.0.0.0"),
   SMTP_RECEIVER_PORT: z.coerce.number().int().positive().default(2525)
 });
 

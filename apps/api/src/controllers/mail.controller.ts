@@ -200,7 +200,17 @@ export const sendMailMessageHandler = async (req: Request, res: Response): Promi
   try {
     await sendMailMessage(getMailSession(req), parsed.data);
     return res.status(200).json({ success: true, data: { success: true } });
-  } catch {
+  } catch (error) {
+    if (error instanceof Error && error.message.startsWith("SMTP_SEND_FAILED")) {
+      return res.status(502).json({
+        success: false,
+        error: {
+          code: "SMTP_SEND_FAILED",
+          message: error.message.replace(/^SMTP_SEND_FAILED:\s*/, "")
+        }
+      });
+    }
+
     return res.status(401).json({
       success: false,
       error: { code: "MAIL_AUTH_REQUIRED", message: "Sesión de mail requerida" }

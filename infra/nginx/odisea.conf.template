@@ -1,6 +1,6 @@
 server {
     listen 80;
-    server_name {{API_DOMAIN}} {{WHM_DOMAIN}} {{ODIN_DOMAIN}};
+    server_name {{API_DOMAIN}} {{WHM_DOMAIN}} {{ODIN_DOMAIN}} {{WEBMAIL_DOMAIN}};
     
     location / {
         return 301 https://$host$request_uri;
@@ -38,6 +38,25 @@ server {
 
     location / {
         proxy_pass http://127.0.0.1:{{WHM_PORT}};
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+
+server {
+    listen 443 ssl http2;
+    server_name {{WEBMAIL_DOMAIN}};
+
+    ssl_certificate /etc/letsencrypt/live/{{WEBMAIL_DOMAIN}}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/{{WEBMAIL_DOMAIN}}/privkey.pem;
+
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers HIGH:!aNULL:!MD5;
+
+    location / {
+        proxy_pass http://127.0.0.1:{{WEBMAIL_PORT}};
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
