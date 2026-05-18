@@ -1,7 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  transpilePackages: ["@odisea/types"],
-  basePath: "/mail"
+  transpilePackages: ["@odisea/types"]
 };
 
 export default nextConfig;
