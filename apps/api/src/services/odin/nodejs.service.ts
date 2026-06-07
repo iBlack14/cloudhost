@@ -72,7 +72,9 @@ const validateAppFilesystem = async (app: { path: string; script: string }) => {
    return { appRoot, entryFile };
 };
 
+let _nodejsTablesReady = false;
 export const ensureNodejsTables = async () => {
+   if (_nodejsTablesReady) return;
    await db.query(`
       CREATE TABLE IF NOT EXISTS nodejs_apps (
           id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -94,6 +96,7 @@ export const ensureNodejsTables = async () => {
       ALTER TABLE nodejs_apps ADD COLUMN IF NOT EXISTS github_repo TEXT;
       ALTER TABLE nodejs_apps ADD COLUMN IF NOT EXISTS github_branch TEXT DEFAULT 'main';
    `);
+   _nodejsTablesReady = true;
 };
 
 export const getAppsQuery = async (userId: string) => {

@@ -234,3 +234,113 @@ export const uploadFileHandler = async (req: Request, res: Response): Promise<Re
     });
   }
 };
+
+// ── Disk Usage Handler ───────────────────────────────────────────────────────
+import { exec } from "node:child_process";
+import { promisify } from "node:util";
+const execAsync2 = promisify(exec);
+
+export const diskUsageHandler = async (req: Request, res: Response): Promise<Response> => {
+  try {
+    const userId = await getUserId(req);
+    const basePath = await getBaseUserPath(userId);
+
+    // Ensure directory exists
+    await fs.mkdir(basePath, { recursive: true }).catch(() => {});
+
+    let totalBytes = 0;
+    const breakdown: { name: string; bytes: number; mb: number }[] = [];
+
+    if (process.platform === "win32") {
+      // Windows: walk dirs recursively using node:fs
+      const walkDir = async (dir: string): Promise<number> => {
+        let size = 0;
+        try {
+          const entries = await fs.readdir(dir, { withFileTypes: true });
+          for (const e of entries) {
+            const full = path.join(dir, e.name);
+            if (e.isDirectory()) {
+              size += await walkDir(full);
+            } else {
+              const stat = await fs.stat(full).catch(() => null);
+              size += stat?.size ?? 0;
+            }
+          }
+        } catch {}
+        return size;
+      };
+
+      // Get top-level subdirectory sizes
+      const topEntries = await fs.readdir(basePath, { withFileTypes: true }).catch(() => []);
+      for (const e of topEntries) {
+        if (e.isDirectory()) {
+          const bytes = await walkDir(path.join(basePath, e.name));
+          breakdown.push({ name: e.name, bytes, mb: Math.round(bytes / 1024 / 1024 * 10) / 10 });
+          totalBytes += bytes;
+        } else {
+          const stat = await fs.stat(path.join(basePath, e.name)).catch(() => null);
+          totalBytes += stat?.size ?? 0;
+        }
+      }
+    } else {
+      // Linux: use `du -sb` for accurate disk usage
+      try {
+        // Total usage
+        const { stdout: totalOut } = await execAsync2(`du -sb "${basePath}" 2>/dev/null || echo "0"`);
+        totalBytes = parseInt(totalOut.trim().split(/\s+/)[0] ?? "0", 10);
+
+        // Per-subdirectory breakdown
+        const { stdout: subOut } = await execAsync2(
+          `du -sb "${basePath}"/* 2>/dev/null | sort -rn | head -20 || true`
+        );
+        for (const line of subOut.trim().split("\n")) {
+          if (!line.trim()) continue;
+          const parts = line.trim().split(/\s+/);
+          const bytes = parseInt(parts[0] ?? "0", 10);
+          const fullPath = parts.slice(1).join(" ");
+          const name = fullPath.replace(basePath + "/", "");
+          if (name && bytes > 0) {
+            breakdown.push({ name, bytes, mb: Math.round(bytes / 1024 / 1024 * 10) / 10 });
+          }
+        }
+      } catch {
+        totalBytes = 0;
+      }
+    }
+
+    const totalMb = Math.round(totalBytes / 1024 / 1024 * 10) / 10;
+
+    // Persist real disk usage back to hosting_accounts so dashboard stays accurate
+    await db.query(
+      `UPDATE hosting_accounts SET disk_used_mb = $1 WHERE user_id = $2`,
+      [Math.ceil(totalMb), userId]
+    ).catch(() => {}); // non-fatal
+
+    // Also fetch plan quota
+    const planRes = await db.query(`
+      SELECT p.disk_quota_mb
+      FROM users u
+      LEFT JOIN plans p ON p.id = u.plan_id
+      WHERE u.id = $1
+    `, [userId]);
+    const diskLimit = Number(planRes.rows[0]?.disk_quota_mb ?? 1024);
+    const diskPercent = diskLimit > 0 ? Math.round((totalMb / diskLimit) * 100 * 10) / 10 : 0;
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        totalBytes,
+        totalMb,
+        diskLimit,
+        diskPercent,
+        basePath,
+        breakdown: breakdown.sort((a, b) => b.bytes - a.bytes)
+      }
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      error: { message: error instanceof Error ? error.message : "Error al calcular uso de disco" }
+    });
+  }
+};

@@ -13,7 +13,9 @@ export interface PythonAppInput {
   port: number;
 }
 
+let _pythonTablesReady = false;
 export const ensurePythonTables = async () => {
+  if (_pythonTablesReady) return;
   await db.query(`
     CREATE TABLE IF NOT EXISTS python_apps (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -29,6 +31,7 @@ export const ensurePythonTables = async () => {
       updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
     );
   `);
+  _pythonTablesReady = true;
 };
 
 export const getAppsQuery = async (userId: string) => {

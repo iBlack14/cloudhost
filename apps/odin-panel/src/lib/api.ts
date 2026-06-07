@@ -412,6 +412,23 @@ export const issueDatabaseSsoLink = async (dbName: string): Promise<DatabaseSsoL
 
 // --- FILE MANAGER API ---
 
+export interface DiskUsageData {
+  totalBytes: number;
+  totalMb: number;
+  diskLimit: number;
+  diskPercent: number;
+  basePath: string;
+  breakdown: { name: string; bytes: number; mb: number }[];
+}
+
+export const fetchDiskUsage = async (): Promise<DiskUsageData> => {
+  const response = await fetch(`${API_BASE}/odin-panel/files/usage`, {
+    headers: withOdinAuth(),
+    cache: "no-store"
+  });
+  return parsePayload<DiskUsageData>(response);
+};
+
 export interface FileItem {
   name: string;
   path: string;

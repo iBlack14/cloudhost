@@ -51,7 +51,9 @@ interface MailMessageRow {
   sent_at: string;
 }
 
-const ensureMailSchema = async () => {
+let _mailSchemaReady = false;
+export const ensureMailSchema = async () => {
+  if (_mailSchemaReady) return;
   await db.query(`
     CREATE TABLE IF NOT EXISTS mail_accounts (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -102,6 +104,7 @@ const ensureMailSchema = async () => {
       created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
     );
   `);
+  _mailSchemaReady = true;
 };
 
 const normalizeAddress = (value: string): string => value.trim().toLowerCase();

@@ -1,7 +1,5 @@
 import { Router } from "express";
-import path from "node:path";
 import os from "node:os";
-import { execSync } from "node:child_process";
 import { 
   installWpHandler, 
   listWpSitesHandler, 
@@ -32,7 +30,8 @@ import {
   extractHandler, 
   chmodHandler,
   downloadFileHandler, 
-  uploadFileHandler 
+  uploadFileHandler,
+  diskUsageHandler 
 } from "../../controllers/odin/file.controller.js";
 import {
   listBackupsHandler,
@@ -75,6 +74,19 @@ import {
   listMailAccountsHandler,
   changeMailPasswordHandler
 } from "../../controllers/odin/mail.controller.js";
+import rateLimit from "express-rate-limit";
+import { getSysStats } from "../../services/sys-stats.service.js";
+
+
+// Rate limiter for heavy CPU/disk/network operations (5 req per user per minute)
+const heavyOpLimiter = rateLimit({
+  windowMs: 60_000,
+  max: 5,
+  keyGenerator: (req) => (req as any).auth?.userId ?? req.ip ?? "anon",
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, error: { code: "RATE_LIMIT", message: "Demasiadas solicitudes. Espera un momento." } }
+});
 
 export const odinRouter = Router();
 
@@ -85,27 +97,15 @@ const toPercent = (value: number): number => {
   return Math.max(0, Math.min(100, Math.round(value)));
 };
 
-const getDiskUsagePercent = (): number => {
-  if (os.platform() === "win32") return 0;
-  try {
-    const output = execSync("df -P /", { encoding: "utf-8", stdio: ["ignore", "pipe", "ignore"] });
-    const lines = output.trim().split("\n");
-    if (lines.length < 2) return 0;
-    const columns = lines[1].trim().split(/\s+/);
-    const usePercent = columns[4] ?? "0%";
-    return toPercent(Number(usePercent.replace("%", "")));
-  } catch {
-    return 0;
-  }
-};
 
 odinRouter.get("/dashboard", async (req, res) => {
   try {
     const userId = req.auth?.userId;
 
-    await Promise.all([ensureNodejsTables(), ensurePythonTables()]);
-    
-    const [accountRes, servicesRes, databasesRes, userRes] = await Promise.all([
+    // ensureNodejsTables / ensurePythonTables removed from hot path.
+    // Tables are initialized at server startup — see server.ts.
+
+    const [accountRes, servicesRes, databasesRes, userRes, sys] = await Promise.all([
       db.query(`
         SELECT ha.disk_used_mb, p.name as plan_name, p.disk_quota_mb
         FROM hosting_accounts ha
@@ -114,26 +114,23 @@ odinRouter.get("/dashboard", async (req, res) => {
         WHERE u.id = $1 LIMIT 1
       `, [userId]),
       db.query(`
-        SELECT 
+        SELECT
           (SELECT COUNT(*) FROM domains WHERE user_id = $1) as domains,
           (
             (SELECT COUNT(*) FROM wordpress_sites WHERE user_id = $1) +
             (SELECT COUNT(*) FROM nodejs_apps WHERE user_id = $1) +
             (SELECT COUNT(*) FROM python_apps WHERE user_id = $1)
           ) as apps
-      `, [userId])
-      ,
+      `, [userId]),
       db.query(
-        `
-          SELECT
-            (
-              (SELECT COUNT(*) FROM user_databases WHERE user_id = $1) +
-              (SELECT COUNT(*) FROM wordpress_sites WHERE user_id = $1)
-            )::text AS databases
-        `,
+        `SELECT (
+           (SELECT COUNT(*) FROM user_databases WHERE user_id = $1) +
+           (SELECT COUNT(*) FROM wordpress_sites WHERE user_id = $1)
+         )::text AS databases`,
         [userId]
       ),
-      db.query(`SELECT username FROM users WHERE id = $1 LIMIT 1`, [userId])
+      db.query(`SELECT username FROM users WHERE id = $1 LIMIT 1`, [userId]),
+      getSysStats()  // cached, non-blocking
     ]);
 
     const account = accountRes.rows[0];
@@ -141,66 +138,37 @@ odinRouter.get("/dashboard", async (req, res) => {
     const databaseSummary = databasesRes.rows[0];
     const osUsername: string = (userRes.rows[0]?.username ?? "").replace(/[^a-z0-9]/gi, "_").toLowerCase();
 
-    const diskUsed = Number(account?.disk_used_mb || 0);
-    const diskLimit = Number(account?.disk_quota_mb || 1024);
+    const diskUsed    = Number(account?.disk_used_mb || 0);
+    const diskLimit   = Number(account?.disk_quota_mb || 1024);
     const diskPercent = diskLimit > 0 ? toPercent((diskUsed / diskLimit) * 100) : 0;
 
-    const cores = os.cpus().length || 1;
-    const loadAvgs = os.loadavg();
-    const loadAverage1m = loadAvgs[0] ?? 0;
-    const cpuPercent = toPercent((loadAverage1m / cores) * 100);
-
-    let ramTotal = os.totalmem();
-    let ramFree = os.freemem();
-    let ramPercent = toPercent(((ramTotal - ramFree) / ramTotal) * 100);
-
-    try {
-      if (os.platform() === "linux") {
-        const memInfo = execSync("cat /proc/meminfo", { encoding: "utf-8" });
-        const totalMatch = memInfo.match(/MemTotal:\s+(\d+)/);
-        const availableMatch = memInfo.match(/MemAvailable:\s+(\d+)/);
-        if (totalMatch && availableMatch) {
-          const total = parseInt(totalMatch[1], 10) * 1024;
-          const available = parseInt(availableMatch[1], 10) * 1024;
-          ramPercent = toPercent(((total - available) / total) * 100);
-          ramTotal = total;
-          ramFree = available;
-        }
-      }
-    } catch {
-      // Fall back to node:os values above.
-    }
-
-    const serverDiskPercent = getDiskUsagePercent();
+    const cpuPercent = toPercent((sys.loadAvgs[0] / sys.cpuCores) * 100);
 
     res.status(200).json({
       success: true,
       data: {
-        account: { 
-          plan: account?.plan_name || "Free", 
+        account: {
+          plan: account?.plan_name || "Free",
           diskUsed,
           diskLimit,
           diskPercent,
           username: osUsername
         },
-        services: { 
-          domains: parseInt(services?.domains || "0"), 
-          emails: 0, 
+        services: {
+          domains:   parseInt(services?.domains   || "0"),
+          emails:    0,
           databases: parseInt(databaseSummary?.databases || "0"),
-          apps: parseInt(services?.apps || "0") 
+          apps:      parseInt(services?.apps || "0")
         },
         server: {
-          cpu: cpuPercent,
-          ram: ramPercent,
-          disk: serverDiskPercent,
-          loadAverage1m: Number(loadAverage1m.toFixed(2)),
-          loadAvgs: loadAvgs.map((avg) => Number(avg.toFixed(2))),
-          cores,
-          uptimeSeconds: Math.floor(os.uptime()),
-          ramDetails: {
-            total: ramTotal,
-            free: ramFree
-          }
+          cpu:          cpuPercent,
+          ram:          sys.ramPercent,
+          disk:         sys.diskPercent,
+          loadAverage1m: sys.loadAvgs[0],
+          loadAvgs:     sys.loadAvgs,
+          cores:        sys.cpuCores,
+          uptimeSeconds: sys.uptimeSeconds,
+          ramDetails:   { total: sys.ramTotal, free: sys.ramFree }
         }
       }
     });
@@ -213,9 +181,9 @@ odinRouter.get("/wordpress", listWpSitesHandler);
 odinRouter.get("/wordpress/versions", wpVersionsHandler);    // must be before /:id
 odinRouter.get("/wordpress/:id", getWpSiteByIdHandler);
 odinRouter.post("/wordpress/:id/sso", generateSsoUrlHandler);
-odinRouter.post("/wordpress/:id/update", updateWpHandler);
+odinRouter.post("/wordpress/:id/update", heavyOpLimiter, updateWpHandler);
 odinRouter.delete("/wordpress/:id", deleteWpSiteHandler);
-odinRouter.post("/wordpress/install", installWpHandler);
+odinRouter.post("/wordpress/install", heavyOpLimiter, installWpHandler);
 
 odinRouter.get("/domains", listDomainsHandler);
 odinRouter.post("/domains", addDomainHandler);
@@ -243,6 +211,7 @@ const upload = multer({
 });
 
 // ── File Manager routes ──────────────────────────────────────────────────────
+odinRouter.get("/files/usage", heavyOpLimiter, diskUsageHandler); // must be before /files
 odinRouter.get("/files", listFilesHandler);
 odinRouter.post("/files/folder", createFolderHandler);
 odinRouter.delete("/files", deletePathHandler);
@@ -256,10 +225,10 @@ odinRouter.get("/files/download", downloadFileHandler);
 odinRouter.post("/files/upload", upload.array("files"), uploadFileHandler);
 
 // ── Backup routes ──────────────────────────────────────────────────
-odinRouter.get   ("/backups",          listBackupsHandler);   // GET  /backups
-odinRouter.post  ("/backups",          createBackupHandler);   // POST /backups
-odinRouter.get   ("/backups/download",  downloadBackupHandler); // GET  /backups/download?name=...
-odinRouter.delete("/backups",           deleteBackupHandler);   // DELETE /backups?name=...
+odinRouter.get   ("/backups",         listBackupsHandler);
+odinRouter.post  ("/backups",         heavyOpLimiter, createBackupHandler); // tar is heavy
+odinRouter.get   ("/backups/download", downloadBackupHandler);
+odinRouter.delete("/backups",          deleteBackupHandler);
 
 // ── Multi-PHP routes ─────────────────────────────────────────────────────────
 odinRouter.get("/php/versions",   getVersionsHandler);         // Versiones en el servidor

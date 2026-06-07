@@ -32,7 +32,9 @@ export interface InstallWpInput {
 
 const sanitize = (str: string) => str.replace(/[^a-z0-9]/gi, "_").toLowerCase();
 
-const ensureWordPressTable = async () => {
+let _wpTableReady = false;
+export const ensureWordPressTable = async () => {
+  if (_wpTableReady) return;
   await db.query(`
     CREATE TABLE IF NOT EXISTS wordpress_sites (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -60,6 +62,7 @@ const ensureWordPressTable = async () => {
     ALTER TABLE wordpress_sites ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP;
     ALTER TABLE wordpress_sites ADD COLUMN IF NOT EXISTS db_password_ciphertext TEXT;
   `);
+  _wpTableReady = true;
 };
 
 const createMysqlResources = async (dbName: string, dbUser: string, dbPassword: string) => {
@@ -399,8 +402,22 @@ server {
 
 export const listUserWpSites = async (userId: string) => {
   await ensureWordPressTable();
-  const result = await db.query("SELECT * FROM wordpress_sites WHERE user_id = $1 ORDER BY created_at DESC", [userId]);
-  return Promise.all(result.rows.map((site) => enrichWpSite(site)));
+  const result = await db.query(
+    `SELECT id, user_id, account_id, site_title, domain, install_path,
+            wp_version, php_version, db_name, db_user, admin_user,
+            auto_updates, status, admin_url, runtime, created_at, updated_at
+     FROM wordpress_sites WHERE user_id = $1 ORDER BY created_at DESC`,
+    [userId]
+  );
+
+  // Return stale-but-fast data immediately using the cached `runtime` JSONB.
+  // Probe enrichment runs async in the background so it doesn't block the response.
+  // Next list request will get the freshly probed data.
+  setImmediate(() => {
+    result.rows.forEach(site => enrichWpSite(site).catch(() => {}));
+  });
+
+  return result.rows;
 };
 
 export const getWpSiteById = async (id: string, userId: string) => {

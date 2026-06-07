@@ -83,15 +83,35 @@ export default function NodejsAppsPage() {
     }));
   };
 
-  // ── GitHub repo auto-fill ───────────────────────────────────────────────────
+  // ── GitHub/Git repo URL parser ───────────────────────────────────────────────
+  const parseGitUrl = (raw: string): { repoPath: string; host: string } => {
+    const trimmed = raw.trim().replace(/\.git$/, "");
+    // Full HTTPS URL: https://github.com/user/repo
+    try {
+      const url = new URL(trimmed);
+      const parts = url.pathname.replace(/^\//, "").split("/");
+      return { repoPath: parts.slice(0, 2).join("/"), host: url.hostname };
+    } catch {
+      // SSH: git@github.com:user/repo
+      const sshMatch = trimmed.match(/git@([^:]+):(.+)/);
+      if (sshMatch) return { repoPath: sshMatch[2], host: sshMatch[1] };
+      // Plain user/repo
+      return { repoPath: trimmed, host: "github.com" };
+    }
+  };
+
   const handleRepoChange = (value: string) => {
-    const repoName = value.split("/")[1] ?? "";
+    const { repoPath } = parseGitUrl(value);
+    const repoName = repoPath.split("/")[1] ?? "";
     setNewApp((prev) => ({
       ...prev,
-      githubRepo: value,
+      githubRepo: value,          // store raw URL as typed
       name: prev.name || repoName,
     }));
   };
+
+  // Resolved repo path sent to backend
+  const resolvedRepo = parseGitUrl(newApp.githubRepo);
 
   // ── Env vars helpers ────────────────────────────────────────────────────────
   const addEnvVar = () => setEnvVars((prev) => [...prev, { key: "", value: "" }]);
@@ -117,7 +137,7 @@ export default function NodejsAppsPage() {
     if (sourceMode === "github") {
       return {
         ...base,
-        githubRepo: newApp.githubRepo,
+        githubRepo: resolvedRepo.repoPath,  // always send user/repo
         githubBranch: newApp.githubBranch || "main",
         installCmd: newApp.installCmd || "npm install",
         buildCmd: newApp.buildCmd || undefined,
@@ -360,14 +380,44 @@ export default function NodejsAppsPage() {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                   <div className="space-y-2 md:col-span-2">
-                    <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">Repositorio <span className="text-red-400">*</span></label>
+                    <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                      URL del Repositorio <span className="text-red-400">*</span>
+                    </label>
                     <div className="relative">
-                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-bold select-none">github.com/</span>
-                      <input type="text" value={newApp.githubRepo} onChange={(e) => handleRepoChange(e.target.value)}
-                        className="w-full bg-white border border-slate-200 rounded-2xl pl-[7.5rem] pr-6 py-4 text-slate-900 font-bold text-sm outline-none focus:border-[#00A3FF] transition-all"
-                        placeholder="usuario/repositorio"
+                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 pointer-events-none">
+                        <GitHubIcon className="w-4 h-4" />
+                      </span>
+                      <input
+                        type="url"
+                        value={newApp.githubRepo}
+                        onChange={(e) => handleRepoChange(e.target.value)}
+                        className="w-full bg-white border border-slate-200 rounded-2xl pl-10 pr-6 py-4 text-slate-900 font-mono font-bold text-sm outline-none focus:border-[#00A3FF] transition-all placeholder:font-sans placeholder:font-normal"
+                        placeholder="https://github.com/usuario/repositorio"
+                        spellCheck={false}
+                        autoComplete="off"
                       />
                     </div>
+                    {/* Live preview of resolved repo */}
+                    {newApp.githubRepo && (
+                      <div className="flex items-center gap-2 px-4 py-2 bg-slate-50 border border-slate-100 rounded-xl">
+                        <GitHubIcon className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                        <span className="text-[11px] font-mono font-bold text-slate-600 truncate">
+                          {resolvedRepo.host !== "github.com" && (
+                            <span className="text-slate-400">{resolvedRepo.host}/</span>
+                          )}
+                          {resolvedRepo.repoPath}
+                        </span>
+                        <a
+                          href={newApp.githubRepo.startsWith("http") ? newApp.githubRepo : `https://${resolvedRepo.host}/${resolvedRepo.repoPath}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="ml-auto text-[9px] font-black text-[#00A3FF] hover:underline flex items-center gap-1 shrink-0"
+                        >
+                          <span className="material-symbols-outlined text-[12px]">open_in_new</span>
+                          Abrir
+                        </a>
+                      </div>
+                    )}
                   </div>
                   <div className="space-y-2">
                     <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">Rama (Branch)</label>
@@ -516,11 +566,13 @@ export default function NodejsAppsPage() {
               </button>
 
               {sourceMode === "github" && newApp.githubRepo && (
-                <a href={`https://github.com/${newApp.githubRepo}`} target="_blank" rel="noopener noreferrer"
+                <a
+                  href={newApp.githubRepo.startsWith("http") ? newApp.githubRepo : `https://github.com/${resolvedRepo.repoPath}`}
+                  target="_blank" rel="noopener noreferrer"
                   className="flex items-center gap-2 text-[11px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-700 transition-colors"
                 >
-                  <span className="material-symbols-outlined text-[16px]">open_in_new</span>
-                  Ver en GitHub
+                  <GitHubIcon className="w-3.5 h-3.5" />
+                  Ver Repositorio
                 </a>
               )}
             </div>
