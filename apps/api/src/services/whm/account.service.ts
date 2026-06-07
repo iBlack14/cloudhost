@@ -1,5 +1,6 @@
 import { execSync } from "node:child_process";
 import os from "node:os";
+import nodemailer from "nodemailer";
 import { env } from "../../config/env.js";
 import { db } from "../../config/db.js";
 import {
@@ -360,9 +361,66 @@ export const resetWhmAccountPassword = async (accountId: string, newPassword?: s
     [userId, JSON.stringify({ accountId, username, email, method: "admin_reset" })]
   );
 
-  // Here we would normally send the email using a mail service.
-  // Since we don't have a real SMTP setup, we'll log it for the demo.
-  console.log(`[MAIL_SIMULATION] Password reset for ${username} (${email}). New password: ${generatedPass}`);
+  // Check SMTP settings in database configured by administrator
+  let smtpHost = "";
+  let smtpPort = 25;
+  let smtpUser = "";
+  let smtpPass = "";
+  let smtpSecure = false;
+
+  try {
+    const settingsRes = await db.query<{ key: string; value: string }>(
+      "SELECT key, value FROM server_settings WHERE key IN ('smtp_host', 'smtp_port', 'smtp_user', 'smtp_pass', 'smtp_secure')"
+    );
+    const settingsMap: Record<string, string> = {};
+    for (const row of settingsRes.rows) {
+      settingsMap[row.key] = row.value;
+    }
+    smtpHost = settingsMap.smtp_host || "";
+    smtpPort = parseInt(settingsMap.smtp_port || "25", 10);
+    smtpUser = settingsMap.smtp_user || "";
+    smtpPass = settingsMap.smtp_pass || "";
+    smtpSecure = settingsMap.smtp_secure === "true";
+  } catch {
+    // If settings table doesn't exist yet, fallback to env variables
+  }
+
+  const finalHost = smtpHost || env.SMTP_HOST;
+  const finalPort = smtpHost ? smtpPort : env.SMTP_PORT;
+  const finalUser = smtpHost ? smtpUser : env.SMTP_USER;
+  const finalPass = smtpHost ? smtpPass : env.SMTP_PASS;
+  const finalSecure = smtpHost ? smtpSecure : env.SMTP_SECURE;
+
+  // Send email if SMTP is configured either in DB or environment variables
+  if (finalHost && finalPort) {
+    try {
+      const transporter = nodemailer.createTransport({
+        host: finalHost,
+        port: finalPort,
+        secure: finalSecure,
+        auth: finalUser && finalPass ? {
+          user: finalUser,
+          pass: finalPass
+        } : undefined,
+        tls: {
+          rejectUnauthorized: false
+        }
+      });
+
+      await transporter.sendMail({
+        from: `"Odisea Cloud Admin" <admin@${finalHost}>`,
+        to: email,
+        subject: "Odisea Cloud - Contraseña Restablecida",
+        text: `Hola ${username},\n\nTu contraseña para la cuenta de hosting ha sido restablecida.\n\nNueva Contraseña: ${generatedPass}\n\nPor favor, inicia sesión y cámbiala lo antes posible.`
+      });
+      console.log(`[SMTP_SUCCESS] Password reset email sent to ${email} using config: ${finalHost}:${finalPort}`);
+    } catch (smtpError) {
+      console.error("[SMTP_ERROR] Failed to send password reset email:", smtpError);
+      console.log(`[MAIL_SIMULATION_FALLBACK] Password reset for ${username} (${email}). New password: ${generatedPass}`);
+    }
+  } else {
+    console.log(`[MAIL_SIMULATION] Password reset for ${username} (${email}). New password: ${generatedPass}`);
+  }
 
   return { password: generatedPass };
 };

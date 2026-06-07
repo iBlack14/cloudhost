@@ -43,19 +43,63 @@ export const exportAccount = async (username: string): Promise<string> => {
 };
 
 export const importAccount = async (filePath: string): Promise<void> => {
-   // Wait, if it receives a local tar.gz, it should untar to /home and import mysql dumps.
-   // Extract to temp, read config, provision user, db, untar. (Simulated)
    const tempDir = `/tmp/odisea_import_${Date.now()}`;
    await fs.mkdir(tempDir, { recursive: true });
    
-   await execAsync(`tar -xzf ${filePath} -C ${tempDir}`);
-   
-   // The files inside tempDir now contain the unzipped home directory and the sql dump.
-   // Wait, since this is complex to run reliably on the test VPS without explicit data,
-   // we wrap it gracefully.
+   try {
+     // 1. Extract backup file
+     await execAsync(`tar -xzf ${filePath} -C ${tempDir}`);
+     
+     // 2. Identify the username from extracted directories
+     const files = await fs.readdir(tempDir);
+     let username = "";
+     for (const file of files) {
+       const stat = await fs.stat(`${tempDir}/${file}`);
+       if (stat.isDirectory()) {
+         username = file;
+         break;
+       }
+     }
+     
+     if (!username) {
+       throw new Error("No se pudo detectar el directorio de usuario en el backup.");
+     }
+     
+     // 3. Ensure Linux User exists
+     try {
+       await execAsync(`id -u ${username}`);
+     } catch {
+       await execAsync(`useradd -m -s /bin/bash ${username}`);
+     }
+     
+     // 4. Copy files to the home directory
+     const targetHome = `/home/${username}`;
+     await fs.mkdir(targetHome, { recursive: true });
+     await execAsync(`cp -rp ${tempDir}/${username}/* ${targetHome}/`);
+     await execAsync(`chown -R ${username}:${username} ${targetHome}`);
+     
+     // 5. Look for SQL dump and restore it
+     const sqlDumpFile = `${tempDir}/db_dump_${username}.sql`;
+     const sqlExists = await fs.stat(sqlDumpFile).then(() => true).catch(() => false);
+     if (sqlExists) {
+       const rootPass = env.MYSQL_ROOT_PASSWORD;
+       // Restore dump inside docker MySQL container
+       await execAsync(`docker exec -i odisea-mysql mysql -uroot -p"${rootPass}" < ${sqlDumpFile}`);
+     }
+   } finally {
+     // 6. Clean up temporary files
+     await execAsync(`rm -rf ${tempDir}`).catch(() => {});
+   }
 };
 
 export const migrateViaSsh = async (host: string, pass: string, user: string): Promise<void> => {
-  // Remote Rsync mock
-  throw new Error("SSH Migrations requires RSA key exchanges dynamically. Scheduled for ODIN v2.0.");
+  const localBackupPath = `/tmp/remote_migration_${Date.now()}.tar.gz`;
+  try {
+    // Attempt remote backup copy via sshpass & scp
+    const cmd = `sshpass -p "${pass}" scp -o StrictHostKeyChecking=no ${user}@${host}:/backup.tar.gz ${localBackupPath}`;
+    await execAsync(cmd);
+    await importAccount(localBackupPath);
+  } finally {
+    await fs.rm(localBackupPath, { force: true }).catch(() => {});
+  }
 };

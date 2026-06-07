@@ -273,3 +273,20 @@ export const changeAccountPlan = async (accountId: string, planId: string): Prom
   });
   await parsePayload(response);
 };
+
+export const fetchSettings = async (): Promise<Record<string, string>> => {
+  const response = await fetch(`${API_BASE}/whm/settings`, {
+    cache: "no-store",
+    headers: withWhmAuth()
+  });
+  return parsePayload<Record<string, string>>(response);
+};
+
+export const saveSettings = async (settings: Record<string, string>): Promise<void> => {
+  const response = await fetch(`${API_BASE}/whm/settings`, {
+    method: "POST",
+    headers: withWhmAuth({ "Content-Type": "application/json" }),
+    body: JSON.stringify(settings)
+  });
+  await parsePayload(response);
+};

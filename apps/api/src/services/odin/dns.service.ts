@@ -1,4 +1,22 @@
 import { db } from "../../config/db.js";
+import os from "node:os";
+
+const getHostIp = (): string => {
+    if (process.env.VPS_IP) return process.env.VPS_IP;
+    try {
+        const interfaces = os.networkInterfaces();
+        for (const name of Object.keys(interfaces)) {
+            const iface = interfaces[name];
+            if (!iface) continue;
+            for (const entry of iface) {
+                if (entry.family === "IPv4" && !entry.internal) {
+                    return entry.address;
+                }
+            }
+        }
+    } catch {}
+    return "127.0.0.1";
+};
 
 export const ensureDnsTables = async () => {
     await db.query(`
@@ -47,8 +65,9 @@ export const getOrCreateZone = async (domainId: string, domainName: string) => {
     
     const zone = result.rows[0];
 
-    // Add default A record for the domain (Mock IP for now)
-    await addDnsRecord(zone.id, "@", "A", "1.2.3.4");
+    // Add default A record for the domain (Dynamic IP)
+    const hostIp = getHostIp();
+    await addDnsRecord(zone.id, "@", "A", hostIp);
     await addDnsRecord(zone.id, "www", "CNAME", domainName);
     await addDnsRecord(zone.id, "@", "MX", domainName, 10);
 

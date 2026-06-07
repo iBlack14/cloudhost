@@ -144,6 +144,53 @@ whmRouter.get("/dashboard", async (_req, res) => {
   }
 });
 
+whmRouter.get("/settings", async (_req, res) => {
+  try {
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS server_settings (
+          key VARCHAR(128) PRIMARY KEY,
+          value TEXT NOT NULL,
+          updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+    const result = await db.query("SELECT key, value FROM server_settings");
+    const settings: Record<string, string> = {};
+    for (const row of result.rows) {
+      settings[row.key] = row.value;
+    }
+    return res.status(200).json({ success: true, data: settings });
+  } catch (error) {
+    return res.status(500).json({ success: false, error: { message: "Error al obtener configuraciones" } });
+  }
+});
+
+whmRouter.post("/settings", async (req, res) => {
+  const settings = req.body;
+  if (typeof settings !== "object" || settings === null) {
+    return res.status(400).json({ success: false, error: { message: "Formato inválido" } });
+  }
+
+  const client = await db.connect();
+  try {
+    await client.query("BEGIN");
+    for (const [key, value] of Object.entries(settings)) {
+      await client.query(
+        `INSERT INTO server_settings (key, value, updated_at) 
+         VALUES ($1, $2, CURRENT_TIMESTAMP) 
+         ON CONFLICT (key) DO UPDATE SET value = $2, updated_at = CURRENT_TIMESTAMP`,
+        [key, String(value)]
+      );
+    }
+    await client.query("COMMIT");
+    return res.status(200).json({ success: true, message: "Configuración guardada exitosamente" });
+  } catch (error) {
+    await client.query("ROLLBACK");
+    return res.status(500).json({ success: false, error: { message: "Error al guardar configuraciones" } });
+  } finally {
+    client.release();
+  }
+});
+
 whmRouter.get("/plans", listWhmPlansHandler);
 whmRouter.post("/plans", createWhmPlanHandler);
 whmRouter.patch("/plans/:planId", updateWhmPlanHandler);
