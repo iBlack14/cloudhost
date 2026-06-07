@@ -1,6 +1,7 @@
 import type { Request, Response } from "express";
 import { z } from "zod";
-import { installWordPress, listUserWpSites, getWpSiteById, deleteWordPress } from "../../services/odin/wordpress.service.js";
+import { installWordPress, listUserWpSites, getWpSiteById, deleteWordPress, fetchWpVersions, updateWordPress } from "../../services/odin/wordpress.service.js";
+
 import { getUserId } from "../../utils/get-user-id.js";
 
 import { installWpSchema } from "@odisea/types";
@@ -153,5 +154,33 @@ export const generateSsoUrlHandler = async (req: Request, res: Response): Promis
     return res.status(200).json({ success: true, data: { url: ssoUrl } });
   } catch (error) {
     return res.status(500).json({ success: false, error: { message: error instanceof Error ? error.message : "Error al generar SSO" } });
+  }
+};
+
+// GET /wordpress/versions — returns available WP versions from WordPress.org API
+export const wpVersionsHandler = async (_req: Request, res: Response): Promise<Response> => {
+  try {
+    const versions = await fetchWpVersions();
+    return res.status(200).json({ success: true, data: versions });
+  } catch (error) {
+    return res.status(500).json({ success: false, error: { message: "No se pudieron obtener las versiones" } });
+  }
+};
+
+// POST /wordpress/:id/update — backup first, then wp core update
+export const updateWpHandler = async (req: Request, res: Response): Promise<Response> => {
+  const parsedParams = siteIdParamSchema.safeParse(req.params);
+  if (!parsedParams.success) return res.status(400).json({ success: false, error: { message: "ID no válido" } });
+
+  try {
+    const userId = await getUserId(req);
+    const result = await updateWordPress(parsedParams.data.id, userId);
+    return res.status(200).json({ success: true, data: result });
+  } catch (error) {
+    console.error("[odin:wordpress:update:error]", error);
+    return res.status(500).json({
+      success: false,
+      error: { message: error instanceof Error ? error.message : "Error al actualizar WordPress" }
+    });
   }
 };

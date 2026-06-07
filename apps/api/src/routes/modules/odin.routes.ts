@@ -7,7 +7,9 @@ import {
   listWpSitesHandler, 
   getWpSiteByIdHandler, 
   deleteWpSiteHandler,
-  generateSsoUrlHandler 
+  generateSsoUrlHandler,
+  wpVersionsHandler,
+  updateWpHandler
 } from "../../controllers/odin/wordpress.controller.js";
 import { 
   listDomainsHandler, 
@@ -32,6 +34,12 @@ import {
   downloadFileHandler, 
   uploadFileHandler 
 } from "../../controllers/odin/file.controller.js";
+import {
+  listBackupsHandler,
+  createBackupHandler,
+  downloadBackupHandler,
+  deleteBackupHandler,
+} from "../../controllers/odin/backup.controller.js";
 import {
   getVersionsHandler,
   getCurrentPhpHandler,
@@ -97,7 +105,7 @@ odinRouter.get("/dashboard", async (req, res) => {
 
     await Promise.all([ensureNodejsTables(), ensurePythonTables()]);
     
-    const [accountRes, servicesRes, databasesRes] = await Promise.all([
+    const [accountRes, servicesRes, databasesRes, userRes] = await Promise.all([
       db.query(`
         SELECT ha.disk_used_mb, p.name as plan_name, p.disk_quota_mb
         FROM hosting_accounts ha
@@ -124,12 +132,14 @@ odinRouter.get("/dashboard", async (req, res) => {
             )::text AS databases
         `,
         [userId]
-      )
+      ),
+      db.query(`SELECT username FROM users WHERE id = $1 LIMIT 1`, [userId])
     ]);
 
     const account = accountRes.rows[0];
     const services = servicesRes.rows[0];
     const databaseSummary = databasesRes.rows[0];
+    const osUsername: string = (userRes.rows[0]?.username ?? "").replace(/[^a-z0-9]/gi, "_").toLowerCase();
 
     const diskUsed = Number(account?.disk_used_mb || 0);
     const diskLimit = Number(account?.disk_quota_mb || 1024);
@@ -170,7 +180,8 @@ odinRouter.get("/dashboard", async (req, res) => {
           plan: account?.plan_name || "Free", 
           diskUsed,
           diskLimit,
-          diskPercent
+          diskPercent,
+          username: osUsername
         },
         services: { 
           domains: parseInt(services?.domains || "0"), 
@@ -199,8 +210,10 @@ odinRouter.get("/dashboard", async (req, res) => {
 });
 
 odinRouter.get("/wordpress", listWpSitesHandler);
+odinRouter.get("/wordpress/versions", wpVersionsHandler);    // must be before /:id
 odinRouter.get("/wordpress/:id", getWpSiteByIdHandler);
 odinRouter.post("/wordpress/:id/sso", generateSsoUrlHandler);
+odinRouter.post("/wordpress/:id/update", updateWpHandler);
 odinRouter.delete("/wordpress/:id", deleteWpSiteHandler);
 odinRouter.post("/wordpress/install", installWpHandler);
 
@@ -241,6 +254,12 @@ odinRouter.post("/files/extract", extractHandler);            // ZIP + TAR
 odinRouter.patch("/files/chmod", chmodHandler);               // chmod
 odinRouter.get("/files/download", downloadFileHandler);
 odinRouter.post("/files/upload", upload.array("files"), uploadFileHandler);
+
+// ── Backup routes ──────────────────────────────────────────────────
+odinRouter.get   ("/backups",          listBackupsHandler);   // GET  /backups
+odinRouter.post  ("/backups",          createBackupHandler);   // POST /backups
+odinRouter.get   ("/backups/download",  downloadBackupHandler); // GET  /backups/download?name=...
+odinRouter.delete("/backups",           deleteBackupHandler);   // DELETE /backups?name=...
 
 // ── Multi-PHP routes ─────────────────────────────────────────────────────────
 odinRouter.get("/php/versions",   getVersionsHandler);         // Versiones en el servidor

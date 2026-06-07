@@ -6,6 +6,7 @@ import { db } from "../../config/db.js";
 import path from "node:path";
 import fs from "node:fs/promises";
 import { createReadStream } from "node:fs";
+import { INDEX_TEMPLATE, ERROR_404_TEMPLATE, ERROR_500_TEMPLATE, ERROR_503_TEMPLATE } from "../../utils/html-templates.js";
 
 // We require multer for file uploads if needed, but for simplicity we can do raw byte upload or base64 
 // if it's small, but typical file managers use multipart. Let's assume multer in the router.
@@ -24,6 +25,29 @@ const getBaseUserPath = async (userId: string): Promise<string> => {
   return path.join("/home", username);
 };
 
+async function ensureDefaultUserFiles(basePath: string) {
+  try {
+    const pubHtml = path.join(basePath, "public_html");
+    const indexPath = path.join(pubHtml, "index.html");
+    
+    // Check if index.html already exists to avoid overwriting existing sites
+    const exists = await fs.stat(indexPath).then(() => true).catch(() => false);
+    if (!exists) {
+      await fs.mkdir(pubHtml, { recursive: true }).catch(() => {});
+      await fs.mkdir(path.join(basePath, "mail"), { recursive: true }).catch(() => {});
+      await fs.mkdir(path.join(basePath, "logs"), { recursive: true }).catch(() => {});
+      await fs.mkdir(path.join(basePath, "tmp"), { recursive: true }).catch(() => {});
+      
+      await fs.writeFile(indexPath, INDEX_TEMPLATE, "utf8");
+      await fs.writeFile(path.join(pubHtml, "404.html"), ERROR_404_TEMPLATE, "utf8");
+      await fs.writeFile(path.join(pubHtml, "500.html"), ERROR_500_TEMPLATE, "utf8");
+      await fs.writeFile(path.join(pubHtml, "503.html"), ERROR_503_TEMPLATE, "utf8");
+    }
+  } catch (err) {
+    console.error("Error provisioning default files:", err);
+  }
+}
+
 export const listFilesHandler = async (req: Request, res: Response): Promise<Response> => {
   try {
     const userId = await getUserId(req);
@@ -32,6 +56,7 @@ export const listFilesHandler = async (req: Request, res: Response): Promise<Res
     
     // Ensure base directory exists just in case
     await fs.mkdir(basePath, { recursive: true }).catch(() => {});
+    await ensureDefaultUserFiles(basePath);
 
     const files = await fileService.listFiles(basePath, p);
     return res.status(200).json({ success: true, data: files });

@@ -81,7 +81,7 @@ export default function UserDashboardPage() {
               title="Bases de Datos" 
               icon="database" 
               items={[
-                { label: "phpMyAdmin", icon: "data_exploration", href: "/databases/phpmyadmin" },
+                { label: "phpMyAdmin", icon: "data_exploration", href: "/databases" },
                 { label: "MySQL Databases", icon: "database", href: "/databases" },
                 { label: "Database Wizard", icon: "magic_button", href: "/databases/wizard" },
                 { label: "Remote MySQL", icon: "settings_remote", href: "/databases/remote" },

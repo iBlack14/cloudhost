@@ -45,7 +45,8 @@ export function Sidebar() {
            <div className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-4 ml-4">Aplicaciones</div>
         </div>
         <NavItem href="/wordpress" icon="deployed_code" label="WordPress" active={pathname.startsWith("/wordpress")} />
-        <NavItem href="/files" icon="folder" label="Archivos" active={pathname.startsWith("/files")} />
+        <NavItem href="/files" icon="folder" label="Archivos" active={pathname === "/files" || (pathname.startsWith("/files") && !pathname.startsWith("/files/backup"))} />
+        <NavItem href="/files/backup" icon="folder_zip" label="Backups" active={pathname.startsWith("/files/backup")} />
         <NavItem href="/databases" icon="database" label="Bases de Datos" active={pathname.startsWith("/databases")} />
         <NavItem href="/domains" icon="language" label="Dominios" active={pathname.startsWith("/domains")} />
 

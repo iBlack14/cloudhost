@@ -192,6 +192,12 @@ export const installWordPress = async (input: {
   siteTitle: string;
   adminUser: string;
   adminPass: string;
+  adminEmail?: string;
+  wpVersion?: string;
+  phpVersion?: string;
+  dbName?: string;
+  dbUser?: string;
+  tablePrefix?: string;
 }): Promise<{
   id: string;
   domain: string;
@@ -204,6 +210,29 @@ export const installWordPress = async (input: {
     body: JSON.stringify(input)
   });
   return parsePayload(response);
+};
+
+export interface WpVersionInfo {
+  version: string;
+  label: string;
+  isCurrent: boolean;
+  isLegacy?: boolean;
+  releaseDate?: string;
+}
+
+export const fetchWpVersions = async (): Promise<WpVersionInfo[]> => {
+  const response = await fetch(`${API_BASE}/odin-panel/wordpress/versions`, {
+    headers: withOdinAuth()
+  });
+  return parsePayload<WpVersionInfo[]>(response);
+};
+
+export const updateWpSite = async (id: string): Promise<{ newVersion: string; backupPath: string }> => {
+  const response = await fetch(`${API_BASE}/odin-panel/wordpress/${id}/update`, {
+    method: "POST",
+    headers: withOdinAuth()
+  });
+  return parsePayload<{ newVersion: string; backupPath: string }>(response);
 };
 
 export const fetchDomains = async (): Promise<DomainRecord[]> => {
@@ -272,6 +301,7 @@ export interface OdinDashboardStats {
     diskUsed: number;
     diskLimit: number;
     diskPercent: number;
+    username: string;
   };
   services: {
     domains: number;

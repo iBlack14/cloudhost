@@ -84,9 +84,15 @@ export const ensureNodejsTables = async () => {
           domain TEXT,
           port INTEGER NOT NULL,
           env_vars JSONB DEFAULT '{}'::jsonb,
+          github_repo TEXT,
+          github_branch TEXT DEFAULT 'main',
           created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
           updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
       );
+
+      -- Idempotent migrations for existing tables
+      ALTER TABLE nodejs_apps ADD COLUMN IF NOT EXISTS github_repo TEXT;
+      ALTER TABLE nodejs_apps ADD COLUMN IF NOT EXISTS github_branch TEXT DEFAULT 'main';
    `);
 };
 
@@ -116,25 +122,105 @@ export const getAppsQuery = async (userId: string) => {
    }
 };
 
-export const createAppQuery = async (userId: string, data: { name: string, version: string, path: string, script: string, domain: string, port: number }) => {
-   await ensureNodejsTables();
-   const appRoot = path.resolve(data.path);
-   const entryFile = path.resolve(appRoot, data.script);
+interface CreateAppData {
+   name: string;
+   version: string;
+   path: string;
+   script: string;
+   domain: string;
+   port: number;
+   // GitHub source (optional)
+   githubRepo?: string;
+   githubBranch?: string;
+   installCmd?: string;
+   buildCmd?: string;
+   startCmd?: string;
+   // Domain-linked path: if set, resolve appRoot from user home + domainName
+   linkedDomain?: string;
+   // Env vars at creation time
+   envVars?: Record<string, string>;
+}
 
+/** Resolve the user's home directory from their userId (same logic as file.controller) */
+const getUserHomePath = async (userId: string): Promise<string> => {
+   const result = await db.query("SELECT username FROM users WHERE id = $1", [userId]);
+   if (result.rowCount === 0) throw new Error("Usuario no encontrado");
+   const username = (result.rows[0].username as string).replace(/[^a-z0-9]/gi, "_").toLowerCase();
+   if (process.platform === "win32") {
+      return path.join(process.cwd(), ".odin-home", username);
+   }
+   return path.join("/home", username);
+};
+
+export const createAppQuery = async (userId: string, data: CreateAppData) => {
+   await ensureNodejsTables();
+
+   // ── Resolve the installation path ──────────────────────────────────────────
+   // If the user picked a domain from their list, resolve path from user home.
+   // Otherwise fall back to the explicit path field.
+   let appRoot: string;
+   if (data.linkedDomain) {
+      const userHome = await getUserHomePath(userId);
+      appRoot = path.join(userHome, data.linkedDomain);
+   } else {
+      appRoot = path.resolve(data.path);
+   }
+
+   const envVarsJson = data.envVars && Object.keys(data.envVars).length > 0
+      ? data.envVars
+      : {};
+
+   // ── GitHub source: clone the repository ────────────────────────────────────
+   if (data.githubRepo) {
+      const repoUrl = `https://github.com/${data.githubRepo}.git`;
+      const branch  = data.githubBranch || "main";
+
+      await fs.mkdir(path.dirname(appRoot), { recursive: true });
+
+      const existing = await fs.stat(appRoot).catch(() => null);
+      if (existing) {
+         await fs.rm(appRoot, { recursive: true, force: true });
+      }
+
+      await execAsync(
+         `git clone --depth=1 --branch ${quoteShellArg(branch)} ${quoteShellArg(repoUrl)} ${quoteShellArg(appRoot)}`,
+         { timeout: 120_000 }
+      );
+
+      const installCmd = data.installCmd || "npm install";
+      await execAsync(installCmd, { cwd: appRoot, timeout: 180_000 });
+
+      if (data.buildCmd) {
+         await execAsync(data.buildCmd, { cwd: appRoot, timeout: 180_000 });
+      }
+
+      const resolvedScript = data.startCmd ? data.startCmd.split(" ")[0] : data.script || "index.js";
+
+      const res = await db.query(
+         `INSERT INTO nodejs_apps (user_id, name, version, path, script, domain, port, env_vars, github_repo, github_branch)
+          VALUES ($1,$2,$3,$4,$5,$6,$7,$8::jsonb,$9,$10) RETURNING *`,
+         [userId, data.name, data.version || DEFAULT_NODE_VERSION, appRoot, resolvedScript,
+          data.domain, data.port, JSON.stringify(envVarsJson), data.githubRepo, branch]
+      );
+      return res.rows[0];
+   }
+
+   // ── Manual source: directory must already exist ─────────────────────────────
    const appRootStat = await fs.stat(appRoot).catch(() => null);
    if (!appRootStat?.isDirectory()) {
       throw new Error(`Application root no existe: ${appRoot}`);
    }
 
+   const entryFile = path.resolve(appRoot, data.script);
    const entryStat = await fs.stat(entryFile).catch(() => null);
    if (!entryStat?.isFile()) {
       throw new Error(`Startup file no existe: ${entryFile}`);
    }
 
    const res = await db.query(
-      `INSERT INTO nodejs_apps (user_id, name, version, path, script, domain, port) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
-      [userId, data.name, data.version || DEFAULT_NODE_VERSION, appRoot, data.script, data.domain, data.port]
+      `INSERT INTO nodejs_apps (user_id, name, version, path, script, domain, port, env_vars)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb) RETURNING *`,
+      [userId, data.name, data.version || DEFAULT_NODE_VERSION, appRoot, data.script, data.domain, data.port, JSON.stringify(envVarsJson)]
    );
    return res.rows[0];
 };

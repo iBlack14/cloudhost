@@ -23,7 +23,17 @@ export const createAppHandler = async (req: Request, res: Response): Promise<Res
      path: z.string(),
      script: z.string(),
      domain: z.string(),
-     port: z.number().int().min(1024).max(65535)
+     port: z.number().int().min(1024).max(65535),
+     // GitHub source fields (optional)
+     githubRepo:   z.string().optional(),
+     githubBranch: z.string().optional(),
+     installCmd:   z.string().optional(),
+     buildCmd:     z.string().optional(),
+     startCmd:     z.string().optional(),
+     // Domain-linked path
+     linkedDomain: z.string().optional(),  // domain_name selected from the user's domain list
+     // Env vars at creation time
+     envVars: z.record(z.string()).optional(),
   });
 
   const parsed = schema.safeParse(req.body);
@@ -37,6 +47,7 @@ export const createAppHandler = async (req: Request, res: Response): Promise<Res
     return res.status(500).json({ success: false, error: { message: getErrorMessage(error, "Error al registrar la aplicación.") } });
   }
 };
+
 
 export const deleteAppHandler = async (req: Request, res: Response): Promise<Response> => {
   try {

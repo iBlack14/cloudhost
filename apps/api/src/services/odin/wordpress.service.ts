@@ -24,6 +24,10 @@ export interface InstallWpInput {
   wpVersion?: string;
   phpVersion?: PhpVersion;
   protocol?: string;
+  // Optional overrides from the frontend wizard
+  dbName?: string;
+  dbUser?: string;
+  tablePrefix?: string;
 }
 
 const sanitize = (str: string) => str.replace(/[^a-z0-9]/gi, "_").toLowerCase();
@@ -147,8 +151,7 @@ export const installWordPress = async (input: InstallWpInput) => {
 
   const normalizedDomain = domain.trim().toLowerCase();
   const suffix = Date.now().toString().slice(-4);
-  const dbName = `wp_${sanitize(normalizedDomain)}_${suffix}`;
-  const dbUser = `u_${sanitize(adminUser).slice(0, 16)}_${suffix}`;
+  const tablePrefix = (input.tablePrefix && input.tablePrefix.trim()) ? input.tablePrefix.trim() : "wp_";
   const dbPassword = randomBytes(16).toString("hex");
 
   const client = await db.connect();
@@ -156,10 +159,15 @@ export const installWordPress = async (input: InstallWpInput) => {
   try {
     await client.query("BEGIN");
 
-    // Get the user's username for the linux OS path
+    // Get the user's username for the linux OS path AND DB prefix (cPanel convention)
     const userResult = await client.query("SELECT username FROM users WHERE id = $1", [userId]);
     if (userResult.rowCount === 0) throw new Error("Usuario no encontrado");
     const osUsername = sanitize(userResult.rows[0].username);
+
+    // cPanel convention: username_suffix  (e.g. blxkstudio_a3f2)
+    // Use frontend-provided values if available, otherwise auto-generate
+    const dbName = input.dbName ?? `${osUsername}_${suffix}`;
+    const dbUser = input.dbUser ?? `${osUsername}_${suffix}`;
 
     const created = await client.query(
       `INSERT INTO wordpress_sites (
@@ -172,7 +180,7 @@ export const installWordPress = async (input: InstallWpInput) => {
         input.accountId ?? null,
         siteTitle,
         normalizedDomain,
-        directory ? `${normalizedDomain}/${directory}` : normalizedDomain,
+        directory ? `${normalizedDomain}/${directory}` : normalizedDomain, // placeholder — updated below
         input.wpVersion ?? "6.4.3",
         "8.3",
         dbName,
@@ -181,11 +189,32 @@ export const installWordPress = async (input: InstallWpInput) => {
         adminUser
       ]
     );
+    const siteId = created.rows[0].id as string;
 
-    const wpId = created.rows[0].id as string;
-    const siteDir = directory ? `/${directory}` : "";
-    const siteUrl = `${input.protocol ?? "http://"}${normalizedDomain}${siteDir}`;
-    const targetPath = `/home/${osUsername}/public_html${siteDir}`;
+    // ── Resolve the primary domain of this account ───────────────────────────
+    // The primary domain is stored as `domain` in the accounts (WHM) table.
+    // If the user picks an addon domain, we install into ~/domain.com/
+    // If the user picks the primary domain, we install into ~/public_html/
+    const accountResult = await client.query(
+      "SELECT domain FROM accounts WHERE user_id = $1 ORDER BY created_at ASC LIMIT 1",
+      [userId]
+    );
+    const primaryDomain = accountResult.rows[0]?.domain as string | undefined;
+    const isPrimaryDomain = primaryDomain && normalizedDomain === primaryDomain.trim().toLowerCase();
+
+    // Base path inside home:
+    //   primary domain → public_html/[optional subdirectory]
+    //   addon domain   → dominio.com/[optional subdirectory]
+    const homeBase   = isPrimaryDomain ? "public_html" : normalizedDomain;
+    const siteDir    = directory ? `/${directory}` : "";
+    const targetPath = `/home/${osUsername}/${homeBase}${siteDir}`;
+    const siteUrl    = `${input.protocol ?? "http://"}${normalizedDomain}${siteDir}`;
+
+    // Update install_path in the DB now that we have the resolved path
+    await client.query(
+      "UPDATE wordpress_sites SET install_path = $1 WHERE id = $2",
+      [targetPath, siteId]
+    );
 
     try {
       // 1. Ensure Linux User
@@ -224,7 +253,7 @@ export const installWordPress = async (input: InstallWpInput) => {
 
       console.log(`[odin:wordpress] Configuring wp-config.php for ${normalizedDomain}...`);
       await execAsync(`rm -f ${targetPath}/wp-config.php`); // Delete if exists
-      await execAsync(`wp core config --path=${targetPath} --dbname=${dbName} --dbuser=${dbUser} --dbpass=${dbPassword} --dbhost=127.0.0.1:${env.MYSQL_HOST_PORT} --allow-root`);
+      await execAsync(`wp core config --path=${targetPath} --dbname=${dbName} --dbuser=${dbUser} --dbpass=${dbPassword} --dbhost=127.0.0.1:${env.MYSQL_HOST_PORT} --dbprefix=${tablePrefix} --allow-root`);
 
       console.log(`[odin:wordpress] Installing WordPress core for ${normalizedDomain}...`);
       await execAsync(`wp core install --path=${targetPath} --url='${siteUrl}' --title='${siteTitle}' --admin_user='${adminUser}' --admin_password='${input.adminPass}' --admin_email='${input.adminEmail}' --skip-email --allow-root`);
@@ -272,7 +301,7 @@ php_admin_value[max_input_time] = 300
 server {
     listen 80;
     server_name ${normalizedDomain} www.${normalizedDomain};
-    root /home/${osUsername}/public_html${siteDir};
+    root ${targetPath};
     index index.php index.html index.htm;
     client_max_body_size 100M;
     
@@ -324,7 +353,7 @@ server {
     } catch (error) {
       await client.query(
         "UPDATE wordpress_sites SET status = 'provisioning_failed', runtime = $1::jsonb WHERE id = $2",
-        [JSON.stringify({ error: error instanceof Error ? error.message : String(error) }), wpId]
+        [JSON.stringify({ error: error instanceof Error ? error.message : String(error) }), siteId]
       );
       throw error;
     }
@@ -334,7 +363,7 @@ server {
        SET admin_url = $1,
            status = 'pending_verification'
        WHERE id = $2`,
-      [`https://${normalizedDomain}/wp-admin`, wpId]
+      [`https://${normalizedDomain}/wp-admin`, siteId]
     );
 
     await client.query(
@@ -342,7 +371,7 @@ server {
        VALUES ($1, 'install_wordpress', 'wordpress_site', $2::jsonb)`,
       [
         userId,
-        JSON.stringify({ wpId, domain: normalizedDomain, dbName, osUsername })
+        JSON.stringify({ siteId, domain: normalizedDomain, dbName, osUsername, installPath: targetPath })
       ]
     );
 
@@ -351,10 +380,11 @@ server {
     return {
       success: true,
       data: {
-        id: wpId,
+        id: siteId,
         domain: normalizedDomain,
         dbName,
         osUsername,
+        installPath: targetPath,
         adminUrl: `https://${normalizedDomain}/wp-admin`,
         status: "pending_verification"
       }
@@ -469,4 +499,102 @@ add_action('init', function () {
 
   const protocol = site.runtime?.endpoint?.startsWith("https") ? "https" : "http";
   return `${protocol}://${site.domain}/?odin_sso=${token}`;
+};
+
+// ---------------------------------------------------------------------------
+// WordPress Versions — fetched live from WordPress.org API, cached 1h
+// ---------------------------------------------------------------------------
+let _wpVersionsCache: { versions: WpVersionInfo[]; fetchedAt: number } | null = null;
+const WP_VERSIONS_CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
+
+export interface WpVersionInfo {
+  version: string;
+  label: string;
+  isCurrent: boolean;     // true = latest stable
+  isLegacy?: boolean;     // true = older releases
+  releaseDate?: string;
+}
+
+export const fetchWpVersions = async (): Promise<WpVersionInfo[]> => {
+  const now = Date.now();
+  if (_wpVersionsCache && now - _wpVersionsCache.fetchedAt < WP_VERSIONS_CACHE_TTL_MS) {
+    return _wpVersionsCache.versions;
+  }
+
+  try {
+    const res = await fetch("https://api.wordpress.org/core/version-check/1.7/", {
+      signal: AbortSignal.timeout(8000)
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json() as { offers: Array<{ version: string; response: string; release_date?: string }> };
+
+    const seen = new Set<string>();
+    const versions: WpVersionInfo[] = [];
+
+    for (const offer of data.offers ?? []) {
+      if (!offer.version || seen.has(offer.version)) continue;
+      seen.add(offer.version);
+      const isCurrent = offer.response === "upgrade" || versions.length === 0;
+      versions.push({
+        version: offer.version,
+        label: `WP ${offer.version}${isCurrent && versions.length === 0 ? " ✔ Stable" : ""}`,
+        isCurrent: versions.length === 0, // first entry = latest
+        isLegacy: versions.length > 3,
+        releaseDate: offer.release_date
+      });
+    }
+
+    _wpVersionsCache = { versions, fetchedAt: now };
+    return versions;
+  } catch (err) {
+    console.error("[odin:wordpress:versions:error]", err);
+    // Fallback minimal list
+    return [
+      { version: "latest", label: "WP Latest ✔ Stable", isCurrent: true },
+      { version: "6.8",    label: "WP 6.8", isCurrent: false },
+      { version: "6.7",    label: "WP 6.7", isCurrent: false },
+      { version: "6.4.3",  label: "WP 6.4.3", isCurrent: false, isLegacy: true }
+    ];
+  }
+};
+
+// ---------------------------------------------------------------------------
+// Update WordPress — backup first, then wp core update, then record new version
+// ---------------------------------------------------------------------------
+export const updateWordPress = async (siteId: string, userId: string): Promise<{ success: boolean; newVersion: string; backupPath: string }> => {
+  const siteRes = await db.query(
+    `SELECT ws.*, u.username FROM wordpress_sites ws
+     INNER JOIN users u ON u.id = ws.user_id
+     WHERE ws.id = $1 AND ws.user_id = $2`,
+    [siteId, userId]
+  );
+  if (!siteRes.rowCount || siteRes.rowCount === 0) throw new Error("Sitio no encontrado");
+  const site = siteRes.rows[0];
+  const targetPath = site.install_path;
+  const osUsername = sanitize(site.username);
+
+  // 1. Create timestamped backup of the WP directory
+  const ts = new Date().toISOString().replace(/[:.]/g, "-");
+  const backupDir = `/home/${osUsername}/backups/wp`;
+  const backupFile = `${backupDir}/${site.domain}_pre-update_${ts}.tar.gz`;
+
+  await execAsync(`mkdir -p ${backupDir}`);
+  await execAsync(`tar -czf ${backupFile} -C ${targetPath} . 2>/dev/null || true`);
+  console.log(`[odin:wordpress:update] Backup creado: ${backupFile}`);
+
+  // 2. Run wp core update
+  await execAsync(`wp core update --path=${targetPath} --allow-root`);
+  console.log(`[odin:wordpress:update] Core actualizado para ${site.domain}`);
+
+  // 3. Get new version
+  const { stdout } = await execAsync(`wp core version --path=${targetPath} --allow-root`);
+  const newVersion = stdout.trim();
+
+  // 4. Update DB record
+  await db.query(
+    `UPDATE wordpress_sites SET wp_version = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2`,
+    [newVersion, siteId]
+  );
+
+  return { success: true, newVersion, backupPath: backupFile };
 };
