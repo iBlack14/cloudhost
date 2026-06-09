@@ -321,19 +321,26 @@ export const changeWhmAccountPlanHandler = async (req: Request, res: Response): 
     });
   }
 
-  const schema = z.object({ planId: z.string().uuid() });
+  const schema = z.object({ 
+    planId: z.string().uuid(),
+    durationMonths: z.number().int().optional()
+  });
   const parsedBody = schema.safeParse(req.body);
 
   if (!parsedBody.success) {
     return res.status(422).json({
       success: false,
-      error: { code: "VALIDATION_ERROR", message: "planId inválido" }
+      error: { code: "VALIDATION_ERROR", message: "Plan ID inválido o parámetros incorrectos" }
     });
   }
 
   try {
-    await changeWhmAccountPlan(parsedParams.data.accountId, parsedBody.data.planId);
-    return res.status(200).json({ success: true, data: { message: "Plan actualizado correctamente" } });
+    await changeWhmAccountPlan(
+      parsedParams.data.accountId, 
+      parsedBody.data.planId,
+      parsedBody.data.durationMonths
+    );
+    return res.status(200).json({ success: true, data: { message: "Plan y periodo de suscripción actualizados correctamente" } });
   } catch (error) {
     if (error instanceof Error && error.message === "ACCOUNT_NOT_FOUND") {
       return res.status(404).json({ success: false, error: { message: "Cuenta no encontrada" } });

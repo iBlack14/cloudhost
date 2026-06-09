@@ -302,6 +302,7 @@ export interface OdinDashboardStats {
     diskLimit: number;
     diskPercent: number;
     username: string;
+    expiresAt?: string | null;
   };
   services: {
     domains: number;

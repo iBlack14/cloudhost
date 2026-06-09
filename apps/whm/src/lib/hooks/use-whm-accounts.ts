@@ -117,7 +117,7 @@ export const useChangeWhmAccountPlan = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ accountId, planId }: { accountId: string; planId: string }) => changeAccountPlan(accountId, planId),
+    mutationFn: ({ accountId, planId, durationMonths }: { accountId: string; planId: string; durationMonths?: number }) => changeAccountPlan(accountId, planId, durationMonths),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["whm-accounts"] });
     }

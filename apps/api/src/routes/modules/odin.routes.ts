@@ -48,6 +48,7 @@ import {
   getExtensionsHandler,
 } from "../../controllers/odin/php.controller.js";
 import { getDomainSslStatusHandler, issueSslHandler } from "../../controllers/odin/ssl.controller.js";
+import { getDnsZoneHandler, addDnsRecordHandler, deleteDnsRecordHandler } from "../../controllers/odin/dns.controller.js";
 import {
   listAppsHandler,
   createAppHandler,
@@ -85,6 +86,7 @@ const heavyOpLimiter = rateLimit({
   keyGenerator: (req) => (req as any).auth?.userId ?? req.ip ?? "anon",
   standardHeaders: true,
   legacyHeaders: false,
+  validate: { trustProxy: false },
   message: { success: false, error: { code: "RATE_LIMIT", message: "Demasiadas solicitudes. Espera un momento." } }
 });
 
@@ -107,7 +109,7 @@ odinRouter.get("/dashboard", async (req, res) => {
 
     const [accountRes, servicesRes, databasesRes, userRes, sys] = await Promise.all([
       db.query(`
-        SELECT ha.disk_used_mb, p.name as plan_name, p.disk_quota_mb
+        SELECT ha.disk_used_mb, p.name as plan_name, p.disk_quota_mb, u.plan_expires_at
         FROM hosting_accounts ha
         INNER JOIN users u ON u.id = ha.user_id
         LEFT JOIN plans p ON p.id = u.plan_id
@@ -152,7 +154,8 @@ odinRouter.get("/dashboard", async (req, res) => {
           diskUsed,
           diskLimit,
           diskPercent,
-          username: osUsername
+          username: osUsername,
+          expiresAt: account?.plan_expires_at || null
         },
         services: {
           domains:   parseInt(services?.domains   || "0"),
@@ -241,6 +244,11 @@ odinRouter.get("/php/extensions", getExtensionsHandler);       // Extensiones di
 // ── Auto SSL ─────────────────────────────────────────────────────────────────
 odinRouter.get("/domains/:domainId/ssl", getDomainSslStatusHandler);
 odinRouter.post("/domains/:domainId/ssl/issue", issueSslHandler);
+
+// ── DNS / Zone Editor ────────────────────────────────────────────────────────
+odinRouter.get("/domains/:id/dns", getDnsZoneHandler);
+odinRouter.post("/dns/zones/:zoneId/records", addDnsRecordHandler);
+odinRouter.delete("/dns/records/:recordId", deleteDnsRecordHandler);
 
 // ── Node.js / PM2 Integrations ──────────────────────────────────────────────
 odinRouter.get("/nodejs", listAppsHandler);

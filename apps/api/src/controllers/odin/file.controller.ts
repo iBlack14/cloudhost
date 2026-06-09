@@ -240,9 +240,35 @@ import { exec } from "node:child_process";
 import { promisify } from "node:util";
 const execAsync2 = promisify(exec);
 
+interface DiskUsageCacheEntry {
+  data: {
+    totalBytes: number;
+    totalMb: number;
+    diskLimit: number;
+    diskPercent: number;
+    basePath: string;
+    breakdown: { name: string; bytes: number; mb: number }[];
+  };
+  timestamp: number;
+}
+
+const diskUsageCache = new Map<string, DiskUsageCacheEntry>();
+const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+
 export const diskUsageHandler = async (req: Request, res: Response): Promise<Response> => {
   try {
     const userId = await getUserId(req);
+
+    // Check cache
+    const now = Date.now();
+    const cached = diskUsageCache.get(userId);
+    if (cached && (now - cached.timestamp < CACHE_TTL_MS)) {
+      return res.status(200).json({
+        success: true,
+        data: cached.data
+      });
+    }
+
     const basePath = await getBaseUserPath(userId);
 
     // Ensure directory exists
@@ -326,16 +352,23 @@ export const diskUsageHandler = async (req: Request, res: Response): Promise<Res
     const diskLimit = Number(planRes.rows[0]?.disk_quota_mb ?? 1024);
     const diskPercent = diskLimit > 0 ? Math.round((totalMb / diskLimit) * 100 * 10) / 10 : 0;
 
+    const responseData = {
+      totalBytes,
+      totalMb,
+      diskLimit,
+      diskPercent,
+      basePath,
+      breakdown: breakdown.sort((a, b) => b.bytes - a.bytes)
+    };
+
+    diskUsageCache.set(userId, {
+      data: responseData,
+      timestamp: now
+    });
+
     return res.status(200).json({
       success: true,
-      data: {
-        totalBytes,
-        totalMb,
-        diskLimit,
-        diskPercent,
-        basePath,
-        breakdown: breakdown.sort((a, b) => b.bytes - a.bytes)
-      }
+      data: responseData
     });
   } catch (error) {
     return res.status(500).json({

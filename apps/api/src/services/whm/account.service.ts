@@ -1,8 +1,11 @@
-import { execSync } from "node:child_process";
+import { exec } from "node:child_process";
+import { promisify } from "node:util";
 import os from "node:os";
 import nodemailer from "nodemailer";
 import { env } from "../../config/env.js";
 import { db } from "../../config/db.js";
+
+const execAsync = promisify(exec);
 import {
   type WhmCreateAccountInput,
   type CreateWhmAccountResult,
@@ -28,11 +31,18 @@ export const createWhmAccount = async (
       }
     }
 
+    let planExpiresAt: Date | null = null;
+    if (input.durationMonths && input.durationMonths > 0) {
+      const d = new Date();
+      d.setMonth(d.getMonth() + input.durationMonths);
+      planExpiresAt = d;
+    }
+
     const userInsert = await client.query<{ id: string }>(
-      `INSERT INTO users (username, email, password_hash, role, status, plan_id)
-       VALUES ($1, $2, $3, 'user', 'active', $4)
+      `INSERT INTO users (username, email, password_hash, role, status, plan_id, plan_expires_at)
+       VALUES ($1, $2, $3, 'user', 'active', $4, $5)
        RETURNING id`,
-      [input.username, input.email, hashPassword(input.password), input.planId ?? null]
+      [input.username, input.email, hashPassword(input.password), input.planId ?? null, planExpiresAt]
     );
 
     const userId = userInsert.rows[0].id;
@@ -163,7 +173,8 @@ export const listWhmAccounts = async (): Promise<WhmAccountRow[]> => {
       u.status,
       ha.disk_used_mb,
       p.disk_quota_mb,
-      ha.created_at::text
+      ha.created_at::text,
+      u.plan_expires_at::text AS plan_expires_at
     FROM hosting_accounts ha
     INNER JOIN users u ON u.id = ha.user_id
     LEFT JOIN plans p ON p.id = u.plan_id
@@ -318,8 +329,8 @@ export const syncAllWhmAccountsDiskUsage = async (): Promise<void> => {
       if (os.platform() !== "win32") {
         const homePath = `/home/${acc.username}`;
         // -s (summary), -m (megabytes)
-        const output = execSync(`du -sm "${homePath}" 2>/dev/null`, { encoding: "utf-8" });
-        sizeMb = parseInt(output.split(/\s+/)[0], 10) || 0;
+        const { stdout } = await execAsync(`du -sm "${homePath}" 2>/dev/null`);
+        sizeMb = parseInt(stdout.split(/\s+/)[0], 10) || 0;
       } else {
         // Mock data for Windows dev environment
         sizeMb = Math.floor(Math.random() * 100);
@@ -425,7 +436,7 @@ export const resetWhmAccountPassword = async (accountId: string, newPassword?: s
   return { password: generatedPass };
 };
 
-export const changeWhmAccountPlan = async (accountId: string, planId: string): Promise<void> => {
+export const changeWhmAccountPlan = async (accountId: string, planId: string, durationMonths?: number): Promise<void> => {
   const client = await db.connect();
 
   try {
@@ -451,7 +462,20 @@ export const changeWhmAccountPlan = async (accountId: string, planId: string): P
     const planName = planResult.rows[0].name;
 
     // 3. Update user plan
-    await client.query("UPDATE users SET plan_id = $1, updated_at = NOW() WHERE id = $2", [planId, userId]);
+    if (durationMonths !== undefined) {
+      let planExpiresAt: Date | null = null;
+      if (durationMonths > 0) {
+        const d = new Date();
+        d.setMonth(d.getMonth() + durationMonths);
+        planExpiresAt = d;
+      }
+      await client.query(
+        "UPDATE users SET plan_id = $1, plan_expires_at = $2, updated_at = NOW() WHERE id = $3",
+        [planId, planExpiresAt, userId]
+      );
+    } else {
+      await client.query("UPDATE users SET plan_id = $1, updated_at = NOW() WHERE id = $2", [planId, userId]);
+    }
 
     // 4. Log activity
     await client.query(

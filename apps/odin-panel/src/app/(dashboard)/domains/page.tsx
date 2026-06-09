@@ -4,11 +4,30 @@ import React, { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { fetchDomains, addDomain, deleteDomain, verifyDomain, getOdinAccessToken } from "../../../lib/api";
 
+interface DomainRecord {
+  id: string;
+  domain_name: string;
+  status: string;
+  dns_provider: string;
+  ssl_enabled: boolean;
+  verification?: {
+    publicUrl?: string | null;
+    dns?: {
+      resolves: boolean;
+      aRecords: string[];
+      cnameRecords: string[];
+      error?: string;
+    };
+  };
+}
+
 export default function DomainsPage() {
   const [newDomain, setNewDomain] = useState("");
+  const [search, setSearch] = useState("");
+  const [showCreateForm, setShowCreateForm] = useState(false);
   const queryClient = useQueryClient();
 
-  const { data: domains = [], isLoading } = useQuery({
+  const { data: domains = [], isLoading } = useQuery<DomainRecord[]>({
     queryKey: ["odin", "domains"],
     queryFn: fetchDomains,
     staleTime: 1000 * 60 * 5
@@ -19,6 +38,7 @@ export default function DomainsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["odin", "domains"] });
       setNewDomain("");
+      setShowCreateForm(false);
     },
     onError: (err: any) => alert(`Error al añadir dominio: ${err.message}`)
   });
@@ -35,6 +55,7 @@ export default function DomainsPage() {
     mutationFn: verifyDomain,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["odin", "domains"] });
+      alert("Verificación de dominio completada.");
     },
     onError: (err: any) => alert(`Error al verificar dominio: ${err.message}`)
   });
@@ -53,7 +74,7 @@ export default function DomainsPage() {
       alert("Certificado SSL emitido con éxito.");
       queryClient.invalidateQueries({ queryKey: ["odin", "domains"] });
     },
-    onError: (err) => alert(`Error SSL: ${err.message}`)
+    onError: (err: any) => alert(`Error SSL: ${err.message}`)
   });
 
   const handleAddDomain = async (e: React.FormEvent) => {
@@ -63,155 +84,236 @@ export default function DomainsPage() {
   };
 
   const handleDelete = async (domainId: string) => {
-    if (confirm("¿Estás seguro de que quieres eliminar este dominio?")) {
+    if (confirm("¿Estás seguro de que deseas eliminar este dominio? Se borrarán sus directorios asociados.")) {
       await deleteMutation.mutateAsync(domainId);
     }
   };
 
-  return (
-    <div className="space-y-12 animate-in fade-in duration-700">
-      <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 border-b border-slate-200 pb-10">
-        <div className="space-y-1.5">
-          <div className="flex items-center gap-3 mb-1">
-             <span className="px-2.5 py-1 bg-[#00A3FF]/10 text-[#00A3FF] text-[10px] font-bold uppercase rounded-full tracking-wider">
-                Gestión de Red
-             </span>
-          </div>
-          <h1 className="text-5xl font-black text-slate-900 uppercase">
-            Mis <span className="text-[#00A3FF]">Dominios</span>
-          </h1>
-          <p className="text-slate-500 text-sm font-medium mt-2">
-            Administra tus activos digitales, zonas DNS y seguridad SSL.
-          </p>
-        </div>
-        <div className="flex gap-4">
-           <div className="px-5 py-3 bg-white border border-slate-200 rounded-2xl shadow-sm flex items-center gap-4">
-              <div className="text-right">
-                 <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Dominios Activos</div>
-                 <div className="text-xl font-black text-slate-900">{domains.length}</div>
-              </div>
-              <div className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center text-[#00A3FF]">
-                 <span className="material-symbols-outlined">public</span>
-              </div>
-           </div>
-        </div>
-      </header>
+  const handleToggleHttps = (domainId: string, enabled: boolean) => {
+    if (!enabled) {
+      if (confirm("¿Habilitar Force HTTPS Redirect y emitir certificado SSL Let's Encrypt para este dominio?")) {
+        sslMutation.mutate(domainId);
+      }
+    } else {
+      alert("Para desactivar la redirección HTTPS forzada, contacta al soporte o edita las reglas en la sección Multi-PHP.");
+    }
+  };
 
-      {/* Add Domain Section */}
-      <div className="bg-white border border-slate-200 rounded-[2.5rem] p-10 shadow-sm relative overflow-hidden group">
-         <form onSubmit={handleAddDomain} className="relative z-10 flex flex-col md:flex-row items-end gap-6">
-            <div className="flex-1 w-full space-y-3">
-               <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-2">Conectar Nuevo Dominio</label>
-               <div className="relative">
-                  <span className="material-symbols-outlined absolute left-5 top-1/2 -translate-y-1/2 text-slate-300">add_link</span>
-                  <input 
-                    type="text" 
-                    placeholder="ejemplo.com"
-                    value={newDomain}
-                    onChange={(e) => setNewDomain(e.target.value)}
-                    disabled={addMutation.isPending}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl pl-14 pr-6 py-4 text-slate-900 font-bold outline-none focus:border-[#00A3FF] focus:bg-white transition-all placeholder:text-slate-300 shadow-inner"
-                  />
-               </div>
+  // Helper to determine the Main/Primary domain (shortest root domain)
+  const isMainDomain = (domainName: string, allDomains: DomainRecord[]) => {
+    const rootDomains = allDomains.filter(
+      (d) => !d.domain_name.startsWith("*.") && d.domain_name.split(".").length === 2
+    );
+    if (rootDomains.length === 0) return false;
+    const shortest = [...rootDomains].sort((a, b) => a.domain_name.length - b.domain_name.length)[0];
+    return shortest?.domain_name === domainName;
+  };
+
+  const filteredDomains = domains.filter((d) =>
+    d.domain_name.toLowerCase().includes(search.toLowerCase())
+  );
+
+  return (
+    <div className="space-y-8 animate-in fade-in duration-500 max-w-7xl mx-auto w-full min-w-0">
+      {/* cPanel style header */}
+      <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+        <h1 className="text-3xl font-light text-slate-800">Dominios</h1>
+        <p className="text-slate-500 text-xs mt-1">List Domains</p>
+        <p className="text-slate-600 text-sm mt-4 leading-relaxed">
+          Use esta interfaz para administrar sus dominios. Para obtener más información, lea la{" "}
+          <a href="https://docs.cpanel.net/" target="_blank" rel="noreferrer" className="text-[#00A3FF] hover:underline font-semibold">
+            documentación
+          </a>
+          .
+        </p>
+      </div>
+
+      {/* Toolbar / Search Section */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div className="flex items-center w-full md:w-96 bg-white border border-slate-300 rounded-lg shadow-sm overflow-hidden">
+          <input
+            type="text"
+            placeholder="Buscar"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="px-4 py-3 text-sm text-slate-700 outline-none w-full placeholder:text-slate-400 font-medium"
+          />
+          <button className="bg-slate-50 border-l border-slate-200 px-4 py-3 text-slate-500 hover:bg-slate-100 transition-colors">
+            <span className="material-symbols-outlined text-[18px] leading-none block">search</span>
+          </button>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-4 w-full md:w-auto md:justify-end">
+          <span className="text-xs text-slate-500 font-bold uppercase tracking-wider bg-slate-100 px-3 py-1.5 rounded-md">
+            Mostrando {filteredDomains.length} - {filteredDomains.length} de {domains.length} dominios
+          </span>
+          <button
+            onClick={() => setShowCreateForm((prev) => !prev)}
+            className="bg-[#00A3FF] hover:bg-[#008EE0] text-white text-xs font-black px-6 py-3.5 rounded-xl shadow-md shadow-[#00A3FF]/10 transition-all active:scale-[0.98] uppercase tracking-wider"
+          >
+            {showCreateForm ? "Cancelar" : "Create A New Domain"}
+          </button>
+        </div>
+      </div>
+
+      {/* Collapsible Add Domain form */}
+      {showCreateForm && (
+        <div className="bg-slate-50 border border-slate-200 rounded-[2rem] p-8 shadow-inner animate-in slide-in-from-top-4 duration-300">
+          <h3 className="text-slate-800 font-black uppercase text-xs tracking-widest mb-4">Vincular Nuevo Dominio</h3>
+          <form onSubmit={handleAddDomain} className="flex flex-col md:flex-row items-end gap-4">
+            <div className="flex-1 w-full space-y-2">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Nombre del Dominio</label>
+              <div className="relative">
+                <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">language</span>
+                <input
+                  type="text"
+                  placeholder="ejemplo.com"
+                  value={newDomain}
+                  onChange={(e) => setNewDomain(e.target.value)}
+                  disabled={addMutation.isPending}
+                  className="w-full bg-white border border-slate-300 rounded-xl pl-12 pr-4 py-3.5 text-slate-900 font-bold outline-none focus:border-[#00A3FF] transition-all placeholder:text-slate-400 text-sm shadow-sm"
+                />
+              </div>
             </div>
-            <button 
+            <button
+              type="submit"
               disabled={addMutation.isPending || !newDomain}
-              className="w-full md:w-auto bg-[#00A3FF] px-10 py-5 rounded-2xl text-white font-black uppercase text-[11px] tracking-widest shadow-xl shadow-[#00A3FF]/20 hover:bg-[#008EE0] active:scale-[0.98] transition-all disabled:opacity-40"
+              className="w-full md:w-auto bg-[#00A3FF] hover:bg-[#008EE0] text-white font-black text-xs uppercase tracking-widest px-8 py-4 rounded-xl transition-all shadow-md shadow-[#00A3FF]/15 disabled:opacity-50"
             >
               {addMutation.isPending ? "Conectando..." : "Vincular Dominio"}
             </button>
-         </form>
-         <div className="absolute -bottom-16 -right-16 w-64 h-64 bg-[#00A3FF]/5 blur-[100px] rounded-full"></div>
-      </div>
+          </form>
+        </div>
+      )}
 
-      {/* Domains List */}
-      <div className="grid grid-cols-1 gap-6">
-         {isLoading ? (
-           <div className="p-20 flex flex-col items-center justify-center bg-white border border-slate-200 rounded-[3rem] shadow-sm">
-              <div className="w-12 h-12 border-4 border-slate-100 border-t-[#00A3FF] rounded-full animate-spin mb-4"></div>
-              <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Sincronizando con Servidores DNS...</p>
-           </div>
-         ) : domains.length === 0 ? (
-           <div className="p-20 bg-slate-50 border-2 border-dashed border-slate-200 rounded-[3rem] flex flex-col items-center justify-center text-center">
-              <div className="w-20 h-20 bg-white rounded-3xl flex items-center justify-center text-slate-200 mb-6 shadow-sm">
-                 <span className="material-symbols-outlined text-5xl">language_off</span>
-              </div>
-              <h4 className="text-lg font-black text-slate-900 uppercase">Sin Dominios Vinculados</h4>
-              <p className="text-sm text-slate-500 mt-2 font-medium">Conecta tu primer dominio para habilitar el enrutamiento y hosting.</p>
-           </div>
-         ) : (
-           <div className="grid grid-cols-1 gap-4">
-              {domains.map((domain) => (
-                <div key={domain.id} className="bg-white border border-slate-200 rounded-[2.5rem] p-8 shadow-sm group hover:border-[#00A3FF]/30 transition-all duration-300">
-                   <div className="flex flex-col lg:flex-row items-center justify-between gap-8">
-                      <div className="flex items-center gap-6 w-full lg:w-1/3">
-                         <div className="w-16 h-16 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-400 group-hover:bg-[#00A3FF] group-hover:text-white transition-all shadow-sm">
-                            <span className="material-symbols-outlined text-3xl">public</span>
-                         </div>
-                         <div>
-                            <h3 className="text-xl font-black text-slate-900 group-hover:text-[#00A3FF] transition-colors">{domain.domain_name}</h3>
-                            <div className="flex items-center gap-2.5 mt-1.5">
-                               <span className={`w-2 h-2 rounded-full ${domain.status === 'active' ? 'bg-emerald-500 shadow-[0_0_8px_#10b981]' : 'bg-amber-500'}`}></span>
-                               <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{domain.status === 'active' ? 'Activo' : 'Pendiente'}</span>
-                            </div>
-                         </div>
-                      </div>
+      {/* Table domains list */}
+      <div className="bg-white border border-slate-200 rounded-[2rem] overflow-hidden shadow-sm max-w-full">
+        <div className="overflow-x-auto w-full">
+          <table className="w-full text-left min-w-[1000px] table-auto">
+            <thead>
+              <tr className="text-[10px] font-bold uppercase tracking-widest text-slate-500 border-b border-slate-200 bg-slate-50/50">
+                <th className="px-6 py-4 w-10">
+                  <input type="checkbox" className="rounded border-slate-300" />
+                </th>
+                <th className="px-6 py-4">Domain</th>
+                <th className="px-6 py-4">Directorio raíz</th>
+                <th className="px-6 py-4">Redirects To</th>
+                <th className="px-6 py-4">Force HTTPS Redirect</th>
+                <th className="px-6 py-4 text-right">Acciones</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {isLoading ? (
+                <tr>
+                  <td colSpan={6} className="p-20 text-center">
+                    <div className="flex flex-col items-center gap-3">
+                      <div className="w-8 h-8 border-[3px] border-[#00A3FF]/20 border-t-[#00A3FF] rounded-full animate-spin"></div>
+                      <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Sincronizando dominios...</span>
+                    </div>
+                  </td>
+                </tr>
+              ) : filteredDomains.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="p-20 text-center text-slate-500 font-medium italic text-sm">
+                    No se encontraron dominios registrados.
+                  </td>
+                </tr>
+              ) : (
+                filteredDomains.map((domain) => {
+                  const isPrimary = isMainDomain(domain.domain_name, domains);
+                  // Root dir path calculations
+                  const isWildcard = domain.domain_name.startsWith("*.");
+                  const rootDir = isPrimary
+                    ? "/public_html"
+                    : isWildcard
+                    ? `/_wildcard_${domain.domain_name.substring(2)}`
+                    : `/${domain.domain_name}`;
 
-                      <div className="flex flex-1 justify-around w-full border-y lg:border-y-0 lg:border-x border-slate-100 py-6 lg:py-0 px-4">
-                         <div className="text-center px-4">
-                             <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest block mb-1.5">Proveedor DNS</span>
-                             <span className="text-xs font-bold text-slate-600 uppercase tracking-tight">{domain.dns_provider || "Odisea DNS"}</span>
-                         </div>
-                         <div className="text-center px-4">
-                             <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest block mb-1.5">Seguridad SSL</span>
-                             <span className={`text-xs font-black uppercase tracking-tight ${domain.ssl_enabled ? 'text-emerald-500' : 'text-slate-400'}`}>
-                               {domain.ssl_enabled ? 'Protegido' : 'Inactivo'}
-                             </span>
-                         </div>
-                         <div className="text-center px-4">
-                             <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest block mb-1.5">URL Pública</span>
-                             <span className="text-xs font-bold text-[#00A3FF] tracking-tight">
-                               {domain.verification?.publicUrl ?? "dns_waiting"}
-                             </span>
-                         </div>
-                      </div>
-
-                      <div className="flex gap-2 w-full lg:w-auto">
-                         <button
-                           onClick={() => window.location.href = `/domains/${domain.id}`}
-                           className="flex-1 lg:flex-none px-6 py-3 rounded-xl bg-slate-50 border border-slate-100 text-slate-500 font-black uppercase text-[10px] tracking-widest hover:text-[#00A3FF] hover:bg-[#00A3FF]/5 transition-all flex items-center justify-center gap-2"
-                         >
-                            <span className="material-symbols-outlined text-[18px]">tune</span> Gestionar
-                         </button>
-                         {!domain.ssl_enabled && (
+                  return (
+                    <tr key={domain.id} className="hover:bg-slate-50/60 transition-all group duration-300">
+                      <td className="px-6 py-5">
+                        <input type="checkbox" className="rounded border-slate-300" />
+                      </td>
+                      <td className="px-6 py-5">
+                        <div className="flex items-center gap-2">
+                          <span className="material-symbols-outlined text-slate-400 text-lg">language</span>
+                          <span className="text-slate-900 font-bold text-sm group-hover:text-[#00A3FF] transition-colors">
+                            {domain.domain_name}
+                          </span>
+                          {isPrimary && (
+                            <span className="px-2 py-0.5 bg-[#00A3FF]/10 text-[#00A3FF] text-[9px] font-black uppercase rounded border border-[#00A3FF]/20 tracking-wider">
+                              Main Domain
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-6 py-5">
+                        <span className="text-[#00A3FF] hover:underline cursor-pointer flex items-center gap-1.5 font-mono text-xs font-semibold">
+                          <span className="material-symbols-outlined text-[16px] leading-none">home</span>
+                          {rootDir}
+                        </span>
+                      </td>
+                      <td className="px-6 py-5 text-slate-600 text-xs font-medium">
+                        Not Redirected
+                      </td>
+                      <td className="px-6 py-5">
+                        <div className="flex items-center gap-3">
+                          <div
+                            onClick={() => handleToggleHttps(domain.id, domain.ssl_enabled)}
+                            className={`w-11 h-6 rounded-full p-1 cursor-pointer transition-all duration-300 flex items-center ${
+                              domain.ssl_enabled ? "bg-[#00A3FF] justify-end" : "bg-slate-200 justify-start"
+                            }`}
+                          >
+                            <div className="w-4 h-4 bg-white rounded-full shadow-sm"></div>
+                          </div>
+                          <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                            {domain.ssl_enabled ? "On" : "Off"}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-5 text-right">
+                        <div className="flex justify-end items-center gap-2.5">
+                          <button
+                            onClick={() => window.location.href = `/domains/${domain.id}`}
+                            className="px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-700 hover:bg-slate-100 hover:border-slate-300 font-bold text-[11px] uppercase tracking-wider flex items-center gap-1.5 transition-all"
+                          >
+                            <span className="material-symbols-outlined text-[15px] text-slate-500">construction</span>
+                            Administrar
+                          </button>
+                          {!isWildcard && (
                             <button
-                              onClick={() => { if(confirm("¿Emitir certificado SSL Let's Encrypt?")) sslMutation.mutate(domain.id) }}
-                              disabled={sslMutation.isPending}
-                              className="flex-1 lg:flex-none px-6 py-3 rounded-xl bg-emerald-50 border border-emerald-100 text-emerald-600 font-black uppercase text-[10px] tracking-widest hover:bg-emerald-500 hover:text-white transition-all flex items-center justify-center gap-2"
+                              onClick={() => window.location.href = `/email/accounts?domain=${domain.domain_name}`}
+                              className="px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-700 hover:bg-slate-100 hover:border-slate-300 font-bold text-[11px] uppercase tracking-wider flex items-center gap-1.5 transition-all"
                             >
-                               <span className="material-symbols-outlined text-[18px]">lock</span> {sslMutation.isPending ? "Emitiendo..." : "Auto-SSL"}
+                              <span className="material-symbols-outlined text-[15px] text-slate-500">mail</span>
+                              Create Email
                             </button>
-                         )}
-                         <div className="flex gap-1">
-                            <button
-                              onClick={() => verifyMutation.mutate(domain.id)}
-                              className="w-11 h-11 rounded-xl bg-slate-50 text-slate-400 hover:text-[#00A3FF] transition-all flex items-center justify-center shadow-sm"
-                            >
-                               <span className="material-symbols-outlined text-[18px]">sync</span>
-                            </button>
-                            <button 
-                              onClick={() => handleDelete(domain.id)}
-                              className="w-11 h-11 rounded-xl bg-slate-50 text-slate-400 hover:text-red-500 transition-all flex items-center justify-center shadow-sm"
-                            >
-                               <span className="material-symbols-outlined text-[18px]">delete</span>
-                            </button>
-                         </div>
-                      </div>
-                   </div>
-                </div>
-              ))}
-           </div>
-         )}
+                          )}
+                          <button
+                            onClick={() => verifyMutation.mutate(domain.id)}
+                            disabled={verifyMutation.isPending}
+                            className="p-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-400 hover:text-[#00A3FF] hover:bg-slate-100 hover:border-slate-300 transition-all"
+                            title="Sincronizar DNS"
+                          >
+                            <span className="material-symbols-outlined text-[15px] leading-none block">sync</span>
+                          </button>
+                          <button
+                            onClick={() => handleDelete(domain.id)}
+                            disabled={deleteMutation.isPending}
+                            className="p-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-400 hover:text-red-500 hover:bg-red-50 hover:border-red-200 transition-all"
+                            title="Eliminar Dominio"
+                          >
+                            <span className="material-symbols-outlined text-[15px] leading-none block">delete</span>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );

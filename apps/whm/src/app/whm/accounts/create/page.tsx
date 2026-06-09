@@ -64,6 +64,15 @@ export default function CreateWhmAccountPage() {
       return;
     }
 
+    if (name === "durationMonths") {
+      const val = value === "" ? undefined : parseInt(value, 10);
+      setForm(prev => ({ 
+        ...prev, 
+        durationMonths: val
+      }));
+      return;
+    }
+
     if (name === "planId") {
        const selectedPlanId = value;
        let updatedResellerConfig = form.resellerConfig;
@@ -237,7 +246,7 @@ export default function CreateWhmAccountPage() {
             </ProField>
           </section>
 
-          <section className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-10 border-t border-slate-100">
+          <section className="grid grid-cols-1 md:grid-cols-3 gap-8 pt-10 border-t border-slate-100">
             <ProField label="Plan de Alojamiento">
               <select 
                 name="planId"
@@ -259,6 +268,21 @@ export default function CreateWhmAccountPage() {
                     </option>
                   ))
                 )}
+              </select>
+            </ProField>
+            <ProField label="Periodo de Suscripción">
+              <select 
+                name="durationMonths"
+                value={form.durationMonths ?? ""}
+                onChange={onInputChange}
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-5 py-3.5 text-sm font-medium text-slate-900 outline-none focus:border-[#00A3FF]/50 focus:bg-white transition-all appearance-none shadow-inner"
+              >
+                <option value="">Sin Expiración / Ilimitado</option>
+                <option value="1">1 Mes</option>
+                <option value="3">3 Meses</option>
+                <option value="6">6 Meses</option>
+                <option value="12">1 Año</option>
+                <option value="24">2 Años</option>
               </select>
             </ProField>
             <ProField label="Versión de PHP">

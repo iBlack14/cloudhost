@@ -70,6 +70,12 @@ export const runStartupInit = async (): Promise<void> => {
       ensureMailSchema(),
     ]);
 
+    // Add plan_expires_at column dynamically if it doesn't exist
+    await db.query(`
+      ALTER TABLE users 
+      ADD COLUMN IF NOT EXISTS plan_expires_at TIMESTAMP WITH TIME ZONE;
+    `);
+
     // Indexes after tables exist
     await ensurePerformanceIndexes();
 

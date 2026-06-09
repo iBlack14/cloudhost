@@ -265,11 +265,11 @@ export const syncDiskUsage = async (): Promise<void> => {
   await parsePayload(response);
 };
 
-export const changeAccountPlan = async (accountId: string, planId: string): Promise<void> => {
+export const changeAccountPlan = async (accountId: string, planId: string, durationMonths?: number): Promise<void> => {
   const response = await fetch(`${API_BASE}/whm/accounts/${accountId}/plan`, {
     method: "PATCH",
     headers: withWhmAuth({ "Content-Type": "application/json" }),
-    body: JSON.stringify({ planId })
+    body: JSON.stringify({ planId, durationMonths })
   });
   await parsePayload(response);
 };

@@ -2,7 +2,7 @@ import type { Request, Response } from "express";
 import * as serverService from "../../services/whm/server.service.js";
 import { z } from "zod";
 import os from "node:os";
-import { execSync } from "node:child_process";
+import { getSysStats } from "../../services/sys-stats.service.js";
 
 const toPercent = (value: number): number => {
   if (!Number.isFinite(value)) return 0;
@@ -11,56 +11,28 @@ const toPercent = (value: number): number => {
 
 export const getServerStatsHandler = async (_req: Request, res: Response): Promise<Response> => {
   try {
-    const cores = os.cpus().length || 1;
-    const loadAvgs = os.loadavg();
-    const loadAverage1m = loadAvgs && loadAvgs.length > 0 ? loadAvgs[0] : 0;
+    const stats = await getSysStats();
+    
+    // CPU usage calculation using loadAvg
+    const cores = stats.cpuCores;
+    const loadAvgs = stats.loadAvgs;
+    const loadAverage1m = loadAvgs[0];
     const cpuPercent = toPercent((loadAverage1m / cores) * 100);
-
-    let ramTotal = os.totalmem();
-    let ramFree = os.freemem();
-    let ramPercent = toPercent(((ramTotal - ramFree) / ramTotal) * 100);
-
-    // Try accurate linux meminfo
-    try {
-      if (os.platform() === "linux") {
-        const memInfo = execSync("cat /proc/meminfo", { encoding: "utf-8" });
-        const totalMatch = memInfo.match(/MemTotal:\s+(\d+)/);
-        const availableMatch = memInfo.match(/MemAvailable:\s+(\d+)/);
-        if (totalMatch && availableMatch) {
-          const total = parseInt(totalMatch[1], 10) * 1024; // KB to Bytes
-          const available = parseInt(availableMatch[1], 10) * 1024;
-          ramPercent = toPercent(((total - available) / total) * 100);
-          ramTotal = total;
-          ramFree = available;
-        }
-      }
-    } catch { /* inline fallback */ }
-
-    // Disk
-    let diskPercent = 15;
-    try {
-      const output = execSync("df -P /", { encoding: "utf-8" });
-      const lines = output.trim().split("\n");
-      if (lines.length >= 2) {
-        const columns = lines[1].trim().split(/\s+/);
-        diskPercent = toPercent(Number((columns[4] ?? "0%").replace("%", "")));
-      }
-    } catch { /* fallback to 15 */ }
 
     return res.status(200).json({
       success: true,
       data: {
         cpu: cpuPercent,
-        ram: ramPercent,
-        ramDetails: { total: ramTotal, free: ramFree },
-        disk: diskPercent,
+        ram: stats.ramPercent,
+        ramDetails: { total: stats.ramTotal, free: stats.ramFree },
+        disk: stats.diskPercent,
         loadAvgs,
-        uptime: os.uptime(),
+        uptime: stats.uptimeSeconds,
         system: {
           os: `${os.type()} ${os.release()}`,
           platform: os.platform(),
           cpuModel: os.cpus()[0]?.model || "Generic Processor",
-          totalRamGB: Math.round(ramTotal / (1024 * 1024 * 1024)),
+          totalRamGB: Math.round(stats.ramTotal / (1024 * 1024 * 1024)),
           cores: cores
         }
       }

@@ -26,6 +26,7 @@ export const whmCreateAccountSchema = z.object({
     .regex(/[!@#$%^&*]/, "Debe contener carácter especial"),
   email: z.string().email("Email inválido"),
   planId: z.string().uuid("Plan ID inválido").optional(),
+  durationMonths: z.number().int().optional(),
   isReseller: z.boolean().default(false),
   resellerConfig: z.object({
     maxAccounts: z.number().int().min(-1).default(-1),
@@ -112,6 +113,7 @@ export interface WhmAccountRow {
   disk_used_mb: number;
   disk_quota_mb: number | null;
   created_at: string;
+  plan_expires_at?: string | null;
 }
 
 export interface DomainRecord {

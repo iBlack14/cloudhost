@@ -11,6 +11,12 @@ export default function UserDashboardPage() {
     queryFn: fetchOdinDashboard
   });
 
+  const getExpiryText = () => {
+    if (!stats?.account.expiresAt) return "Sin Expiración";
+    const date = new Date(stats.account.expiresAt);
+    return `Expira: ${date.toLocaleDateString("es-ES", { day: "2-digit", month: "short", year: "numeric" })}`;
+  };
+
   if (isLoading) return (
     <div className="flex flex-col items-center justify-center p-24 bg-white border border-slate-200 rounded-[3rem] animate-pulse">
       <div className="w-12 h-12 border-4 border-slate-100 border-t-[#00A3FF] rounded-full animate-spin mb-4"></div>
@@ -37,7 +43,7 @@ export default function UserDashboardPage() {
       </header>
 
       {/* Overview Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
          <StatCard title="Sitios Web" value={stats?.services.domains || 0} icon="language" color="#00A3FF" />
          <StatCard title="Bases de Datos" value={stats?.services.databases || 0} icon="database" color="#8B5CF6" />
          <StatCard title="Correos Activos" value={stats?.services.emails || 0} icon="alternate_email" color="#F59E0B" />
@@ -137,17 +143,17 @@ export default function UserDashboardPage() {
          </div>
 
          {/* Right Sidebar - Resource Consumption & Plan */}
-         <div className="space-y-10">
+         <div className="space-y-6">
             {/* Resource Consumption */}
-            <div className="bg-white border border-slate-200 rounded-[3rem] p-10 shadow-sm relative overflow-hidden group">
+            <div className="bg-white border border-slate-200 rounded-[2rem] p-6 shadow-sm relative overflow-hidden group">
                 <div className="relative z-10">
-                    <h3 className="text-sm font-black text-slate-900 uppercase mb-8 flex items-center gap-3">
+                    <h3 className="text-xs font-black text-slate-900 uppercase mb-5 flex items-center gap-3">
                       <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center text-[#00A3FF]">
                           <span className="material-symbols-outlined text-[18px]">bar_chart</span>
                       </div>
                       Estadísticas
                     </h3>
-                    <div className="space-y-8">
+                    <div className="space-y-4">
                       <ProgressBar label="NVMe" used={stats?.account.diskUsed || 0} total={stats?.account.diskLimit || 5120} unit="MB" color="#00A3FF" />
                       <ProgressBar label="CPU" used={stats?.server.cpu || 0} total={100} unit="%" color="#8B5CF6" />
                       <ProgressBar label="RAM" used={stats?.server.ram || 0} total={100} unit="%" color="#10B981" />
@@ -158,8 +164,8 @@ export default function UserDashboardPage() {
             </div>
 
             {/* Plan Info */}
-            <div className="bg-slate-900 rounded-[3rem] p-10 shadow-2xl relative overflow-hidden group flex flex-col">
-                <div className="relative z-10 flex flex-col h-full space-y-8">
+            <div className="bg-slate-900 rounded-[2rem] p-6 shadow-2xl relative overflow-hidden group flex flex-col">
+                <div className="relative z-10 flex flex-col h-full space-y-5">
                   <div className="flex items-center gap-4">
                       <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center text-[#00A3FF] border border-white/10 shadow-inner">
                         <span className="material-symbols-outlined text-xl">workspace_premium</span>
@@ -171,17 +177,17 @@ export default function UserDashboardPage() {
                   </div>
                   
                   <div>
-                      <div className="text-2xl font-black text-[#00A3FF] uppercase tracking-tighter mb-1">{stats?.account.plan || "Starter"}</div>
+                      <div className="text-xl font-black text-[#00A3FF] uppercase tracking-tighter mb-1 leading-tight">{stats?.account.plan || "Starter"}</div>
                       <div className="inline-flex px-2 py-0.5 bg-white/5 border border-white/10 rounded-lg text-[9px] font-black text-slate-400 uppercase tracking-widest">
-                        Expira: 24 May 2025
+                        {getExpiryText()}
                       </div>
                   </div>
 
-                  <div className="space-y-3 pt-4">
-                      <button className="w-full py-4 bg-[#00A3FF] text-white font-black uppercase text-[10px] tracking-widest rounded-xl shadow-xl shadow-[#00A3FF]/20 hover:bg-[#008EE0] active:scale-[0.98] transition-all">
+                  <div className="space-y-2.5 pt-2">
+                      <button className="w-full py-2.5 bg-[#00A3FF] text-white font-black uppercase text-[9px] tracking-widest rounded-xl shadow-xl shadow-[#00A3FF]/20 hover:bg-[#008EE0] active:scale-[0.98] transition-all">
                         Mejorar Plan
                       </button>
-                      <button className="w-full py-4 bg-white/5 border border-white/10 text-slate-400 font-black uppercase text-[10px] tracking-widest rounded-xl hover:bg-white/10 hover:text-white transition-all">
+                      <button className="w-full py-2.5 bg-white/5 border border-white/10 text-slate-400 font-black uppercase text-[9px] tracking-widest rounded-xl hover:bg-white/10 hover:text-white transition-all">
                         Soporte VIP 24/7
                       </button>
                   </div>
@@ -196,22 +202,22 @@ export default function UserDashboardPage() {
 
 function ServiceCategory({ title, icon, items }: { title: string; icon: string; items: { label: string; icon: string; href: string }[] }) {
   return (
-    <div className="bg-white border border-slate-200 rounded-[2.5rem] p-8 shadow-sm group hover:border-slate-300 transition-all duration-500">
-       <div className="flex items-center gap-4 mb-8 border-b border-slate-100 pb-6">
-          <div className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400 group-hover:text-[#00A3FF] group-hover:bg-[#00A3FF]/5 transition-all">
-             <span className="material-symbols-outlined text-[20px]">{icon}</span>
+    <div className="bg-white border border-slate-200 rounded-[2rem] p-6 shadow-sm group hover:border-slate-300 transition-all duration-500">
+       <div className="flex items-center gap-3 mb-5 border-b border-slate-100 pb-4">
+          <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center text-slate-400 group-hover:text-[#00A3FF] group-hover:bg-[#00A3FF]/5 transition-all">
+             <span className="material-symbols-outlined text-[18px]">{icon}</span>
           </div>
-          <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest">{title}</h3>
+          <h3 className="text-xs font-black text-slate-900 uppercase tracking-widest">{title}</h3>
        </div>
-       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-6">
+       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-2 md:gap-3">
           {items.map((item, idx) => (
             <Link 
               key={idx} 
               href={item.href}
-              className="flex flex-col gap-3 p-4 rounded-2xl hover:bg-slate-50 border border-transparent hover:border-slate-200 transition-all group/item"
+              className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-slate-50 border border-transparent hover:border-slate-200/80 transition-all group/item"
             >
-               <span className="material-symbols-outlined text-slate-400 group-hover/item:text-[#00A3FF] transition-colors">{item.icon}</span>
-               <span className="text-[11px] font-bold text-slate-600 group-hover/item:text-slate-900">{item.label}</span>
+               <span className="material-symbols-outlined text-slate-400 group-hover/item:text-[#00A3FF] transition-colors text-[20px]">{item.icon}</span>
+               <span className="text-[11px] font-bold text-slate-600 group-hover/item:text-slate-900 leading-tight">{item.label}</span>
             </Link>
           ))}
        </div>
@@ -221,17 +227,17 @@ function ServiceCategory({ title, icon, items }: { title: string; icon: string; 
 
 function StatCard({ title, value, icon, color }: { title: string; value: string | number; icon: string; color: string }) {
   return (
-    <div className="bg-white border border-slate-200 p-8 rounded-[2.5rem] shadow-sm group hover:border-[#00A3FF]/30 transition-all duration-500 relative overflow-hidden">
-       <div className="relative z-10 flex flex-col gap-6">
-          <div className="w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center group-hover:scale-110 group-hover:bg-white group-hover:shadow-lg transition-all duration-500" style={{ color }}>
-             <span className="material-symbols-outlined text-3xl">{icon}</span>
+    <div className="bg-white border border-slate-200 p-3.5 rounded-xl shadow-sm group hover:border-[#00A3FF]/30 transition-all duration-500 relative overflow-hidden">
+       <div className="relative z-10 flex items-center gap-3">
+          <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition-all duration-500" style={{ color }}>
+             <span className="material-symbols-outlined text-lg">{icon}</span>
           </div>
           <div>
-             <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">{title}</div>
-             <div className="text-3xl font-black text-slate-900 tracking-tighter">{value}</div>
+             <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-0.5">{title}</div>
+             <div className="text-lg font-black text-slate-900 tracking-tighter leading-tight">{value}</div>
           </div>
        </div>
-       <div className="absolute -bottom-16 -right-16 w-40 h-40 rounded-full blur-[80px] opacity-5 group-hover:opacity-10 transition-all duration-700" style={{ backgroundColor: color }}></div>
+       <div className="absolute -bottom-16 -right-16 w-32 h-32 rounded-full blur-[60px] opacity-5 group-hover:opacity-10 transition-all duration-700" style={{ backgroundColor: color }}></div>
     </div>
   );
 }
@@ -239,14 +245,14 @@ function StatCard({ title, value, icon, color }: { title: string; value: string 
 function ProgressBar({ label, used, total, unit, color }: { label: string; used: number; total: number; unit: string; color: string }) {
   const percent = Math.min(100, Math.round((used / (total || 1)) * 100));
   return (
-    <div className="space-y-2.5">
+    <div className="space-y-1.5">
        <div className="flex justify-between items-end px-1">
-          <div className="text-[10px] font-black text-slate-900 uppercase tracking-widest">{label}</div>
-          <div className="text-[9px] font-black text-slate-400">
-             <span className="text-slate-900">{used}{unit}</span> <span className="mx-0.5 opacity-40">/</span> {total}{unit}
+          <div className="text-[9px] font-black text-slate-700 uppercase tracking-widest">{label}</div>
+          <div className="text-[9px] font-bold text-slate-500">
+             <span className="text-slate-900 font-extrabold">{used}{unit}</span> <span className="mx-0.5 opacity-40">/</span> {total}{unit}
           </div>
        </div>
-       <div className="h-2.5 w-full bg-slate-100 rounded-full overflow-hidden p-0.5">
+       <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
           <div 
             className="h-full rounded-full transition-all duration-1000 ease-out relative overflow-hidden" 
             style={{ width: `${percent}%`, backgroundColor: color }}

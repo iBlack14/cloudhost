@@ -40,6 +40,7 @@ export default function WhmAccountsPage() {
   });
 
   const [selectedPlanId, setSelectedPlanId] = useState("");
+  const [selectedDurationMonths, setSelectedDurationMonths] = useState<number | undefined>(undefined);
 
   const onDelete = async (accountId: string, username: string) => {
     if (confirm(`¿Estás seguro de que deseas ELIMINAR permanentemente la cuenta "${username}"? Esta acción no se puede deshacer.`)) {
@@ -83,9 +84,14 @@ export default function WhmAccountsPage() {
   const handleChangePlan = async () => {
     if (!selectedPlanId) return;
     try {
-      await changePlanMutation.mutateAsync({ accountId: planModal.accountId, planId: selectedPlanId });
+      await changePlanMutation.mutateAsync({ 
+        accountId: planModal.accountId, 
+        planId: selectedPlanId,
+        durationMonths: selectedDurationMonths
+      });
       setPlanModal({ ...planModal, isOpen: false });
       setSelectedPlanId("");
+      setSelectedDurationMonths(undefined);
     } catch (error) {
       alert("Error al cambiar el plan");
     }
@@ -185,6 +191,11 @@ export default function WhmAccountsPage() {
                         <div className="text-xs font-bold text-slate-700 uppercase tracking-tight">{account.plan_name || "Ilimitado"}</div>
                         <div className="text-[11px] text-slate-500 font-medium mt-0.5">
                           {account.disk_quota_mb ? `${account.disk_quota_mb} MB` : "∞ MB"}
+                        </div>
+                        <div className="text-[10px] font-bold text-slate-400 mt-1 uppercase tracking-tight">
+                          {account.plan_expires_at 
+                            ? `Expira: ${new Date(account.plan_expires_at).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' })}` 
+                            : "Expira: Nunca"}
                         </div>
                       </div>
                       <button 
@@ -344,6 +355,23 @@ export default function WhmAccountsPage() {
                            {plan.name} ({plan.disk_quota_mb ? `${plan.disk_quota_mb} MB` : '∞'})
                          </option>
                        ))}
+                    </select>
+                 </div>
+
+                 <div className="space-y-3">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Periodo de Suscripción</label>
+                    <select 
+                      value={selectedDurationMonths ?? ""}
+                      onChange={(e) => setSelectedDurationMonths(e.target.value === "" ? undefined : parseInt(e.target.value, 10))}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-5 py-4 text-sm font-bold text-slate-900 focus:ring-2 focus:ring-[#00A3FF]/20 transition-all outline-none"
+                    >
+                       <option value="">Mantener actual / Sin cambiar</option>
+                       <option value="-1">Sin Expiración / Ilimitado</option>
+                       <option value="1">1 Mes</option>
+                       <option value="3">3 Meses</option>
+                       <option value="6">6 Meses</option>
+                       <option value="12">1 Año</option>
+                       <option value="24">2 Años</option>
                     </select>
                  </div>
 
