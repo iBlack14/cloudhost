@@ -206,3 +206,9 @@ whmRouter.get("/migrations/download", downloadMigrationHandler);
 whmRouter.post("/migrations/import", whmUpload.single("backup"), importAccountHandler);
 whmRouter.post("/migrations/ssh", sshMigrateHandler);
 
+// ── Self Update Routes ──────────────────────────────────────────────────────────
+import { getUpdateStatusHandler, runUpdateHandler } from "../../controllers/whm/update.controller.js";
+whmRouter.get("/update/status", getUpdateStatusHandler);
+whmRouter.post("/update/run", runUpdateHandler);
+
+

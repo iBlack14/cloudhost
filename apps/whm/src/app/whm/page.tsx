@@ -3,6 +3,7 @@
 import React from "react";
 import Link from "next/link";
 import { useWhmDashboard } from "../../lib/hooks/use-whm-accounts";
+import { UpdateWidget } from "../../components/update-widget";
 
 const formatUptime = (seconds?: number): string => {
   if (!seconds || seconds <= 0) return "UPTIME: N/A";
@@ -57,6 +58,8 @@ export default function WhmDashboardPage() {
            </Link>
         </div>
       </header>
+
+      <UpdateWidget />
 
       {/* Real-time Stats Refined */}
       <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 relative z-10">
