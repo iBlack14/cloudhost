@@ -35,19 +35,23 @@ YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
 is_valid_port() {
-  [[ "$1" =~ ^[0-9]+$ ]] && [ "$1" -ge 1 ] && [ "$1" -le 65535 ]
+  local clean=$(echo "$1" | tr -d '\r' | tr -d ' ')
+  [[ "$clean" =~ ^[0-9]+$ ]] && [ "$clean" -ge 1 ] && [ "$clean" -le 65535 ]
 }
 
 is_valid_username() {
-  [[ "$1" =~ ^[a-zA-Z0-9_.-]{3,32}$ ]]
+  local clean=$(echo "$1" | tr -d '\r' | tr -d ' ')
+  [[ "$clean" =~ ^[a-zA-Z0-9_.-]{3,32}$ ]]
 }
 
 is_valid_password() {
-  [ "${#1}" -ge 8 ]
+  local clean=$(echo "$1" | tr -d '\r')
+  [ "${#clean}" -ge 8 ]
 }
 
 is_valid_email() {
-  [[ "$1" =~ ^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$ ]]
+  local clean=$(echo "$1" | tr -d '\r' | tr -d ' ')
+  [[ "$clean" =~ ^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$ ]]
 }
 
 assert_distinct_ports() {
@@ -108,7 +112,8 @@ prompt_with_default() {
   local default_value="$2"
   local result=""
   read -p "$prompt_text [$default_value]: " result
-  echo "${result:-$default_value}"
+  local clean=$(echo "${result:-$default_value}" | tr -d '\r' | tr -d ' ')
+  echo "$clean"
 }
 
 DEFAULT_VPS_IP=$(detect_public_ip)
@@ -151,8 +156,8 @@ if [ "$AUTO_MODE" = "1" ]; then
     BASE_DOMAIN=""
 else
     echo "Tip: Deja vacío para usar la IP del VPS ($VPS_IP) en lugar de un dominio."
-    read -p "Ingresa el Dominio Base (ej. odisea.cloud): " BASE_DOMAIN
-fi
+    read -p "Ingresa el Dominio Base (ej. odiseacloud.com): " BASE_DOMAIN
+BASE_DOMAIN=$(echo "${BASE_DOMAIN:-}" | tr -d '\r' | tr -d ' ')
 
 if [ -n "$BASE_DOMAIN" ]; then
     API_URL="https://api.$BASE_DOMAIN"
@@ -173,7 +178,7 @@ echo -e "${GREEN}🌐 IP del VPS Seleccionada: ${VPS_IP}${NC}"
 echo -e "${CYAN}Tip:${NC} Por defecto todo es automático. Solo elige puertos si es necesario."
 if [ "$AUTO_MODE" != "1" ]; then
   read -p "¿Personalizar puertos? [y/N]: " CUSTOM_PORTS
-  CUSTOM_PORTS=${CUSTOM_PORTS:-N}
+  CUSTOM_PORTS=$(echo "${CUSTOM_PORTS:-N}" | tr -d '\r' | tr -d ' ')
 
   if [[ "$CUSTOM_PORTS" =~ ^[Yy]$ ]]; then
     while true; do
@@ -233,6 +238,10 @@ else
   ADMIN_EMAIL="${_admin_email_input:-$ADMIN_EMAIL}"
 fi
 
+ADMIN_USER=$(echo "$ADMIN_USER" | tr -d '\r' | tr -d ' ')
+ADMIN_PASS=$(echo "$ADMIN_PASS" | tr -d '\r')
+ADMIN_EMAIL=$(echo "$ADMIN_EMAIL" | tr -d '\r' | tr -d ' ')
+
 if ! is_valid_username "$ADMIN_USER"; then
   echo -e "${RED}❌ Invalid ADMIN_USER. Use 3-32 chars: letters, numbers, ., _, -${NC}"
   exit 1
@@ -266,7 +275,7 @@ fi
 echo ""
 if [ "$AUTO_MODE" != "1" ]; then
   read -p "¿Continuar? [Y/n]: " CONFIRM
-  CONFIRM=${CONFIRM:-Y}
+  CONFIRM=$(echo "${CONFIRM:-Y}" | tr -d '\r' | tr -d ' ')
   if [[ ! "$CONFIRM" =~ ^[Yy]$ ]]; then
     echo "Abortado."
     exit 0
