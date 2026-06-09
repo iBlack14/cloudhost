@@ -4,7 +4,9 @@ import React from "react";
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001/api/v1";
+const API_BASE = typeof window !== "undefined" && window.location.hostname !== "localhost" && !window.location.hostname.match(/^\d+\.\d+\.\d+\.\d+$/)
+  ? `${window.location.protocol}//api.${window.location.hostname.split(".").slice(-2).join(".")}/api/v1`
+  : (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001/api/v1");
 const getWhmToken = () => typeof window !== "undefined" ? window.sessionStorage.getItem("whm-access-token") : null;
 const whmHeaders = (): Record<string, string> => {
   const t = getWhmToken();

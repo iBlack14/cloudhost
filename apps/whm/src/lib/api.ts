@@ -14,7 +14,9 @@ export {
   WhmImpersonation 
 };
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001/api/v1";
+const API_BASE = typeof window !== "undefined" && window.location.hostname !== "localhost" && !window.location.hostname.match(/^\d+\.\d+\.\d+\.\d+$/)
+  ? `${window.location.protocol}//api.${window.location.hostname.split(".").slice(-2).join(".")}/api/v1`
+  : (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001/api/v1");
 const WHM_ACCESS_TOKEN_KEY = "whm-access-token";
 const WHM_ROLE_KEY = "whm-role";
 
