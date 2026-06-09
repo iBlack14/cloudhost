@@ -199,7 +199,7 @@ export const installWordPress = async (input: InstallWpInput) => {
     // If the user picks an addon domain, we install into ~/domain.com/
     // If the user picks the primary domain, we install into ~/public_html/
     const accountResult = await client.query(
-      "SELECT domain FROM accounts WHERE user_id = $1 ORDER BY created_at ASC LIMIT 1",
+      "SELECT domain FROM hosting_accounts WHERE user_id = $1 ORDER BY created_at ASC LIMIT 1",
       [userId]
     );
     const primaryDomain = accountResult.rows[0]?.domain as string | undefined;

@@ -367,7 +367,7 @@ done
 
 # Ensure initial WHM admin account exists
 echo -e "\n${YELLOW}👤 Provisioning initial WHM admin user...${NC}"
-ADMIN_HASH=$(node -e "const { randomBytes, scryptSync } = require('crypto'); const p = process.argv[1]; const s = randomBytes(16).toString('hex'); const d = scryptSync(p, s, 64).toString('hex'); process.stdout.write(s + ':' + d);" "$ADMIN_PASS")
+ADMIN_HASH=$(ADMIN_PASS="$ADMIN_PASS" node -e "const { randomBytes, scryptSync } = require('crypto'); const p = process.env.ADMIN_PASS; const s = randomBytes(16).toString('hex'); const d = scryptSync(p, s, 64).toString('hex'); process.stdout.write(s + ':' + d);")
 ADMIN_EXISTS=$(docker exec odisea-postgres psql -U postgres -d odisea_cloud -tAc "SELECT 1 FROM users WHERE username='${ADMIN_USER}' LIMIT 1;" | tr -d '[:space:]')
 if [ "$ADMIN_EXISTS" = "1" ]; then
   echo -e "  ${GREEN}✅ Admin '${ADMIN_USER}' already exists${NC}"

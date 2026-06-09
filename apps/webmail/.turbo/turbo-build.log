@@ -3,6 +3,7 @@
 > next build
 
   ▲ Next.js 14.2.15
+  - Environments: .env.local
 
    Creating an optimized production build ...
  ✓ Compiled successfully
