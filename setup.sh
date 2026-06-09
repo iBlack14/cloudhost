@@ -157,6 +157,7 @@ if [ "$AUTO_MODE" = "1" ]; then
 else
     echo "Tip: Deja vacío para usar la IP del VPS ($VPS_IP) en lugar de un dominio."
     read -p "Ingresa el Dominio Base (ej. odiseacloud.com): " BASE_DOMAIN
+fi
 BASE_DOMAIN=$(echo "${BASE_DOMAIN:-}" | tr -d '\r' | tr -d ' ')
 
 if [ -n "$BASE_DOMAIN" ]; then
