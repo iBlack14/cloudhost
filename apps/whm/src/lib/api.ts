@@ -31,6 +31,12 @@ const API_BASE = (() => {
     return `${proto}//${host}:${port}/api/v1`;
   }
   const parts = host.split(".");
+  const port = window.location.port;
+  if (port && port !== "80" && port !== "443") {
+    // If accessing via domain with custom port (e.g. 3002), route to API port 3001 on the same base domain
+    const cleanHost = host.replace(/^(whm|panel|api)\./, "");
+    return `${proto}//${cleanHost}:3001/api/v1`;
+  }
   return `${proto}//api.${parts.length >= 2 ? parts.slice(-2).join(".") : host}/api/v1`;
 })();
 const WHM_ACCESS_TOKEN_KEY = "whm-access-token";
