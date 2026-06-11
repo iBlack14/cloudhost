@@ -4,6 +4,7 @@ import React from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { logoutWhmSession, getWhmRole } from "../lib/api";
+import { useWhmDashboard } from "../lib/hooks/use-whm-accounts";
 
 export function WhmSidebar() {
   const pathname = usePathname();
@@ -14,6 +15,7 @@ export function WhmSidebar() {
     setMounted(true);
   }, []);
 
+  const { data: dashboard } = useWhmDashboard();
   const role = mounted ? getWhmRole() : null;
 
   const onLogout = () => {
@@ -22,6 +24,23 @@ export function WhmSidebar() {
   };
 
   const isAdmin = role === "admin" || !mounted; // Default to admin while mounting to avoid layout shift if possible, or just false.
+
+  const server = dashboard?.server;
+  const cpu = server?.cpu ?? 45;
+  const ram = server?.ram ?? 60;
+  const disk = server?.disk ?? 30;
+
+  const getBarColor = (val: number) => {
+    if (val >= 85) return "bg-[#EF4444]";
+    if (val >= 60) return "bg-[#F59E0B]";
+    return "bg-[#00A3FF]";
+  };
+
+  const getTextColor = (val: number) => {
+    if (val >= 85) return "text-[#EF4444]";
+    if (val >= 60) return "text-[#F59E0B]";
+    return "text-[#00A3FF]";
+  };
 
   return (
     <aside className="w-72 fixed inset-y-0 left-0 z-50 p-6 flex flex-col bg-white border-r border-slate-200 shadow-[4px_0_24px_rgba(0,0,0,0.02)]">
@@ -33,6 +52,10 @@ export function WhmSidebar() {
                src="/logo.png" 
                alt="Odisea Cloud Logo" 
                className="w-24 h-24 object-contain relative z-10 drop-shadow-md" 
+               onError={(e) => {
+                 // Fallback if logo fails or is not yet set up
+                 e.currentTarget.style.display = 'none';
+               }}
              />
           </div>
           <div className="flex flex-col items-center">
@@ -69,13 +92,60 @@ export function WhmSidebar() {
       </nav>
 
       <div className="mt-auto pt-6 border-t border-slate-100 space-y-4">
-        <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200">
-           <div className="flex justify-between text-[10px] font-bold text-slate-600 mb-2 uppercase tracking-wider">
-              <span>Servidor v6.5</span>
-              <span className="text-[#00A3FF]">US-EAST</span>
+        <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 hover:shadow-md hover:border-[#00A3FF]/20 transition-all duration-300 group/server">
+           <div className="flex justify-between items-center mb-3">
+              <div className="flex items-center gap-1.5">
+                 <div className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                 </div>
+                 <span className="text-[10px] font-black text-slate-800 uppercase tracking-wider">US-EAST</span>
+              </div>
+              <span className="text-[9px] font-bold text-slate-400 font-mono">NODO V6.5</span>
            </div>
-           <div className="h-2 w-full bg-slate-200 rounded-full overflow-hidden shadow-inner">
-              <div className="h-full w-2/3 bg-[#00A3FF] rounded-full"></div>
+
+           <div className="space-y-2.5">
+              {/* CPU */}
+              <div className="space-y-1">
+                 <div className="flex justify-between text-[9px] font-bold text-slate-500 uppercase tracking-tight">
+                    <span>CPU</span>
+                    <span className={`font-mono ${getTextColor(cpu)}`}>{cpu}%</span>
+                 </div>
+                 <div className="h-1.5 w-full bg-slate-200/80 rounded-full overflow-hidden shadow-inner">
+                    <div 
+                      className={`h-full ${getBarColor(cpu)} rounded-full transition-all duration-700 ease-out`}
+                      style={{ width: `${cpu}%` }}
+                    ></div>
+                 </div>
+              </div>
+
+              {/* RAM */}
+              <div className="space-y-1">
+                 <div className="flex justify-between text-[9px] font-bold text-slate-500 uppercase tracking-tight">
+                    <span>RAM</span>
+                    <span className={`font-mono ${getTextColor(ram)}`}>{ram}%</span>
+                 </div>
+                 <div className="h-1.5 w-full bg-slate-200/80 rounded-full overflow-hidden shadow-inner">
+                    <div 
+                      className={`h-full ${getBarColor(ram)} rounded-full transition-all duration-700 ease-out`}
+                      style={{ width: `${ram}%` }}
+                    ></div>
+                 </div>
+              </div>
+
+              {/* DISK */}
+              <div className="space-y-1">
+                 <div className="flex justify-between text-[9px] font-bold text-slate-500 uppercase tracking-tight">
+                    <span>Disco</span>
+                    <span className={`font-mono ${getTextColor(disk)}`}>{disk}%</span>
+                 </div>
+                 <div className="h-1.5 w-full bg-slate-200/80 rounded-full overflow-hidden shadow-inner">
+                    <div 
+                      className={`h-full ${getBarColor(disk)} rounded-full transition-all duration-700 ease-out`}
+                      style={{ width: `${disk}%` }}
+                    ></div>
+                 </div>
+              </div>
            </div>
         </div>
         <button

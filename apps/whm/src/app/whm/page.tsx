@@ -22,37 +22,37 @@ export default function WhmDashboardPage() {
   const peakLoad = Math.max(...loadBars, 0);
 
   return (
-    <div className="space-y-12 animate-in fade-in duration-1000">
-      <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 relative z-10 border-b border-slate-200 pb-10">
-        <div className="flex items-center gap-8">
+    <div className="space-y-8 animate-in fade-in duration-1000 max-w-7xl mx-auto">
+      <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 relative z-10 border-b border-slate-200 pb-6">
+        <div className="flex items-center gap-6">
           <div className="relative flex-shrink-0 group transition-transform duration-500 hover:scale-105">
-             <div className="absolute inset-0 bg-[#00A3FF]/10 rounded-full blur-3xl group-hover:bg-[#00A3FF]/20 transition-all duration-700 opacity-40"></div>
+             <div className="absolute inset-0 bg-[#00A3FF]/10 rounded-full blur-2xl group-hover:bg-[#00A3FF]/20 transition-all duration-700 opacity-40"></div>
              <img 
                src="/logo.png" 
                alt="Odisea Cloud Logo" 
-               className="w-20 h-20 object-contain relative z-10 drop-shadow-lg" 
+               className="w-14 h-14 object-contain relative z-10 drop-shadow-md" 
              />
           </div>
-          <div className="space-y-2">
-            <div className="flex items-center gap-3">
-               <span className="px-2.5 py-1 bg-[#00A3FF]/10 text-[#00A3FF] text-[10px] font-bold uppercase rounded-full tracking-wider">Administrador</span>
-               <div className="h-1.5 w-1.5 rounded-full bg-slate-300"></div>
-               <span className="text-slate-500 text-[10px] font-mono tracking-widest uppercase font-bold">X-ROOT-CORE</span>
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+               <span className="px-2 py-0.5 bg-[#00A3FF]/10 text-[#00A3FF] text-[9px] font-bold uppercase rounded-full tracking-wider">Administrador</span>
+               <div className="h-1 w-1 rounded-full bg-slate-300"></div>
+               <span className="text-slate-500 text-[9px] font-mono tracking-widest uppercase font-bold">X-ROOT-CORE</span>
             </div>
-            <h1 className="text-5xl font-black text-slate-900 uppercase">
+            <h1 className="text-3xl font-black text-slate-900 uppercase tracking-tight">
               Panel de <span className="text-[#00A3FF]">Control</span>
             </h1>
-            <p className="text-slate-500 text-sm font-medium">Resumen del estado y gestión de su infraestructura.</p>
+            <p className="text-slate-500 text-xs font-medium">Resumen del estado y gestión de su infraestructura.</p>
           </div>
         </div>
-        <div className="flex gap-4">
+        <div className="flex gap-3">
            <Link href="/whm/accounts/create">
-              <button className="px-8 py-4 bg-[#00A3FF] text-white rounded-xl font-bold text-xs tracking-widest uppercase hover:bg-[#008EE0] transition-all shadow-lg shadow-[#00A3FF]/20 active:scale-95">
+              <button className="px-5 py-3 bg-[#00A3FF] text-white rounded-xl font-bold text-[10px] tracking-widest uppercase hover:bg-[#008EE0] transition-all shadow-md shadow-[#00A3FF]/20 active:scale-95">
                  Crear Cuenta
               </button>
            </Link>
            <Link href="/whm/accounts">
-              <button className="px-8 py-4 bg-white text-slate-700 rounded-xl font-bold text-xs tracking-widest uppercase border border-slate-200 hover:bg-slate-50 hover:text-slate-900 transition-all shadow-sm active:scale-95">
+              <button className="px-5 py-3 bg-white text-slate-700 rounded-xl font-bold text-[10px] tracking-widest uppercase border border-slate-200 hover:bg-slate-50 hover:text-slate-900 transition-all shadow-sm active:scale-95">
                  Ver Cuentas
               </button>
            </Link>
@@ -62,7 +62,7 @@ export default function WhmDashboardPage() {
       <UpdateWidget />
 
       {/* Real-time Stats Refined */}
-      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 relative z-10">
+      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 relative z-10">
         <StatCard
           label="USO DE CPU"
           value={`${server?.cpu ?? 0}%`}
@@ -90,60 +90,60 @@ export default function WhmDashboardPage() {
       </section>
 
       {/* Operations Focus Refined */}
-      <section className="grid grid-cols-1 lg:grid-cols-2 gap-8 relative z-10">
-         <div className="bg-white border border-slate-200 rounded-[2rem] p-10 group relative overflow-hidden transition-all hover:border-[#00A3FF]/20 shadow-sm">
-            <div className="flex items-center gap-5 mb-10 relative z-10">
-               <div className="w-14 h-14 rounded-2xl bg-[#00A3FF]/5 flex items-center justify-center text-[#00A3FF] border border-[#00A3FF]/10 transition-all group-hover:scale-110 group-hover:border-[#00A3FF]/30">
-                  <span className="material-symbols-outlined text-3xl">add_circle</span>
+      <section className="grid grid-cols-1 lg:grid-cols-2 gap-6 relative z-10">
+         <div className="bg-white border border-slate-200 rounded-2xl p-6 group relative overflow-hidden transition-all hover:border-[#00A3FF]/20 shadow-sm">
+            <div className="flex items-center gap-4 mb-6 relative z-10">
+               <div className="w-11 h-11 rounded-xl bg-[#00A3FF]/5 flex items-center justify-center text-[#00A3FF] border border-[#00A3FF]/10 transition-all group-hover:scale-110 group-hover:border-[#00A3FF]/30">
+                  <span className="material-symbols-outlined text-xl">add_circle</span>
                </div>
                <div>
-                  <h3 className="text-xl font-black text-slate-900 uppercase">Nueva Cuenta</h3>
-                  <p className="text-[10px] text-slate-500 font-bold tracking-widest uppercase">Crear nuevo servicio</p>
+                  <h3 className="text-lg font-black text-slate-900 uppercase leading-none">Nueva Cuenta</h3>
+                  <p className="text-[9px] text-slate-500 font-bold tracking-widest uppercase mt-1">Crear nuevo servicio</p>
                </div>
             </div>
-            <div className="space-y-4 relative z-10">
+            <div className="space-y-3 relative z-10">
                <Link href="/whm/accounts/create" className="block">
-                  <div className="p-5 rounded-2xl bg-slate-50 border border-slate-100 hover:border-[#00A3FF]/30 hover:bg-[#00A3FF]/5 transition-all cursor-pointer flex justify-between items-center group/item">
-                     <span className="text-sm font-bold text-slate-800 uppercase">Servicio Estándar</span>
-                     <span className="material-symbols-outlined text-[20px] text-slate-500 group-hover/item:text-[#00A3FF] group-hover/item:translate-x-1 transition-all">arrow_right_alt</span>
+                  <div className="p-4 rounded-xl bg-slate-50 border border-slate-100 hover:border-[#00A3FF]/30 hover:bg-[#00A3FF]/5 transition-all cursor-pointer flex justify-between items-center group/item">
+                     <span className="text-xs font-bold text-slate-800 uppercase">Servicio Estándar</span>
+                     <span className="material-symbols-outlined text-[18px] text-slate-500 group-hover/item:text-[#00A3FF] group-hover/item:translate-x-1 transition-all">arrow_right_alt</span>
                   </div>
                </Link>
-               <div className="p-5 rounded-2xl bg-slate-50/50 border border-slate-100 opacity-40 cursor-not-allowed flex justify-between items-center">
-                  <span className="text-sm font-bold text-slate-500 uppercase">Clúster Empresarial</span>
-                  <span className="material-symbols-outlined text-[20px] text-slate-400">lock</span>
+               <div className="p-4 rounded-xl bg-slate-50/50 border border-slate-100 opacity-40 cursor-not-allowed flex justify-between items-center">
+                  <span className="text-xs font-bold text-slate-500 uppercase">Clúster Empresarial</span>
+                  <span className="material-symbols-outlined text-[18px] text-slate-400">lock</span>
                </div>
             </div>
          </div>
 
-         <div className="bg-white border border-slate-200 rounded-[2rem] p-10 relative overflow-hidden group transition-all hover:border-[#00A3FF]/20 shadow-sm">
-            <div className="flex items-center gap-5 mb-10 relative z-10">
-               <div className="w-14 h-14 rounded-2xl bg-[#00A3FF]/5 flex items-center justify-center text-[#00A3FF] border border-[#00A3FF]/10 transition-all group-hover:scale-110 group-hover:border-[#00A3FF]/30">
-                  <span className="material-symbols-outlined text-3xl">insights</span>
+         <div className="bg-white border border-slate-200 rounded-2xl p-6 relative overflow-hidden group transition-all hover:border-[#00A3FF]/20 shadow-sm">
+            <div className="flex items-center gap-4 mb-6 relative z-10">
+               <div className="w-11 h-11 rounded-xl bg-[#00A3FF]/5 flex items-center justify-center text-[#00A3FF] border border-[#00A3FF]/10 transition-all group-hover:scale-110 group-hover:border-[#00A3FF]/30">
+                  <span className="material-symbols-outlined text-xl">insights</span>
                </div>
                <div>
-                  <h3 className="text-xl font-black text-slate-900 uppercase">Carga del Sistema</h3>
-                  <p className="text-[10px] text-slate-500 font-bold tracking-widest uppercase">Métricas en tiempo real</p>
+                  <h3 className="text-lg font-black text-slate-900 uppercase leading-none">Carga del Sistema</h3>
+                  <p className="text-[9px] text-slate-500 font-bold tracking-widest uppercase mt-1">Métricas en tiempo real</p>
                </div>
             </div>
-            <div className="relative z-10 space-y-6">
-               <div className="flex items-end gap-3 h-28 px-2">
+            <div className="relative z-10 space-y-4">
+               <div className="flex items-end gap-2.5 h-24 px-2">
                   {loadBars.map((value, index) => {
                     const normalized = peakLoad > 0 ? Math.max(15, Math.round((value / peakLoad) * 100)) : 15;
                     const active = index === loadBars.length - 1;
                     return (
                       <div
                         key={`${value}-${index}`}
-                        className={`flex-1 rounded-lg transition-all duration-700 ${active ? "bg-[#00A3FF] shadow-lg shadow-[#00A3FF]/20 scale-110" : "bg-slate-100 group-hover:bg-[#00A3FF]/10"}`}
+                        className={`flex-1 rounded-md transition-all duration-700 ${active ? "bg-[#00A3FF] shadow-md shadow-[#00A3FF]/20 scale-105" : "bg-slate-100 group-hover:bg-[#00A3FF]/10"}`}
                         style={{ height: `${normalized}%` }}
                       />
                     );
                   })}
                </div>
-               <div className="flex justify-between items-center pt-4 px-2 border-t border-slate-50">
-                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Actividad Reciente</span>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-black text-[#00A3FF]">{server?.loadAverage1m?.toFixed(2)}</span>
-                    <span className="text-[9px] font-bold text-slate-400 uppercase">Avg</span>
+               <div className="flex justify-between items-center pt-3 px-2 border-t border-slate-50">
+                  <span className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Actividad Reciente</span>
+                  <div className="flex items-center gap-1.5">
+                     <span className="text-xs font-black text-[#00A3FF]">{server?.loadAverage1m?.toFixed(2)}</span>
+                     <span className="text-[8px] font-bold text-slate-400 uppercase">Avg</span>
                   </div>
                </div>
             </div>
@@ -155,22 +155,22 @@ export default function WhmDashboardPage() {
 
 function StatCard({ label, value, desc, icon }: { label: string; value: string; desc: string; icon: string }) {
   return (
-    <div className="bg-white p-8 rounded-[2rem] border border-slate-200 group hover:border-[#00A3FF]/40 transition-all duration-500 relative overflow-hidden shadow-sm hover:shadow-md">
-      <div className="flex justify-between items-start mb-6 relative z-10">
-        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{label}</span>
-        <div className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center text-slate-500 group-hover:text-[#00A3FF] group-hover:bg-[#00A3FF]/10 transition-all duration-500 border border-slate-100 group-hover:border-[#00A3FF]/20">
-          <span className="material-symbols-outlined text-[20px]">{icon}</span>
+    <div className="bg-white p-5 rounded-2xl border border-slate-200 group hover:border-[#00A3FF]/40 transition-all duration-500 relative overflow-hidden shadow-sm hover:shadow-md">
+      <div className="flex justify-between items-start mb-4 relative z-10">
+        <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">{label}</span>
+        <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center text-slate-500 group-hover:text-[#00A3FF] group-hover:bg-[#00A3FF]/10 transition-all duration-500 border border-slate-100 group-hover:border-[#00A3FF]/20">
+          <span className="material-symbols-outlined text-[18px]">{icon}</span>
         </div>
       </div>
       <div className="relative z-10">
-        <div className="text-5xl font-black text-slate-900 tracking-tight leading-none mb-3">{value}</div>
-        <div className="text-[11px] text-slate-600 font-bold tracking-tight uppercase flex items-center gap-2">
-          <div className="w-1.5 h-1.5 rounded-full bg-[#00A3FF]"></div>
+        <div className="text-3xl font-black text-slate-900 tracking-tight leading-none mb-2">{value}</div>
+        <div className="text-[10px] text-slate-600 font-bold tracking-tight uppercase flex items-center gap-1.5">
+          <div className="w-1 h-1 rounded-full bg-[#00A3FF]"></div>
           {desc}
         </div>
       </div>
       {/* Subtle brand tint */}
-      <div className="absolute -right-8 -bottom-8 w-32 h-32 bg-[#00A3FF]/5 blur-[60px] rounded-full group-hover:bg-[#00A3FF]/10 transition-all duration-700"></div>
+      <div className="absolute -right-8 -bottom-8 w-24 h-24 bg-[#00A3FF]/5 blur-[50px] rounded-full group-hover:bg-[#00A3FF]/10 transition-all duration-700"></div>
     </div>
   );
 }
