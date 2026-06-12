@@ -3,6 +3,8 @@
  * All DDL (CREATE TABLE IF NOT EXISTS) and index creation happens here,
  * so individual request handlers don't pay the cost of DDL round-trips.
  */
+import fs from "node:fs/promises";
+import path from "node:path";
 import { db } from "../config/db.js";
 import { ensureWordPressTable } from "./odin/wordpress.service.js";
 import { ensureDomainsTable } from "./odin/domain.service.js";
@@ -83,5 +85,18 @@ export const runStartupInit = async (): Promise<void> => {
   } catch (err) {
     console.error("[startup] Schema init failed (non-fatal):", err);
     // Don't crash the server — some tables may already exist
+  }
+
+  // Reset update status if it was completed (success/failed), since the server has rebooted
+  try {
+    const statusFile = path.resolve(process.cwd(), "../../update-status.json");
+    const content = await fs.readFile(statusFile, "utf-8");
+    const processStatus = JSON.parse(content);
+    if (processStatus && (processStatus.status === "success" || processStatus.status === "failed")) {
+      await fs.unlink(statusFile).catch(() => {});
+      console.log("[startup] Reset update-status.json file after successful/failed update restart.");
+    }
+  } catch {
+    // Ignore if file doesn't exist or is invalid
   }
 };
