@@ -20,7 +20,7 @@ export default function WhmLayout({ children }: { children: React.ReactNode }) {
       <WhmSidebar />
 
       {/* Main Content WHM - Light Corporate Theme */}
-      <main className="flex-1 ml-72 p-12 relative overflow-hidden min-h-screen">
+      <main className="flex-1 ml-64 p-8 relative overflow-hidden min-h-screen">
         <div className="relative z-10">
           {children}
         </div>
