@@ -5,10 +5,17 @@ import {
   fetchDomains,
   fetchMailAccountById,
   fetchMailAccounts,
+  fetchMailMessages as fetchMailMessagesFromApi,
   issueMailSsoLink,
-  updateMailAccountPassword
+  updateMailAccountPassword,
+  getMailSessionToken,
+  setMailSessionToken,
+  exchangeMailSso,
+  type MailMessage,
 } from "./api";
 import type { MailAccountSummary } from "@odisea/types";
+
+export { setMailSessionToken, getMailSessionToken };
 
 export type EmailAccountStatus = "active" | "restricted" | "system" | "quota-exceeded";
 
@@ -132,7 +139,48 @@ export const runEmailAccountAction = async (
 };
 
 export const fetchMailboxMessages = async (accountId: string): Promise<EmailMailboxMessage[]> => {
-  await wait(200);
+  await wait(80);
+  
+  let mailToken = getMailSessionToken();
+  if (!mailToken) {
+    try {
+      const ssoLink = await issueMailSsoLink(accountId);
+      const urlObj = new URL(ssoLink.url);
+      const token = urlObj.searchParams.get("token");
+      if (token) {
+        const exchange = await exchangeMailSso(token);
+        setMailSessionToken(exchange.token);
+        mailToken = exchange.token;
+      }
+    } catch (ssoError) {
+      console.error("Auto-SSO failed inside mailbox page:", ssoError);
+    }
+  }
+
+  if (mailToken) {
+    try {
+      const msgs: MailMessage[] = await fetchMailMessagesFromApi("INBOX");
+      return msgs.map((m) => ({
+        id: m.id,
+        from: m.from,
+        fromAddress: m.fromAddress,
+        subject: m.subject,
+        preview: m.preview,
+        receivedAt: m.receivedAt,
+        read: m.read,
+        starred: m.starred,
+        tag: m.fromAddress.includes("security") ? "security"
+           : m.fromAddress.includes("billing") ? "billing"
+           : m.fromAddress.includes("onboarding") || m.fromAddress.includes("system") ? "system"
+           : "client",
+        body: m.body ?? ""
+      }));
+    } catch (fetchError) {
+      console.error("Fetching messages from real API failed:", fetchError);
+    }
+  }
+  
+  // Fallback: generate seed for the account (good for first-load UX)
   const account = await fetchEmailAccountById(accountId);
   return createMailboxSeed(account);
 };

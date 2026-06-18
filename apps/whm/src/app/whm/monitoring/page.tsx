@@ -68,8 +68,8 @@ export default function ServerMonitorPage() {
     refetchInterval: activeTab === "services" ? 10000 : false,
   });
 
-  const serviceMutation = useMutation({
-    mutationFn: async ({ name, action }: { name: string; action: string }) => {
+  const serviceMutation = useMutation<any, Error, { name: string; action: string }>({
+    mutationFn: async ({ name, action }) => {
       const res = await fetch(`${API_BASE}/whm/server/services/${name}/${action}`, {
         method: "POST",
         headers: whmHeaders()
@@ -77,11 +77,11 @@ export default function ServerMonitorPage() {
       if (!res.ok) throw new Error("Fallo en la acción del servicio");
       return res.json();
     },
-    onSuccess: (_data: any, { name, action }: { name: string; action: string }) => {
+    onSuccess: (_data, { name, action }) => {
       queryClient.invalidateQueries({ queryKey: ["whm_server_services"] });
       toast.success(`Servicio ${name}: ${action} ejecutado`);
     },
-    onError: (_err: any, { name }: { name: string }) => toast.error(`Error al controlar el servicio ${name}`),
+    onError: (_err, { name }) => toast.error(`Error al controlar el servicio ${name}`),
   });
 
   // --- ACCOUNTS MONITORING ---

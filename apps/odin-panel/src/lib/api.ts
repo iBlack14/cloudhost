@@ -402,6 +402,106 @@ export const updateMailAccountPassword = async (accountId: string, password: str
   await parsePayload(response);
 };
 
+// Mail session token key (set by the webmail SSO flow)
+const MAIL_SESSION_TOKEN_KEY = "mail-session-token";
+
+export const getMailSessionToken = (): string | null => {
+  if (typeof window === "undefined") return null;
+  return window.sessionStorage.getItem(MAIL_SESSION_TOKEN_KEY);
+};
+
+export const setMailSessionToken = (token: string): void => {
+  if (typeof window !== "undefined") {
+    window.sessionStorage.setItem(MAIL_SESSION_TOKEN_KEY, token);
+  }
+};
+
+const withMailAuth = (headers: Record<string, string> = {}): Record<string, string> => {
+  const token = getMailSessionToken();
+  return token ? { ...headers, Authorization: `Bearer ${token}` } : headers;
+};
+
+export interface MailFolder {
+  folder: string;
+  label: string;
+  count: number;
+}
+
+export interface MailMessage {
+  id: string;
+  folder: string;
+  from: string;
+  fromAddress: string;
+  subject: string;
+  preview: string;
+  receivedAt: string;
+  read: boolean;
+  starred: boolean;
+  to: string[];
+  body?: string;
+}
+
+export const fetchMailFolders = async (): Promise<MailFolder[]> => {
+  const response = await fetch(`${API_BASE}/mail/folders`, {
+    cache: "no-store",
+    headers: withMailAuth()
+  });
+  return parsePayload<MailFolder[]>(response, { redirectOnAuthFailure: false });
+};
+
+export const fetchMailMessages = async (folder = "INBOX"): Promise<MailMessage[]> => {
+  const response = await fetch(`${API_BASE}/mail/messages?folder=${encodeURIComponent(folder)}`, {
+    cache: "no-store",
+    headers: withMailAuth()
+  });
+  return parsePayload<MailMessage[]>(response, { redirectOnAuthFailure: false });
+};
+
+export const fetchMailMessageDetail = async (messageId: string): Promise<MailMessage> => {
+  const response = await fetch(`${API_BASE}/mail/messages/${messageId}`, {
+    cache: "no-store",
+    headers: withMailAuth()
+  });
+  return parsePayload<MailMessage>(response, { redirectOnAuthFailure: false });
+};
+
+export const markMailRead = async (messageId: string, read: boolean): Promise<void> => {
+  const response = await fetch(`${API_BASE}/mail/messages/${messageId}/read`, {
+    method: "POST",
+    headers: withMailAuth({ "Content-Type": "application/json" }),
+    body: JSON.stringify({ read })
+  });
+  await parsePayload(response, { redirectOnAuthFailure: false });
+};
+
+export const markMailStarred = async (messageId: string, starred: boolean): Promise<void> => {
+  const response = await fetch(`${API_BASE}/mail/messages/${messageId}/star`, {
+    method: "POST",
+    headers: withMailAuth({ "Content-Type": "application/json" }),
+    body: JSON.stringify({ starred })
+  });
+  await parsePayload(response, { redirectOnAuthFailure: false });
+};
+
+export const sendMail = async (input: { to: string[]; subject: string; body: string }): Promise<void> => {
+  const response = await fetch(`${API_BASE}/mail/messages/send`, {
+    method: "POST",
+    headers: withMailAuth({ "Content-Type": "application/json" }),
+    body: JSON.stringify(input)
+  });
+  await parsePayload(response, { redirectOnAuthFailure: false });
+};
+
+export const exchangeMailSso = async (token: string): Promise<{ token: string; me: any }> => {
+  const response = await fetch(`${API_BASE}/mail/auth/sso/exchange`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ token })
+  });
+  return parsePayload<{ token: string; me: any }>(response, { redirectOnAuthFailure: false });
+};
+
+
 export const fetchOdinDashboard = async (): Promise<OdinDashboardStats> => {
   const response = await fetch(`${API_BASE}/odin-panel/dashboard`, {
     cache: "no-store",

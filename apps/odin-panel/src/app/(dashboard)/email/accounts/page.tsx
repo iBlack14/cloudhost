@@ -11,6 +11,7 @@ import {
 import {
   EmailActionButton,
   EmailActionLink,
+  EmailActionInternalLink,
   EmailBreadcrumbs,
   EmailPageIntro,
   EmailStatusBadge,
@@ -228,6 +229,7 @@ export default function EmailAccountsPage() {
                 </div>
                 <StorageMeter usedMb={account.usedMb} allocatedMb={account.allocatedMb} />
                 <div className="flex flex-wrap gap-2">
+                  <EmailActionInternalLink icon="mail" label="Buzón" href={`/email/accounts/${account.id}/mailbox`} />
                   <EmailActionLink icon="open_in_new" label="Webmail" href={`/email/accounts/${account.id}/webmail`} />
                   <EmailActionButton icon="tune" label="Gestionar" onClick={() => runAction(account.id, "manage")} />
                   <EmailActionButton icon="devices" label="Dispositivos" onClick={() => runAction(account.id, "connect-devices")} />
@@ -444,6 +446,7 @@ function renderRows({
       </td>
       <td className="px-8 py-6">
         <div className="flex flex-wrap justify-end gap-2">
+          <EmailActionInternalLink icon="mail" label="Buzón" href={`/email/accounts/${account.id}/mailbox`} />
           <EmailActionLink icon="open_in_new" label="Webmail" href={`/email/accounts/${account.id}/webmail`} />
           <EmailActionButton icon="tune" label="Gestionar" onClick={() => onAction(account.id, "manage")} />
           <EmailActionButton icon="devices" label="Dispositivos" onClick={() => onAction(account.id, "connect-devices")} />

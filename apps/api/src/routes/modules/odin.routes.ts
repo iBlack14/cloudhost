@@ -107,7 +107,7 @@ odinRouter.get("/dashboard", async (req, res) => {
     // ensureNodejsTables / ensurePythonTables removed from hot path.
     // Tables are initialized at server startup — see server.ts.
 
-    const [accountRes, servicesRes, databasesRes, userRes, sys] = await Promise.all([
+    const [accountRes, servicesRes, databasesRes, userRes, emailsRes, sys] = await Promise.all([
       db.query(`
         SELECT ha.disk_used_mb, p.name as plan_name, p.disk_quota_mb, u.plan_expires_at
         FROM hosting_accounts ha
@@ -132,6 +132,14 @@ odinRouter.get("/dashboard", async (req, res) => {
         [userId]
       ),
       db.query(`SELECT username FROM users WHERE id = $1 LIMIT 1`, [userId]),
+      // Count real mail accounts (table may not exist on first boot, so guard with COALESCE)
+      db.query(
+        `SELECT COALESCE(
+           (SELECT COUNT(*)::int FROM mail_accounts WHERE user_id = $1),
+           0
+         ) AS emails`,
+        [userId]
+      ).catch(() => ({ rows: [{ emails: 0 }] })),  // graceful fallback if table missing
       getSysStats()  // cached, non-blocking
     ]);
 
@@ -159,7 +167,7 @@ odinRouter.get("/dashboard", async (req, res) => {
         },
         services: {
           domains:   parseInt(services?.domains   || "0"),
-          emails:    0,
+          emails:    Number(emailsRes.rows[0]?.emails ?? 0),
           databases: parseInt(databaseSummary?.databases || "0"),
           apps:      parseInt(services?.apps || "0")
         },
