@@ -2,30 +2,17 @@
 
 import React, { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+import { API_BASE, whmAuthHeaders as whmHeaders } from "../../../lib/api";
 
-const API_BASE = (() => {
-  if (typeof window === "undefined") {
-    const envUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001/api/v1";
-    return envUrl.startsWith("//") ? "http:" + envUrl : envUrl;
-  }
-  const host = window.location.hostname;
-  const proto = window.location.protocol;
-  if (host === "localhost") return "http://localhost:3001/api/v1";
-  if (host.match(/^\d+\.\d+\.\d+\.\d+$/)) {
-    let port = "3001";
-    try {
-      const u = process.env.NEXT_PUBLIC_API_URL ? new URL(process.env.NEXT_PUBLIC_API_URL) : null;
-      if (u && u.port) port = u.port;
-    } catch {}
-    return `${proto}//${host}:${port}/api/v1`;
-  }
-  const parts = host.split(".");
-  return `${proto}//api.${parts.length >= 2 ? parts.slice(-2).join(".") : host}/api/v1`;
-})();
-const getWhmToken = () => typeof window !== "undefined" ? window.sessionStorage.getItem("whm-access-token") : null;
-const whmHeaders = (): Record<string, string> => {
-  const t = getWhmToken();
-  return t ? { Authorization: `Bearer ${t}`, "Content-Type": "application/json" } : { "Content-Type": "application/json" };
+// Reutiliza la misma lógica de formateo de uptime del dashboard WHM
+const formatUptime = (seconds?: number): string => {
+  if (!seconds || seconds <= 0) return "N/A";
+  const days = Math.floor(seconds / 86400);
+  const hours = Math.floor((seconds % 86400) / 3600);
+  const mins = Math.floor((seconds % 3600) / 60);
+  if (days > 0) return `${days}d ${hours}h ${mins}m`;
+  return `${hours}h ${mins}m`;
 };
 
 export default function ServerMonitorPage() {
@@ -63,7 +50,11 @@ export default function ServerMonitorPage() {
       if (!res.ok) throw new Error("Fallo al finalizar proceso");
       return res.json();
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["whm_server_processes"] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["whm_server_processes"] });
+      toast.success("Proceso finalizado correctamente");
+    },
+    onError: () => toast.error("No se pudo finalizar el proceso"),
   });
 
   // --- SERVICES ---
@@ -86,9 +77,11 @@ export default function ServerMonitorPage() {
       if (!res.ok) throw new Error("Fallo en la acción del servicio");
       return res.json();
     },
-    onSuccess: () => {
+    onSuccess: (_data: any, { name, action }: { name: string; action: string }) => {
       queryClient.invalidateQueries({ queryKey: ["whm_server_services"] });
+      toast.success(`Servicio ${name}: ${action} ejecutado`);
     },
+    onError: (_err: any, { name }: { name: string }) => toast.error(`Error al controlar el servicio ${name}`),
   });
 
   // --- ACCOUNTS MONITORING ---
@@ -177,9 +170,9 @@ export default function ServerMonitorPage() {
                   </div>
                   <div className="space-y-2">
                     <span className="block text-[11px] font-black uppercase text-slate-400 tracking-[0.2em]">Uptime Total</span>
-                    <div className="px-4 py-2 bg-slate-50 border border-slate-100 rounded-xl font-bold text-[#00A3FF] inline-block">
-                       {Math.round(stats?.uptime ?? 0)} segundos
-                    </div>
+                     <div className="px-4 py-2 bg-slate-50 border border-slate-100 rounded-xl font-bold text-[#00A3FF] inline-block">
+                        {formatUptime(stats?.uptime ?? stats?.uptimeSeconds)}
+                     </div>
                   </div>
                </div>
             </div>
@@ -220,14 +213,22 @@ export default function ServerMonitorPage() {
                                   </div>
                                </div>
                             </td>
-                            <td className="px-8 py-5">
-                               <div className="flex items-center gap-2">
-                                  <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
-                                  <span className="text-xs font-bold text-slate-600 uppercase">Saludable</span>
-                                </div>
-                            </td>
-                            <td className="px-8 py-5 text-right">
-                               <span className="text-[10px] font-black uppercase text-[#00A3FF] tracking-widest">Optimizado</span>
+                             <td className="px-8 py-5">
+                                <div className="flex items-center gap-2">
+                                   <div className={`w-2 h-2 rounded-full ${acc.status === 'suspended' ? 'bg-red-500' : acc.disk_used_mb / (acc.disk_quota_mb || 1) > 0.9 ? 'bg-amber-500' : 'bg-emerald-500'}`}></div>
+                                   <span className={`text-xs font-bold uppercase ${
+                                     acc.status === 'suspended' ? 'text-red-600' : acc.disk_used_mb / (acc.disk_quota_mb || 1) > 0.9 ? 'text-amber-600' : 'text-slate-600'
+                                   }`}>
+                                     {acc.status === 'suspended' ? 'Suspendida' : acc.disk_used_mb / (acc.disk_quota_mb || 1) > 0.9 ? 'Crítico' : 'Saludable'}
+                                   </span>
+                                 </div>
+                             </td>
+                             <td className="px-8 py-5 text-right">
+                                <span className={`text-[10px] font-black uppercase tracking-widest ${
+                                  acc.status === 'active' ? 'text-[#00A3FF]' : 'text-red-600'
+                                }`}>
+                                  {acc.status === 'active' ? 'Activo' : 'Suspendido'}
+                                </span>
                             </td>
                          </tr>
                       ))}

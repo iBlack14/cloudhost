@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
+import { toast } from "sonner";
 import { useWhmPlans, useCreateWhmPlan, useUpdateWhmPlan, useDeleteWhmPlan } from "../../../lib/hooks/use-whm-accounts";
 import { getWhmRole } from "../../../lib/api";
 import { type Plan } from "@odisea/types";
@@ -58,8 +59,9 @@ export default function WhmPlansPage() {
         await createMutation.mutateAsync(editingPlan);
       }
       setIsModalOpen(false);
+      toast.success(editingPlan.id ? "Plan actualizado correctamente" : "Plan creado correctamente");
     } catch (err) {
-      alert("Error al guardar el plan");
+      toast.error("Error al guardar el plan");
     }
   };
 
@@ -67,8 +69,9 @@ export default function WhmPlansPage() {
     if (confirm("¿Estás seguro de eliminar este plan?")) {
       try {
         await deleteMutation.mutateAsync(id);
+        toast.success("Plan eliminado correctamente");
       } catch (err) {
-        alert("Error al eliminar el plan");
+        toast.error("Error al eliminar el plan");
       }
     }
   };

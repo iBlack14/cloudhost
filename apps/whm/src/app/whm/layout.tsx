@@ -2,6 +2,7 @@
 
 import React, { useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { Toaster } from "sonner";
 import { WhmSidebar } from "../../components/whm-sidebar";
 import { hasWhmSession } from "../../lib/api";
 
@@ -28,6 +29,23 @@ export default function WhmLayout({ children }: { children: React.ReactNode }) {
         <div className="fixed bottom-[-150px] right-[-150px] w-[800px] h-[800px] bg-[#00A3FF]/5 blur-[180px] pointer-events-none z-0 rounded-full"></div>
         <div className="fixed top-[-100px] left-[50vw] w-[400px] h-[400px] bg-[#00A3FF]/5 blur-[120px] pointer-events-none z-0 rounded-full"></div>
       </main>
+
+      {/* Toast notifications — replaces alert() across all WHM pages */}
+      <Toaster
+        position="top-right"
+        toastOptions={{
+          style: {
+            fontFamily: "inherit",
+            fontSize: "12px",
+            fontWeight: "700",
+            letterSpacing: "0.05em",
+            textTransform: "uppercase",
+            borderRadius: "12px",
+          },
+        }}
+        richColors
+        closeButton
+      />
     </div>
   );
 }

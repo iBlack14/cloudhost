@@ -27,6 +27,7 @@ export default function WhmLoginPage() {
   const [error, setError] = useState("");
   const [showPass, setShowPass] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -41,7 +42,7 @@ export default function WhmLoginPage() {
     setIsLoading(true);
 
     try {
-      await loginWhm(username, password);
+      await loginWhm(username, password, rememberMe);
       router.replace("/whm");
     } catch (submitError) {
       setError(submitError instanceof Error ? submitError.message : "Acceso denegado. Credenciales inválidas.");
@@ -209,9 +210,12 @@ export default function WhmLoginPage() {
 
             {/* Helper row */}
             <div className="flex justify-between items-center text-xs pt-1.5">
-              <label className="flex items-center gap-2 cursor-pointer text-slate-400 hover:text-slate-200 select-none font-medium">
+              <label htmlFor="whm-remember-me" className="flex items-center gap-2 cursor-pointer text-slate-400 hover:text-slate-200 select-none font-medium">
                 <input 
-                  type="checkbox" 
+                  id="whm-remember-me"
+                  type="checkbox"
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
                   className="rounded bg-slate-950/40 border border-white/10 text-[#00A3FF] focus:ring-0 focus:ring-offset-0 w-4 h-4 cursor-pointer"
                 />
                 Recordarme

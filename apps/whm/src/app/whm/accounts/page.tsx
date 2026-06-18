@@ -2,6 +2,7 @@
 
 import React, { useMemo, useState } from "react";
 import Link from "next/link";
+import { toast } from "sonner";
 import { 
   useWhmAccounts, 
   useSuspendWhmAccount, 
@@ -46,9 +47,10 @@ export default function WhmAccountsPage() {
     if (confirm(`¿Estás seguro de que deseas ELIMINAR permanentemente la cuenta "${username}"? Esta acción no se puede deshacer.`)) {
       try {
         await deleteMutation.mutateAsync(accountId);
+        toast.success(`Cuenta "${username}" eliminada permanentemente`);
       } catch (error) {
         console.error(error);
-        alert("Fallo al eliminar: " + (error instanceof Error ? error.message : "Error Interno"));
+        toast.error("Fallo al eliminar: " + (error instanceof Error ? error.message : "Error Interno"));
       }
     }
   };
@@ -68,7 +70,7 @@ export default function WhmAccountsPage() {
       window.open(data.odinPanelUrl, "_blank");
     } catch (error) {
       console.error(error);
-      alert("Error al iniciar la suplantación");
+      toast.error("Error al iniciar la suplantación");
     }
   };
 
@@ -77,7 +79,7 @@ export default function WhmAccountsPage() {
       const result = await resetPassMutation.mutateAsync({ accountId: resetModal.accountId });
       setResetModal(prev => ({ ...prev, newPass: result.password }));
     } catch (error) {
-      alert("Error al restablecer la contraseña");
+      toast.error("Error al restablecer la contraseña");
     }
   };
 
@@ -92,8 +94,9 @@ export default function WhmAccountsPage() {
       setPlanModal({ ...planModal, isOpen: false });
       setSelectedPlanId("");
       setSelectedDurationMonths(undefined);
+      toast.success("Plan actualizado correctamente");
     } catch (error) {
-      alert("Error al cambiar el plan");
+      toast.error("Error al cambiar el plan");
     }
   };
 

@@ -1,31 +1,8 @@
 "use client";
 
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-
-const API_BASE = (() => {
-  if (typeof window === "undefined") {
-    const envUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001/api/v1";
-    return envUrl.startsWith("//") ? "http:" + envUrl : envUrl;
-  }
-  const host = window.location.hostname;
-  const proto = window.location.protocol;
-  if (host === "localhost") return "http://localhost:3001/api/v1";
-  if (host.match(/^\d+\.\d+\.\d+\.\d+$/)) {
-    let port = "3001";
-    try {
-      const u = process.env.NEXT_PUBLIC_API_URL ? new URL(process.env.NEXT_PUBLIC_API_URL) : null;
-      if (u && u.port) port = u.port;
-    } catch {}
-    return `${proto}//${host}:${port}/api/v1`;
-  }
-  const parts = host.split(".");
-  return `${proto}//api.${parts.length >= 2 ? parts.slice(-2).join(".") : host}/api/v1`;
-})();
-const getWhmToken = () => typeof window !== "undefined" ? window.sessionStorage.getItem("whm-access-token") : null;
-const whmHeaders = (): Record<string, string> => {
-  const t = getWhmToken();
-  return t ? { Authorization: `Bearer ${t}`, "Content-Type": "application/json" } : { "Content-Type": "application/json" };
-};
+import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
+import { toast } from "sonner";
+import { API_BASE, whmAuthHeaders as whmHeaders } from "../../../lib/api";
 
 interface DomainRow {
   id: string;
@@ -46,6 +23,27 @@ export default function WhmSslManagerPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error?.message ?? "Error fetching domains");
       return data.data;
+    },
+  });
+
+  const sslMutation = useMutation({
+    mutationFn: async (domainId: string) => {
+      // El endpoint de emisión SSL está en el router de odin (usuario)
+      // El WHM puede llamarlo directamente porque comparte la API con autorización de admin
+      const res = await fetch(`${API_BASE}/odin/domains/${domainId}/ssl/issue`, {
+        method: "POST",
+        headers: whmHeaders(),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error?.message ?? "Error al emitir SSL");
+      return data;
+    },
+    onSuccess: (_data, domainId) => {
+      toast.success("Certificado SSL emitido correctamente con Let's Encrypt");
+      queryClient.invalidateQueries({ queryKey: ["whm_domains_ssl"] });
+    },
+    onError: (e: any) => {
+      toast.error(e.message ?? "Error al emitir el certificado SSL");
     },
   });
 
@@ -126,15 +124,17 @@ export default function WhmSslManagerPage() {
                       </td>
                       <td className="px-8 py-5 text-right">
                          <button 
-                            disabled={dom.ssl_enabled}
-                            onClick={() => alert("Para emitir o renovar un certificado SSL, inicia sesión como usuario en la cuenta correspondiente.")}
-                            className={`px-5 py-2.5 font-bold uppercase text-[10px] rounded-xl tracking-widest transition-all ${
-                              dom.ssl_enabled 
-                                ? 'bg-slate-50 text-slate-400 border border-slate-100 cursor-not-allowed' 
-                                : 'bg-[#00A3FF] text-white hover:bg-[#008EE0] hover:shadow-lg hover:shadow-[#00A3FF]/20 active:scale-95'
-                            }`}
-                         >
-                            {dom.ssl_enabled ? "Activo" : "AutoSSL"}
+                             disabled={dom.ssl_enabled || sslMutation.isPending}
+                             onClick={() => sslMutation.mutate(dom.id)}
+                             className={`px-5 py-2.5 font-bold uppercase text-[10px] rounded-xl tracking-widest transition-all ${
+                               dom.ssl_enabled 
+                                 ? 'bg-slate-50 text-slate-400 border border-slate-100 cursor-not-allowed' 
+                                 : sslMutation.isPending
+                                 ? 'bg-[#00A3FF]/50 text-white cursor-wait'
+                                 : 'bg-[#00A3FF] text-white hover:bg-[#008EE0] hover:shadow-lg hover:shadow-[#00A3FF]/20 active:scale-95'
+                             }`}
+                          >
+                             {dom.ssl_enabled ? "Activo" : sslMutation.isPending ? "Emitiendo..." : "AutoSSL"}
                          </button>
                       </td>
                    </tr>

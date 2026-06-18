@@ -2,34 +2,8 @@
 
 import React, { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-
-const API_BASE = (() => {
-  if (typeof window === "undefined") {
-    const envUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001/api/v1";
-    return envUrl.startsWith("//") ? "http:" + envUrl : envUrl;
-  }
-  const host = window.location.hostname;
-  const proto = window.location.protocol;
-  if (host === "localhost") return "http://localhost:3001/api/v1";
-  if (host.match(/^\d+\.\d+\.\d+\.\d+$/)) {
-    let port = "3001";
-    try {
-      const u = process.env.NEXT_PUBLIC_API_URL ? new URL(process.env.NEXT_PUBLIC_API_URL) : null;
-      if (u && u.port) port = u.port;
-    } catch {}
-    return `${proto}//${host}:${port}/api/v1`;
-  }
-  const parts = host.split(".");
-  return `${proto}//api.${parts.length >= 2 ? parts.slice(-2).join(".") : host}/api/v1`;
-})();
-
-const getWhmToken = () =>
-  typeof window !== "undefined" ? window.sessionStorage.getItem("whm-access-token") : null;
-
-const whmHeaders = (): Record<string, string> => {
-  const t = getWhmToken();
-  return t ? { Authorization: `Bearer ${t}`, "Content-Type": "application/json" } : { "Content-Type": "application/json" };
-};
+import { toast } from "sonner";
+import { API_BASE, whmAuthHeaders as whmHeaders } from "../../../lib/api";
 
 interface PhpStatus {
   version: string;
@@ -98,9 +72,10 @@ export default function WhmPhpManager() {
       return data;
     },
     onSuccess: () => {
-      alert("Servicio PHP-FPM recargado correctamente.");
+      toast.success("Servicio PHP-FPM recargado correctamente.");
       queryClient.invalidateQueries({ queryKey: ["whm_php_status"] });
     },
+    onError: (e: any) => toast.error(e.message ?? "Error al recargar PHP-FPM"),
   });
 
   return (

@@ -1,5 +1,6 @@
 import { Router } from "express";
 import os from "node:os";
+import multer from "multer";
 
 import {
   createWhmAccountHandler,
@@ -24,7 +25,9 @@ import {
   killProcessHandler,
   getServicesHandler,
   manageServiceHandler,
-  getLogsHandler
+  getLogsHandler,
+  getServerConfigHandler,
+  rebootServerHandler,
 } from "../../controllers/whm/server.controller.js";
 import {
   listAllDatabasesHandler,
@@ -45,6 +48,7 @@ import {
   whmChangeAccountPhpHandler,
   whmReloadFpmHandler,
 } from "../../controllers/odin/php.controller.js";
+import { getUpdateStatusHandler, runUpdateHandler } from "../../controllers/whm/update.controller.js";
 import { requireAuth } from "../../middleware/auth.js";
 import { db } from "../../config/db.js";
 import { getSysStats } from "../../services/sys-stats.service.js";
@@ -177,6 +181,8 @@ whmRouter.post("/php/reload/:version", whmReloadFpmHandler);                 // 
 
 // ── Server Live Monitor ────────────────────────────────────────────────────────
 whmRouter.get("/server/stats", getServerStatsHandler);
+whmRouter.get("/server/config", getServerConfigHandler);     // Software/network info
+whmRouter.post("/server/reboot", rebootServerHandler);       // Schedule reboot
 whmRouter.get("/server/processes", getProcessesHandler);
 whmRouter.delete("/server/processes/:pid", killProcessHandler);
 whmRouter.get("/server/services", getServicesHandler);
@@ -191,8 +197,6 @@ whmRouter.get("/databases/:dbName/sso", generateDbSsoHandler);
 whmRouter.post("/databases/:dbUser/password", resetPasswordHandler);
 
 // ── Migration & Backups Routes ─────────────────────────────────────────────────
-import multer from "multer";
-
 const whmUpload = multer({
   storage: multer.diskStorage({
     destination: (_req, _file, cb) => cb(null, os.tmpdir()),
@@ -207,8 +211,5 @@ whmRouter.post("/migrations/import", whmUpload.single("backup"), importAccountHa
 whmRouter.post("/migrations/ssh", sshMigrateHandler);
 
 // ── Self Update Routes ──────────────────────────────────────────────────────────
-import { getUpdateStatusHandler, runUpdateHandler } from "../../controllers/whm/update.controller.js";
 whmRouter.get("/update/status", getUpdateStatusHandler);
 whmRouter.post("/update/run", runUpdateHandler);
-
-

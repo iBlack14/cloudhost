@@ -2,31 +2,8 @@
 
 import React, { useState } from "react";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
-
-const API_BASE = (() => {
-  if (typeof window === "undefined") {
-    const envUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001/api/v1";
-    return envUrl.startsWith("//") ? "http:" + envUrl : envUrl;
-  }
-  const host = window.location.hostname;
-  const proto = window.location.protocol;
-  if (host === "localhost") return "http://localhost:3001/api/v1";
-  if (host.match(/^\d+\.\d+\.\d+\.\d+$/)) {
-    let port = "3001";
-    try {
-      const u = process.env.NEXT_PUBLIC_API_URL ? new URL(process.env.NEXT_PUBLIC_API_URL) : null;
-      if (u && u.port) port = u.port;
-    } catch {}
-    return `${proto}//${host}:${port}/api/v1`;
-  }
-  const parts = host.split(".");
-  return `${proto}//api.${parts.length >= 2 ? parts.slice(-2).join(".") : host}/api/v1`;
-})();
-const getWhmToken = () => typeof window !== "undefined" ? window.sessionStorage.getItem("whm-access-token") : null;
-const whmHeaders = (): Record<string, string> => {
-  const t = getWhmToken();
-  return t ? { Authorization: `Bearer ${t}` } : {}; 
-};
+import { toast } from "sonner";
+import { API_BASE, whmAuthHeaders as whmHeaders } from "../../../lib/api";
 
 export default function WhmMigrationsPage() {
   const [selectedUser, setSelectedUser] = useState<string>("");
@@ -54,8 +31,9 @@ export default function WhmMigrationsPage() {
     },
     onSuccess: (data) => {
       window.open(`${API_BASE.replace('/api/v1', '')}${data.downloadUrl}`, "_blank");
+      toast.success("Paquete generado. Descarga iniciada.");
     },
-    onError: (e: any) => alert(e.message)
+    onError: (e: any) => toast.error(e.message ?? "Error en la exportación")
   });
 
   const importMutation = useMutation({
@@ -74,10 +52,10 @@ export default function WhmMigrationsPage() {
       return data;
     },
     onSuccess: () => {
-      alert("Transferencia completada. Sistema importado con éxito.");
+      toast.success("Transferencia completada. Sistema importado con éxito.");
       setImportFile(null);
     },
-    onError: (e: any) => alert(e.message)
+    onError: (e: any) => toast.error(e.message ?? "Error en la importación")
   });
 
   const sshMutation = useMutation({
@@ -92,10 +70,10 @@ export default function WhmMigrationsPage() {
       return data;
     },
     onSuccess: () => {
-      alert("Proceso de migración iniciado en segundo plano.");
+      toast.success("Proceso de migración iniciado en segundo plano.");
       setSshData({ host: "", user: "root", pass: "" });
     },
-    onError: (e: any) => alert(e.message)
+    onError: (e: any) => toast.error(e.message ?? "Error de conexión SSH")
   });
 
   return (

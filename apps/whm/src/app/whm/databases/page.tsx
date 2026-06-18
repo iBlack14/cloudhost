@@ -2,31 +2,8 @@
 
 import React, { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-
-const API_BASE = (() => {
-  if (typeof window === "undefined") {
-    const envUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001/api/v1";
-    return envUrl.startsWith("//") ? "http:" + envUrl : envUrl;
-  }
-  const host = window.location.hostname;
-  const proto = window.location.protocol;
-  if (host === "localhost") return "http://localhost:3001/api/v1";
-  if (host.match(/^\d+\.\d+\.\d+\.\d+$/)) {
-    let port = "3001";
-    try {
-      const u = process.env.NEXT_PUBLIC_API_URL ? new URL(process.env.NEXT_PUBLIC_API_URL) : null;
-      if (u && u.port) port = u.port;
-    } catch {}
-    return `${proto}//${host}:${port}/api/v1`;
-  }
-  const parts = host.split(".");
-  return `${proto}//api.${parts.length >= 2 ? parts.slice(-2).join(".") : host}/api/v1`;
-})();
-const getWhmToken = () => typeof window !== "undefined" ? window.sessionStorage.getItem("whm-access-token") : null;
-const whmHeaders = (): Record<string, string> => {
-  const t = getWhmToken();
-  return t ? { Authorization: `Bearer ${t}`, "Content-Type": "application/json" } : { "Content-Type": "application/json" };
-};
+import { toast } from "sonner";
+import { API_BASE, whmAuthHeaders as whmHeaders } from "../../../lib/api";
 
 export default function WhmDatabasesPage() {
   const queryClient = useQueryClient();
@@ -44,15 +21,17 @@ export default function WhmDatabasesPage() {
 
   const repairMutation = useMutation({
     mutationFn: async (dbName: string) => fetch(`${API_BASE}/whm/databases/${dbName}/repair`, { method: "POST", headers: whmHeaders() }),
-    onSuccess: () => alert("Reparación (REPAIR TABLE) ejecutada correctamente")
+    onSuccess: () => toast.success("Reparación (REPAIR TABLE) ejecutada correctamente"),
+    onError: () => toast.error("Error al reparar la base de datos")
   });
 
   const optimizeMutation = useMutation({
     mutationFn: async (dbName: string) => fetch(`${API_BASE}/whm/databases/${dbName}/optimize`, { method: "POST", headers: whmHeaders() }),
     onSuccess: () => {
-       alert("Optimización (OPTIMIZE TABLE) ejecutada correctamente");
+       toast.success("Optimización (OPTIMIZE TABLE) ejecutada correctamente");
        queryClient.invalidateQueries({ queryKey: ["whm_databases"] });
-    }
+    },
+    onError: () => toast.error("Error al optimizar la base de datos")
   });
 
   const resetPassMutation = useMutation({
@@ -66,10 +45,11 @@ export default function WhmDatabasesPage() {
       return res.json();
     },
     onSuccess: () => {
-      alert("Contraseña regenerada correctamente.");
+      toast.success("Contraseña regenerada correctamente.");
       setEditingUser(null);
       setNewPass("");
-    }
+    },
+    onError: () => toast.error("Error al resetear la contraseña")
   });
 
   const generateSsoMutation = useMutation({

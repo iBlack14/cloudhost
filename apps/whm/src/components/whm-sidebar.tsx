@@ -23,7 +23,7 @@ export function WhmSidebar() {
     router.replace("/auth/login");
   };
 
-  const isAdmin = role === "admin" || !mounted; // Default to admin while mounting to avoid layout shift if possible, or just false.
+  const isAdmin = mounted && role === "admin";
 
   const server = dashboard?.server;
   const cpu = server?.cpu ?? 45;

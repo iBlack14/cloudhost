@@ -14,7 +14,7 @@ export {
   WhmImpersonation 
 };
 
-const API_BASE = (() => {
+export const API_BASE = (() => {
   if (typeof window === "undefined") {
     const envUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001/api/v1";
     return envUrl.startsWith("//") ? "http:" + envUrl : envUrl;
@@ -52,16 +52,21 @@ const getWhmAccessToken = (): string | null => {
   if (typeof window === "undefined") {
     return null;
   }
-
-  return window.sessionStorage.getItem(WHM_ACCESS_TOKEN_KEY);
+  // Check localStorage first ("Remember me" was checked), then sessionStorage
+  return (
+    window.localStorage.getItem(WHM_ACCESS_TOKEN_KEY) ||
+    window.sessionStorage.getItem(WHM_ACCESS_TOKEN_KEY)
+  );
 };
 
 export const getWhmRole = (): "admin" | "reseller" | "user" | null => {
   if (typeof window === "undefined") {
     return null;
   }
-
-  return window.sessionStorage.getItem(WHM_ROLE_KEY) as any;
+  return (
+    window.localStorage.getItem(WHM_ROLE_KEY) ||
+    window.sessionStorage.getItem(WHM_ROLE_KEY)
+  ) as any;
 };
 
 const withWhmAuth = (headers: Record<string, string> = {}): Record<string, string> => {
@@ -75,10 +80,20 @@ const withWhmAuth = (headers: Record<string, string> = {}): Record<string, strin
     : headers;
 };
 
+/**
+ * Helper exportado para páginas que hacen fetch directo (sin pasar por las funciones de api.ts).
+ * Devuelve un objeto de headers con Authorization + Content-Type: application/json.
+ */
+export const whmAuthHeaders = (extra: Record<string, string> = {}): Record<string, string> =>
+  withWhmAuth({ "Content-Type": "application/json", ...extra });
+
 const clearWhmAccessToken = (): void => {
   if (typeof window !== "undefined") {
+    // Clear from both storages (handles both "remember me" and regular sessions)
     window.sessionStorage.removeItem(WHM_ACCESS_TOKEN_KEY);
     window.sessionStorage.removeItem(WHM_ROLE_KEY);
+    window.localStorage.removeItem(WHM_ACCESS_TOKEN_KEY);
+    window.localStorage.removeItem(WHM_ROLE_KEY);
   }
 };
 
@@ -107,7 +122,7 @@ export const logoutWhmSession = (): void => {
   clearWhmAccessToken();
 };
 
-export const loginWhm = async (username: string, password: string): Promise<AuthLoginResponse> => {
+export const loginWhm = async (username: string, password: string, rememberMe = false): Promise<AuthLoginResponse> => {
   const response = await fetch(`${API_BASE}/auth/login`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -121,8 +136,11 @@ export const loginWhm = async (username: string, password: string): Promise<Auth
   }
 
   if (typeof window !== "undefined") {
-    window.sessionStorage.setItem(WHM_ACCESS_TOKEN_KEY, data.token);
-    window.sessionStorage.setItem(WHM_ROLE_KEY, data.role);
+    // If rememberMe is checked, persist in localStorage (survives browser close)
+    // Otherwise use sessionStorage (cleared when browser tab closes)
+    const storage = rememberMe ? window.localStorage : window.sessionStorage;
+    storage.setItem(WHM_ACCESS_TOKEN_KEY, data.token);
+    storage.setItem(WHM_ROLE_KEY, data.role);
   }
 
   return data;
