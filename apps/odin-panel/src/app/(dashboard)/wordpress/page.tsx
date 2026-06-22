@@ -319,21 +319,55 @@ export default function WordPressManagerPage() {
             {/* Body */}
             <div className="flex-1">
               {isInstalling ? (
-                <div className="py-8 flex flex-col items-center px-8">
-                  <div className="w-14 h-14 relative mb-6">
-                    <div className="absolute inset-0 border-4 border-slate-100 rounded-full" />
-                    <div className="absolute inset-0 border-4 border-[#00A3FF] rounded-full border-t-transparent animate-spin" />
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <span className="material-symbols-outlined text-[#00A3FF] text-xl animate-pulse">cloud_download</span>
+                <div className="py-12 flex flex-col items-center px-8 text-center animate-in fade-in duration-500">
+                  <div className="w-20 h-20 relative mb-8 flex items-center justify-center bg-[#00A3FF]/5 rounded-full border border-[#00A3FF]/10 shadow-lg shadow-[#00A3FF]/5">
+                    {/* Ring spinner */}
+                    <div className="absolute inset-0 border-[3px] border-[#00A3FF]/10 rounded-full" />
+                    <div className="absolute inset-0 border-[3px] border-[#00A3FF] rounded-full border-t-transparent animate-spin" />
+                    <span className="material-symbols-outlined text-[#00A3FF] text-3xl animate-pulse">cloud_download</span>
+                  </div>
+
+                  {/* Progress bar */}
+                  <div className="w-full max-w-sm mb-6 space-y-2">
+                    <div className="flex justify-between items-center text-[9px] font-black uppercase tracking-widest text-slate-400">
+                      <span>Progreso del despliegue</span>
+                      <span className="text-[#00A3FF] font-black">{Math.round((installStep / (installLogs.length - 1)) * 100)}%</span>
+                    </div>
+                    <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
+                      <div className="h-full bg-gradient-to-r from-[#00A3FF] to-[#00C2FF] rounded-full transition-all duration-500" style={{ width: `${(installStep / (installLogs.length - 1)) * 100}%` }} />
                     </div>
                   </div>
-                  <div className="w-full max-w-sm bg-slate-900 rounded-2xl p-5 space-y-2 shadow-2xl">
-                    {installLogs.map((log, i) => (
-                      <div key={i} className={`text-[10px] font-bold flex items-center gap-3 transition-opacity duration-300 ${i <= installStep ? 'opacity-100' : 'opacity-20'}`}>
-                        <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${i === installStep ? 'bg-[#00A3FF] animate-pulse' : i < installStep ? 'bg-emerald-500' : 'bg-slate-700'}`} />
-                        <span className={i === installStep ? 'text-[#00A3FF]' : i < installStep ? 'text-slate-400' : 'text-slate-600'}>{log}</span>
-                      </div>
-                    ))}
+
+                  {/* Steps Card */}
+                  <div className="w-full max-w-sm bg-gradient-to-b from-slate-50 to-white border border-slate-100 rounded-2xl p-6 space-y-4 shadow-sm text-left">
+                    {installLogs.map((log, i) => {
+                      const isDone = i < installStep;
+                      const isActive = i === installStep;
+                      return (
+                        <div key={i} className={`flex items-center gap-3 transition-all duration-300 ${isDone || isActive ? 'opacity-100' : 'opacity-25'}`}>
+                          <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 border transition-all ${
+                            isDone ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500' : 
+                            isActive ? 'bg-[#00A3FF]/10 border-[#00A3FF]/20 text-[#00A3FF]' : 
+                            'bg-slate-50 border-slate-200 text-slate-400'
+                          }`}>
+                            {isDone ? (
+                              <span className="material-symbols-outlined text-[10px] font-bold">check</span>
+                            ) : isActive ? (
+                              <span className="w-1.5 h-1.5 rounded-full bg-[#00A3FF] animate-pulse" />
+                            ) : (
+                              <span className="w-1 h-1 rounded-full bg-slate-400" />
+                            )}
+                          </div>
+                          <span className={`text-[10px] font-bold tracking-tight transition-colors ${
+                            isDone ? 'text-slate-400 line-through decoration-slate-200' : 
+                            isActive ? 'text-slate-800 font-black' : 
+                            'text-slate-400'
+                          }`}>
+                            {log}
+                          </span>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               ) : (
