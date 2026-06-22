@@ -64,14 +64,14 @@ export function EmailPageIntro({
   helper?: React.ReactNode;
 }) {
   return (
-    <header className="space-y-4">
-      <div className="space-y-2">
-        <h1 className="text-4xl md:text-5xl font-black text-slate-900 uppercase tracking-tighter">
+    <header className="space-y-3">
+      <div className="space-y-1">
+        <h1 className="text-2xl md:text-3xl font-black text-slate-900 uppercase tracking-tighter">
           {title}
         </h1>
-        <p className="max-w-4xl text-sm text-slate-500 leading-relaxed font-medium">{description}</p>
+        <p className="max-w-4xl text-xs text-slate-500 leading-relaxed font-medium">{description}</p>
       </div>
-      {helper ? <div className="text-xs text-slate-400 font-medium italic">{helper}</div> : null}
+      {helper ? <div className="text-[10px] text-slate-400 font-medium italic">{helper}</div> : null}
     </header>
   );
 }
@@ -97,10 +97,10 @@ export function EmailToolbar({
   ];
 
   return (
-    <div className="bg-white border border-slate-200 rounded-[2rem] p-8 space-y-6 shadow-sm">
-      <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+    <div className="bg-white border border-slate-200 rounded-2xl p-5 space-y-4 shadow-sm">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div className="relative flex-1">
-          <span className="material-symbols-outlined absolute left-5 top-1/2 -translate-y-1/2 text-slate-300 text-[22px]">
+          <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 text-[18px]">
             search
           </span>
           <input
@@ -108,16 +108,16 @@ export function EmailToolbar({
             value={search}
             onChange={(event) => onSearchChange(event.target.value)}
             placeholder="Buscar por cuenta, usuario o dominio..."
-            className="w-full rounded-2xl border border-slate-200 bg-slate-50 py-4 pl-14 pr-6 text-sm text-slate-900 outline-none transition-all placeholder:text-slate-300 focus:border-[#00A3FF] focus:bg-white shadow-inner"
+            className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-11 pr-5 text-xs text-slate-900 outline-none transition-all placeholder:text-slate-300 focus:border-[#00A3FF] focus:bg-white shadow-inner"
           />
         </div>
-        <div className="rounded-2xl bg-slate-50 border border-slate-100 px-6 py-4 text-[11px] font-black uppercase tracking-widest text-slate-400">
+        <div className="rounded-xl bg-slate-50 border border-slate-100 px-4 py-2.5 text-[9px] font-black uppercase tracking-widest text-slate-400 shrink-0">
           {total} cuentas encontradas
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-3">
-        <span className="mr-3 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
+      <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-slate-50">
+        <span className="mr-2 text-[9px] font-black uppercase tracking-[0.2em] text-slate-400">
           Filtrar por Estado:
         </span>
         {filters.map((item) => {
@@ -127,9 +127,9 @@ export function EmailToolbar({
               key={item.value}
               type="button"
               onClick={() => onFilterChange(item.value)}
-              className={`rounded-xl border px-4 py-2.5 text-[10px] font-black uppercase tracking-widest transition-all ${
+              className={`rounded-lg border px-3 py-1.5 text-[8.5px] font-black uppercase tracking-widest transition-all ${
                 active
-                  ? "border-[#00A3FF] bg-[#00A3FF] text-white shadow-lg shadow-[#00A3FF]/20"
+                  ? "border-[#00A3FF] bg-[#00A3FF] text-white shadow-md shadow-[#00A3FF]/20"
                   : "border-slate-100 bg-slate-50 text-slate-400 hover:border-[#00A3FF]/30 hover:text-[#00A3FF]"
               }`}
             >
@@ -146,9 +146,9 @@ export function EmailStatusBadge({ status }: { status: EmailAccountStatus }) {
   const meta = statusMeta[status];
   return (
     <span
-      className={`inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-[9px] font-black uppercase tracking-widest ${meta.className}`}
+      className={`inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-[8.5px] font-black uppercase tracking-widest ${meta.className}`}
     >
-      <span className={`h-1.5 w-1.5 rounded-full ${meta.dot}`} />
+      <span className={`h-1.2 w-1.2 rounded-full ${meta.dot}`} />
       {meta.label}
     </span>
   );
@@ -172,8 +172,8 @@ export function StorageMeter({
           : "#10B981";
 
   return (
-    <div className="space-y-2 min-w-[200px]">
-      <div className="flex justify-between items-center text-[11px] font-bold">
+    <div className="space-y-1.5 min-w-[160px]">
+      <div className="flex justify-between items-center text-[10px] font-bold">
         <div className="text-slate-900">
           {Number(usedMb).toFixed(0)}MB / {allocatedMb === null ? "∞" : `${allocatedMb}MB`}
         </div>
@@ -181,7 +181,7 @@ export function StorageMeter({
           <div className="text-slate-400">{Number(ratio).toFixed(1)}%</div>
         ) : null}
       </div>
-      <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100 shadow-inner">
+      <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-100 shadow-inner">
         <div
           className="h-full rounded-full transition-all duration-1000"
           style={{ width: `${allocatedMb === null ? 15 : ratio}%`, backgroundColor: color }}
@@ -204,9 +204,9 @@ export function EmailActionButton({
     <button
       type="button"
       onClick={onClick}
-      className="inline-flex items-center gap-2 rounded-xl bg-slate-50 border border-slate-200 px-4 py-2.5 text-[10px] font-black uppercase tracking-widest text-slate-500 transition-all hover:border-[#00A3FF]/30 hover:bg-[#00A3FF]/5 hover:text-[#00A3FF] shadow-sm active:scale-95"
+      className="inline-flex items-center gap-1.5 rounded-lg bg-slate-50 border border-slate-200 px-3 py-1.5 text-[9px] font-black uppercase tracking-widest text-slate-500 transition-all hover:border-[#00A3FF]/30 hover:bg-[#00A3FF]/5 hover:text-[#00A3FF] shadow-sm active:scale-95"
     >
-      <span className="material-symbols-outlined text-[18px]">{icon}</span>
+      <span className="material-symbols-outlined text-[15px]">{icon}</span>
       {label}
     </button>
   );
@@ -226,9 +226,9 @@ export function EmailActionLink({
       href={href}
       target="_blank"
       rel="noopener noreferrer"
-      className="inline-flex items-center gap-2 rounded-xl bg-[#00A3FF]/10 border border-[#00A3FF]/20 px-4 py-2.5 text-[10px] font-black uppercase tracking-widest text-[#00A3FF] transition-all hover:bg-[#00A3FF] hover:text-white shadow-sm active:scale-95"
+      className="inline-flex items-center gap-1.5 rounded-lg bg-[#00A3FF]/10 border border-[#00A3FF]/20 px-3 py-1.5 text-[9px] font-black uppercase tracking-widest text-[#00A3FF] transition-all hover:bg-[#00A3FF] hover:text-white shadow-sm active:scale-95"
     >
-      <span className="material-symbols-outlined text-[18px]">{icon}</span>
+      <span className="material-symbols-outlined text-[15px]">{icon}</span>
       {label}
     </Link>
   );
@@ -246,9 +246,9 @@ export function EmailActionInternalLink({
   return (
     <Link
       href={href}
-      className="inline-flex items-center gap-2 rounded-xl bg-slate-50 border border-slate-200 px-4 py-2.5 text-[10px] font-black uppercase tracking-widest text-slate-500 transition-all hover:border-[#00A3FF]/30 hover:bg-[#00A3FF]/5 hover:text-[#00A3FF] shadow-sm active:scale-95"
+      className="inline-flex items-center gap-1.5 rounded-lg bg-slate-50 border border-slate-200 px-3 py-1.5 text-[9px] font-black uppercase tracking-widest text-slate-500 transition-all hover:border-[#00A3FF]/30 hover:bg-[#00A3FF]/5 hover:text-[#00A3FF] shadow-sm active:scale-95"
     >
-      <span className="material-symbols-outlined text-[18px]">{icon}</span>
+      <span className="material-symbols-outlined text-[15px]">{icon}</span>
       {label}
     </Link>
   );

@@ -149,9 +149,9 @@ export default function EmailAccountsPage() {
         </div>
       )}
 
-      <div className="bg-white border border-slate-200 rounded-[2.5rem] overflow-hidden shadow-sm">
-        <div className="flex flex-col gap-4 border-b border-slate-100 px-8 py-6 bg-slate-50/50 md:flex-row md:items-center md:justify-between">
-          <div className="flex items-center gap-4 text-[10px] font-black uppercase tracking-widest text-slate-400">
+      <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+        <div className="flex flex-col gap-4 border-b border-slate-100 px-6 py-4 bg-slate-50/50 md:flex-row md:items-center md:justify-between">
+          <div className="flex items-center gap-4 text-[9px] font-black uppercase tracking-widest text-slate-400">
             <span>Identificador de Cuenta</span>
             <span className="text-slate-200">|</span>
             <span>Seguridad</span>
@@ -187,12 +187,12 @@ export default function EmailAccountsPage() {
         <div className="hidden xl:block overflow-x-auto">
           <table className="w-full min-w-[1080px] text-left">
             <thead>
-              <tr className="border-b border-slate-100 text-[10px] font-black uppercase tracking-widest text-slate-400 bg-slate-50/30">
-                <th className="px-8 py-5">Dirección de Correo</th>
-                <th className="px-8 py-5">Estado / Restricciones</th>
-                <th className="px-8 py-5">Uso de Almacenamiento</th>
-                <th className="px-8 py-5">Última Actividad</th>
-                <th className="px-8 py-5 text-right">Acciones de Cuenta</th>
+              <tr className="border-b border-slate-100 text-[9px] font-black uppercase tracking-widest text-slate-400 bg-slate-50/30">
+                <th className="px-6 py-3.5">Dirección de Correo</th>
+                <th className="px-6 py-3.5">Estado / Restricciones</th>
+                <th className="px-6 py-3.5">Uso de Almacenamiento</th>
+                <th className="px-6 py-3.5">Última Actividad</th>
+                <th className="px-6 py-3.5 text-right">Acciones de Cuenta</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -425,26 +425,26 @@ function renderRows({
 
   return accounts.map((account) => (
     <tr key={account.id} className="hover:bg-slate-50/80 transition-colors group">
-      <td className="px-8 py-6">
-        <div className="text-lg font-black tracking-tight text-slate-900 group-hover:text-[#00A3FF] transition-colors">
+      <td className="px-6 py-4">
+        <div className="text-sm font-bold tracking-tight text-slate-900 group-hover:text-[#00A3FF] transition-colors">
           {account.address}
         </div>
-        <div className="mt-1 text-[10px] font-bold uppercase tracking-widest text-slate-400 flex items-center gap-2">
+        <div className="mt-0.5 text-[9px] font-bold uppercase tracking-widest text-slate-400 flex items-center gap-1.5">
           {account.username} <span className="text-slate-200">•</span> {account.devicesConnected} disp.
         </div>
       </td>
-      <td className="px-8 py-6">
+      <td className="px-6 py-4">
         <EmailStatusBadge status={account.status} />
       </td>
-      <td className="px-8 py-6">
+      <td className="px-6 py-4">
         <StorageMeter usedMb={account.usedMb} allocatedMb={account.allocatedMb} />
       </td>
-      <td className="px-8 py-6">
+      <td className="px-6 py-4">
          <div className="text-xs font-bold text-slate-500">{account.lastSync}</div>
-         <div className="text-[9px] font-black text-slate-300 uppercase tracking-tighter">Sincronizado vía IMAP</div>
+         <div className="text-[8.5px] font-black text-slate-300 uppercase tracking-tighter">Sincronizado vía IMAP</div>
       </td>
-      <td className="px-8 py-6">
-        <div className="flex flex-wrap justify-end gap-2">
+      <td className="px-6 py-4">
+        <div className="flex flex-wrap justify-end gap-1.5">
           <EmailActionLink icon="open_in_new" label="Webmail" href={`/email/accounts/${account.id}/webmail`} />
           <EmailActionButton icon="tune" label="Gestionar" onClick={() => onAction(account.id, "manage")} />
           <EmailActionButton icon="devices" label="Dispositivos" onClick={() => onAction(account.id, "connect-devices")} />
