@@ -35,8 +35,12 @@ services:
       PMA_HOST: mysql
       PMA_PORT: 3306
       UPLOAD_LIMIT: 500M
+      JWT_SECRET: ${JWT_SECRET}
     ports:
       - "${PMA_PORT:-8080}:80"
+    volumes:
+      - ./infra/phpmyadmin/config.user.inc.php:/etc/phpmyadmin/config.user.inc.php
+      - ./infra/phpmyadmin/signon.php:/var/www/html/signon.php
     depends_on:
       - mysql
 

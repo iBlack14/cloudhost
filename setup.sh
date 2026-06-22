@@ -356,6 +356,12 @@ services:
       - "${MYSQL_HOST_PORT}:3306"
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASS}
+  phpmyadmin:
+    environment:
+      JWT_SECRET: ${JWT_SECRET}
+    volumes:
+      - ./infra/phpmyadmin/config.user.inc.php:/etc/phpmyadmin/config.user.inc.php
+      - ./infra/phpmyadmin/signon.php:/var/www/html/signon.php
 EOT
 
 COMPOSE_CMD=$(resolve_compose_cmd)
