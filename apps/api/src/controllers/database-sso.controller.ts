@@ -70,8 +70,13 @@ export const databaseSsoBridgeHandler = async (req: Request, res: Response): Pro
   try {
     const context = await consumeDatabaseSsoToken(parsed.data.token);
     const phpMyAdminUrl = new URL(env.PHPMYADMIN_URL);
-    const actionUrl = `${phpMyAdminUrl.origin}/index.php?route=/`;
     const target = `index.php?route=/database/structure&db=${encodeURIComponent(context.dbName)}`;
+
+    // In production, we use a relative path proxy (/phpmyadmin) to avoid browser mixed-content blocks
+    const isProduction = env.NODE_ENV === "production";
+    const actionUrl = isProduction
+      ? "/phpmyadmin/index.php?route=/"
+      : `${phpMyAdminUrl.origin}/index.php?route=/`;
 
     const html = `
 <!doctype html>
@@ -119,11 +124,11 @@ export const databaseSsoBridgeHandler = async (req: Request, res: Response): Pro
       }
     </style>
   </head>
-  <body onload="document.getElementById('odin-db-sso-form')?.submit()">
+  <body>
     <main>
       <h1>Abriendo phpMyAdmin</h1>
-      <p>Estamos iniciando una sesion temporal para <strong>${escapeHtml(context.dbName)}</strong>.</p>
-      <p>Si tu navegador bloquea el envio automatico, usa el boton manual.</p>
+      <p>Estamos iniciando una sesión temporal para <strong>${escapeHtml(context.dbName)}</strong>.</p>
+      <p>Si tu navegador bloquea el envío automático, usa el botón manual.</p>
       <form id="odin-db-sso-form" action="${escapeHtml(actionUrl)}" method="post">
         <input type="hidden" name="pma_username" value="${escapeHtml(context.dbUser)}" />
         <input type="hidden" name="pma_password" value="${escapeHtml(context.password)}" />
@@ -132,6 +137,9 @@ export const databaseSsoBridgeHandler = async (req: Request, res: Response): Pro
         <button type="submit">Entrar ahora</button>
       </form>
     </main>
+    <script>
+      document.getElementById('odin-db-sso-form').submit();
+    </script>
   </body>
 </html>
     `;

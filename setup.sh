@@ -490,6 +490,16 @@ server {
         proxy_set_header Upgrade \$http_upgrade;
         proxy_set_header Connection 'upgrade';
     }
+    location = /phpmyadmin {
+        return 301 /phpmyadmin/;
+    }
+    location /phpmyadmin/ {
+        proxy_pass http://127.0.0.1:$PMA_PORT/;
+        include proxy_params;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection 'upgrade';
+    }
 }
 
 server {
@@ -505,6 +515,16 @@ server {
     location /mail {
         proxy_pass http://127.0.0.1:$WEBMAIL_PORT;
         include proxy_params;
+    }
+    location = /phpmyadmin {
+        return 301 /phpmyadmin/;
+    }
+    location /phpmyadmin/ {
+        proxy_pass http://127.0.0.1:$PMA_PORT/;
+        include proxy_params;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection 'upgrade';
     }
 }
 
