@@ -129,7 +129,17 @@ export default function InboxPage() {
                   messages.map((message) => (
                     <div
                       key={message.id}
-                      onClick={() => setSelectedId(message.id)}
+                      onClick={async () => {
+                        setSelectedId(message.id);
+                        if (!message.read) {
+                          try {
+                            await setMailRead(message.id, true);
+                            await loadAll(folder);
+                          } catch (err) {
+                            console.error("Failed to mark message as read:", err);
+                          }
+                        }
+                      }}
                       className={`
                         group flex items-center px-4 py-3 border-b border-slate-50 cursor-pointer transition-all relative
                         ${selectedId === message.id ? "bg-[#00A3FF]/5 z-10" : "hover:bg-slate-50 hover:shadow-md hover:z-10"}
@@ -146,12 +156,12 @@ export default function InboxPage() {
                         </span>
                       </div>
 
-                      <div className={`w-48 shrink-0 text-sm truncate mr-4 ${!message.read ? "font-black text-slate-900" : "font-medium text-slate-500"}`}>
+                      <div className={`w-48 shrink-0 text-sm truncate mr-4 ${!message.read ? "font-bold text-slate-900" : "font-normal text-slate-500"}`}>
                          {message.from}
                       </div>
 
                       <div className="flex-1 min-w-0 flex items-baseline gap-2">
-                         <span className={`text-sm truncate ${!message.read ? "font-black text-slate-900" : "font-medium text-slate-700"}`}>
+                         <span className={`text-sm truncate ${!message.read ? "font-bold text-slate-900" : "font-normal text-slate-700"}`}>
                            {message.subject}
                          </span>
                          <span className="text-sm text-slate-400 truncate font-medium">
