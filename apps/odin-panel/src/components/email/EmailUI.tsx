@@ -64,14 +64,14 @@ export function EmailPageIntro({
   helper?: React.ReactNode;
 }) {
   return (
-    <header className="space-y-3">
-      <div className="space-y-1">
-        <h1 className="text-2xl md:text-3xl font-black text-slate-900 uppercase tracking-tighter">
+    <header className="space-y-2">
+      <div className="space-y-0.5">
+        <h1 className="text-xl md:text-2xl font-black text-slate-900 uppercase tracking-tighter">
           {title}
         </h1>
-        <p className="max-w-4xl text-xs text-slate-500 leading-relaxed font-medium">{description}</p>
+        <p className="max-w-4xl text-[11px] text-slate-500 leading-relaxed font-medium">{description}</p>
       </div>
-      {helper ? <div className="text-[10px] text-slate-400 font-medium italic">{helper}</div> : null}
+      {helper ? <div className="text-[9.5px] text-slate-400 font-medium italic">{helper}</div> : null}
     </header>
   );
 }
@@ -264,12 +264,12 @@ export function EmailField({
   children: React.ReactNode;
 }) {
   return (
-    <div className="space-y-2.5">
-      <label className="text-[11px] font-black uppercase tracking-widest text-slate-400 ml-2">
+    <div className="space-y-1.5">
+      <label className="text-[9.5px] font-black uppercase tracking-widest text-slate-400 ml-1.5">
         {label}
       </label>
       {children}
-      {hint ? <div className="text-[11px] text-slate-400 font-medium italic mt-1 ml-2">{hint}</div> : null}
+      {hint ? <div className="text-[9.5px] text-slate-400 font-medium italic mt-0.5 ml-1.5">{hint}</div> : null}
     </div>
   );
 }
