@@ -457,8 +457,12 @@ export const deleteWordPress = async (id: string, userId: string) => {
   // 3. Remove files from disk (optional but recommended)
   if (osUsername && site.install_path) {
     try {
-      const targetPath = `/home/${osUsername}/public_html/${site.install_path.split("/").slice(1).join("/")}`;
-      if (targetPath !== `/home/${osUsername}/public_html/`) {
+      const targetPath = site.install_path;
+      const normalizedPath = targetPath.replace(/\/$/, "");
+      const isRoot = normalizedPath === `/home/${osUsername}` || 
+                     normalizedPath === `/home/${osUsername}/public_html` ||
+                     normalizedPath === `/home/${osUsername}/${domain}`;
+      if (!isRoot) {
          await execAsync(`rm -rf ${targetPath}`);
       }
     } catch (e) {
@@ -478,7 +482,7 @@ export const generateSsoUrl = async (id: string, userId: string): Promise<string
 
   const userResult = await db.query("SELECT username FROM users WHERE id = $1", [userId]);
   const osUsername = sanitize(userResult.rows[0]?.username ?? "");
-  const targetPath = `/home/${osUsername}/public_html/${site.install_path.split("/").slice(1).join("/")}`;
+  const targetPath = site.install_path;
 
   // 1. Ensure mu-plugins directory exists
   const muPluginsDir = `${targetPath}/wp-content/mu-plugins`;
