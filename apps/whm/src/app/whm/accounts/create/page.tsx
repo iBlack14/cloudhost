@@ -174,22 +174,22 @@ export default function CreateWhmAccountPage() {
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in duration-700">
-      <header className="space-y-2 border-b border-slate-200 pb-8">
+    <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in duration-700">
+      <header className="space-y-1.5 border-b border-slate-200 pb-4">
         <div className="flex items-center gap-2 mb-1">
-           <span className="px-2.5 py-1 bg-[#00A3FF]/10 text-[#00A3FF] text-[10px] font-bold uppercase rounded-full tracking-wider">Gestión de Clientes</span>
+           <span className="px-2 py-0.5 bg-[#00A3FF]/10 text-[#00A3FF] text-[9px] font-bold uppercase rounded-full tracking-wider">Gestión de Clientes</span>
         </div>
-        <h1 className="text-4xl font-black text-slate-900 uppercase">
+        <h1 className="text-2xl font-black text-slate-900 uppercase">
           Crear Nueva <span className="text-[#00A3FF]">Cuenta</span>
         </h1>
-        <p className="text-slate-500 text-sm font-medium">
+        <p className="text-slate-500 text-xs font-medium">
           Complete los datos para dar de alta un nuevo servicio de alojamiento.
         </p>
       </header>
 
-      <form onSubmit={onSubmit} className="space-y-8">
-        <div className="bg-white border border-slate-200 rounded-[2rem] p-10 space-y-10 shadow-sm">
-          <section className="grid grid-cols-1 md:grid-cols-2 gap-8">
+      <form onSubmit={onSubmit} className="space-y-6">
+        <div className="bg-white border border-slate-200 rounded-2xl p-6 space-y-6 shadow-sm">
+          <section className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <ProField label="Nombre del Dominio">
                <input 
                 name="domain"
@@ -198,7 +198,7 @@ export default function CreateWhmAccountPage() {
                 value={form.domain}
                 onChange={onInputChange}
                 required
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-5 py-3.5 text-sm font-medium text-slate-900 outline-none focus:border-[#00A3FF]/50 focus:bg-white transition-all placeholder:text-slate-300 shadow-inner"
+                className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 text-xs font-medium text-slate-900 outline-none focus:border-[#00A3FF]/50 focus:bg-white transition-all placeholder:text-slate-300 shadow-inner"
               />
             </ProField>
             <ProField label="Nombre de Usuario">
@@ -209,7 +209,7 @@ export default function CreateWhmAccountPage() {
                 value={form.username}
                 onChange={onInputChange}
                 required
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-5 py-3.5 text-sm font-medium text-slate-900 outline-none focus:border-[#00A3FF]/50 focus:bg-white transition-all placeholder:text-slate-300 shadow-inner"
+                className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 text-xs font-medium text-slate-900 outline-none focus:border-[#00A3FF]/50 focus:bg-white transition-all placeholder:text-slate-300 shadow-inner"
               />
             </ProField>
             <ProField label="Correo Electrónico">
@@ -220,7 +220,7 @@ export default function CreateWhmAccountPage() {
                 value={form.email}
                 onChange={onInputChange}
                 required
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-5 py-3.5 text-sm font-medium text-slate-900 outline-none focus:border-[#00A3FF]/50 focus:bg-white transition-all placeholder:text-slate-300 shadow-inner"
+                className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 text-xs font-medium text-slate-900 outline-none focus:border-[#00A3FF]/50 focus:bg-white transition-all placeholder:text-slate-300 shadow-inner"
               />
             </ProField>
             <ProField label="Contraseña de Acceso">
@@ -232,27 +232,27 @@ export default function CreateWhmAccountPage() {
                   value={form.password}
                   onChange={onInputChange}
                   required
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-5 py-3.5 text-sm font-medium text-slate-900 outline-none focus:border-[#00A3FF]/50 focus:bg-white transition-all pr-12 font-mono shadow-inner"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 text-xs font-medium text-slate-900 outline-none focus:border-[#00A3FF]/50 focus:bg-white transition-all pr-12 font-mono shadow-inner"
                 />
                 <button 
                   type="button"
                   onClick={generatePassword}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 w-9 h-9 rounded-lg bg-white border border-slate-200 flex items-center justify-center hover:bg-slate-50 transition-all text-slate-400 hover:text-[#00A3FF] shadow-sm"
+                  className="absolute right-1.5 top-1/2 -translate-y-1/2 w-7 h-7 rounded-lg bg-white border border-slate-200 flex items-center justify-center hover:bg-slate-50 transition-all text-slate-400 hover:text-[#00A3FF] shadow-sm"
                   title="Generar Contraseña"
                 >
-                  <span className="material-symbols-outlined text-[18px]">key</span>
+                  <span className="material-symbols-outlined text-[16px]">key</span>
                 </button>
               </div>
             </ProField>
           </section>
 
-          <section className="grid grid-cols-1 md:grid-cols-3 gap-8 pt-10 border-t border-slate-100">
+          <section className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-6 border-t border-slate-100">
             <ProField label="Plan de Alojamiento">
               <select 
                 name="planId"
                 value={form.planId ?? ""}
                 onChange={onInputChange}
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-5 py-3.5 text-sm font-medium text-slate-900 outline-none focus:border-[#00A3FF]/50 focus:bg-white transition-all appearance-none shadow-inner"
+                className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 text-xs font-medium text-slate-900 outline-none focus:border-[#00A3FF]/50 focus:bg-white transition-all appearance-none shadow-inner"
               >
                 <option value="">Seleccionar un Plan</option>
                 {form.isReseller ? (
@@ -275,7 +275,7 @@ export default function CreateWhmAccountPage() {
                 name="durationMonths"
                 value={form.durationMonths ?? ""}
                 onChange={onInputChange}
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-5 py-3.5 text-sm font-medium text-slate-900 outline-none focus:border-[#00A3FF]/50 focus:bg-white transition-all appearance-none shadow-inner"
+                className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 text-xs font-medium text-slate-900 outline-none focus:border-[#00A3FF]/50 focus:bg-white transition-all appearance-none shadow-inner"
               >
                 <option value="">Sin Expiración / Ilimitado</option>
                 <option value="1">1 Mes</option>
@@ -290,7 +290,7 @@ export default function CreateWhmAccountPage() {
                 name="settings.phpVersion"
                 value={form.settings.phpVersion}
                 onChange={onInputChange}
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-5 py-3.5 text-sm font-medium text-slate-900 outline-none focus:border-[#00A3FF]/50 focus:bg-white transition-all appearance-none shadow-inner"
+                className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 text-xs font-medium text-slate-900 outline-none focus:border-[#00A3FF]/50 focus:bg-white transition-all appearance-none shadow-inner"
               >
                 {["7.4", "8.0", "8.1", "8.2", "8.3", "8.4"].map(v => (
                   <option key={v} value={v}>PHP v{v}</option>
@@ -299,11 +299,11 @@ export default function CreateWhmAccountPage() {
             </ProField>
           </section>
 
-          <section className="pt-10 border-t border-slate-100 space-y-8">
-             <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-                <div className="space-y-1">
+          <section className="pt-6 border-t border-slate-100 space-y-6">
+             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="space-y-0.5">
                    <h3 className="text-xs font-black uppercase tracking-widest text-slate-900">Privilegios de Cuenta</h3>
-                   <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tight">Configurar accesos de administrador/revendedor</p>
+                   <p className="text-[9px] text-slate-400 font-bold uppercase tracking-tight">Configurar accesos de administrador/revendedor</p>
                 </div>
                 <div className="flex items-center gap-6">
                    <label className="flex items-center gap-3 cursor-pointer group">
@@ -328,8 +328,8 @@ export default function CreateWhmAccountPage() {
                         onChange={onInputChange}
                         className="hidden"
                       />
-                      <div className={`w-5 h-5 rounded border-2 transition-all flex items-center justify-center ${form.nameservers.inheritRoot ? 'bg-slate-900 border-slate-900' : 'border-slate-300 bg-white'}`}>
-                         {form.nameservers.inheritRoot && <span className="material-symbols-outlined text-white text-[14px] font-bold">check</span>}
+                      <div className={`w-4.5 h-4.5 rounded border-2 transition-all flex items-center justify-center ${form.nameservers.inheritRoot ? 'bg-slate-900 border-slate-900' : 'border-slate-300 bg-white'}`}>
+                         {form.nameservers.inheritRoot && <span className="material-symbols-outlined text-white text-[12px] font-bold">check</span>}
                       </div>
                       <span className="text-xs font-bold text-slate-600 group-hover:text-slate-900 transition-colors uppercase tracking-tight">Heredar DNS Root</span>
                    </label>
@@ -337,14 +337,14 @@ export default function CreateWhmAccountPage() {
              </div>
 
              {form.isReseller && !form.planId && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 p-8 bg-slate-50 rounded-[2rem] border border-slate-100 animate-in slide-in-from-top-4 duration-300">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-slate-50 rounded-xl border border-slate-100 animate-in slide-in-from-top-4 duration-300">
                    <ProField label="Límite de Cuentas (-1 = Ilimitado)">
                       <input 
                         name="resellerConfig.maxAccounts"
                         type="number"
                         value={form.resellerConfig?.maxAccounts}
                         onChange={onInputChange}
-                        className="w-full bg-white border border-slate-200 rounded-xl px-5 py-3.5 text-sm font-bold text-slate-900 outline-none focus:border-[#00A3FF]/50 shadow-inner"
+                        className="w-full bg-white border border-slate-200 rounded-lg px-4 py-2.5 text-xs font-semibold text-slate-900 outline-none focus:border-[#00A3FF]/50 shadow-inner"
                       />
                    </ProField>
                    <ProField label="Límite de Disco MB (-1 = Ilimitado)">
@@ -353,14 +353,14 @@ export default function CreateWhmAccountPage() {
                         type="number"
                         value={form.resellerConfig?.limitDiskMb}
                         onChange={onInputChange}
-                        className="w-full bg-white border border-slate-200 rounded-xl px-5 py-3.5 text-sm font-bold text-slate-900 outline-none focus:border-[#00A3FF]/50 shadow-inner"
+                        className="w-full bg-white border border-slate-200 rounded-lg px-4 py-2.5 text-xs font-semibold text-slate-900 outline-none focus:border-[#00A3FF]/50 shadow-inner"
                       />
                    </ProField>
                 </div>
              )}
 
-             <div className="space-y-4">
-                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 block px-1">Módulos de Sistema</span>
+             <div className="space-y-3">
+                <span className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400 block px-1">Módulos de Sistema</span>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                    <ModuleToggle 
                      label="Acceso SSH" 
@@ -382,7 +382,7 @@ export default function CreateWhmAccountPage() {
           </section>
         </div>
 
-        <div className="flex items-center justify-between pt-4">
+        <div className="flex items-center justify-between pt-2">
            <Link href="/whm/accounts">
               <button type="button" className="text-slate-400 hover:text-slate-600 transition-colors text-xs font-bold uppercase tracking-widest">
                 Volver al listado
@@ -391,17 +391,17 @@ export default function CreateWhmAccountPage() {
            <button 
              type="submit" 
              disabled={!canSubmit || isSaving}
-             className="bg-[#00A3FF] px-10 py-4 rounded-xl text-white font-bold text-xs tracking-widest uppercase shadow-lg shadow-[#00A3FF]/20 active:translate-y-[1px] transition-all disabled:opacity-40"
+             className="bg-[#00A3FF] px-6 py-2.5 rounded-lg text-white font-bold text-xs tracking-widest uppercase shadow-lg shadow-[#00A3FF]/20 active:translate-y-[1px] transition-all disabled:opacity-40"
            >
              {isSaving ? "Creando Cuenta..." : "Guardar y Crear Cuenta"}
            </button>
         </div>
 
         {feedback && (
-          <div className={`p-6 rounded-2xl text-center text-sm font-bold border animate-in fade-in slide-in-from-bottom-2 flex items-center justify-center gap-4 ${
+          <div className={`p-4 rounded-xl text-center text-sm font-bold border animate-in fade-in slide-in-from-bottom-2 flex items-center justify-center gap-4 ${
             feedback.startsWith("SUCCESS") ? 'border-[#00A3FF]/20 text-[#00A3FF] bg-[#00A3FF]/5' : 'border-red-200 text-red-600 bg-red-50'
           }`}>
-             <span className="material-symbols-outlined text-[24px]">
+             <span className="material-symbols-outlined text-[20px]">
                {feedback.startsWith("SUCCESS") ? 'verified' : 'warning'}
              </span>
              <span>{formatError(feedback.replace("SUCCESS: ", ""))}</span>
@@ -414,8 +414,8 @@ export default function CreateWhmAccountPage() {
 
 function ProField({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="space-y-3">
-      <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500 block ml-1">{label}</label>
+    <div className="space-y-1.5">
+      <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block ml-0.5">{label}</label>
       {children}
     </div>
   );
@@ -425,15 +425,15 @@ function ModuleToggle({ label, active, onClick }: { label: string; active: boole
   return (
     <div 
       onClick={onClick}
-      className={`p-5 rounded-xl border cursor-pointer transition-all flex items-center justify-between group shadow-sm ${
+      className={`p-3 py-2.5 rounded-lg border cursor-pointer transition-all flex items-center justify-between group shadow-sm ${
         active 
           ? 'bg-[#00A3FF]/5 border-[#00A3FF]/30 text-slate-900' 
           : 'bg-slate-50 border-slate-100 text-slate-500 hover:border-slate-200'
       }`}
     >
       <span className="text-xs font-bold uppercase tracking-tight">{label}</span>
-      <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${active ? 'bg-[#00A3FF] border-[#00A3FF]' : 'border-slate-300 bg-white'}`}>
-         {active && <span className="material-symbols-outlined text-[12px] text-white font-bold">check</span>}
+      <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-all ${active ? 'bg-[#00A3FF] border-[#00A3FF]' : 'border-slate-300 bg-white'}`}>
+         {active && <span className="material-symbols-outlined text-[10px] text-white font-bold">check</span>}
       </div>
     </div>
   );
