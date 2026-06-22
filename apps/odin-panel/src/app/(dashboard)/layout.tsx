@@ -48,7 +48,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <Sidebar />
 
       {/* Main Content Area */}
-      <main className="flex-1 ml-72 p-6 lg:p-12 relative overflow-hidden flex flex-col bg-slate-50/30">
+      <main className="flex-1 ml-64 p-6 lg:p-12 relative overflow-hidden flex flex-col bg-slate-50/30">
         {/* Background Decorative Elements - Pure Corporate Light */}
         <div className="fixed inset-0 z-0 pointer-events-none">
           {/* Subtle Blue Glow in the top right */}
