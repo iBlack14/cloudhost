@@ -146,12 +146,12 @@ export default function SentPage() {
                       </div>
 
                       <div className="w-48 shrink-0 text-sm truncate mr-4 text-slate-700 font-medium flex items-center gap-2">
-                         <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Para:</span>
+                         <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Para:</span>
                          <span className="truncate">{message.to?.[0] ?? 'admin'}</span>
                       </div>
 
                       <div className="flex-1 min-w-0 flex items-baseline gap-2">
-                         <span className="text-sm truncate font-black text-slate-900">
+                         <span className="text-sm truncate font-semibold text-slate-800">
                            {message.subject}
                          </span>
                          <span className="text-sm text-slate-400 truncate font-medium">

@@ -135,12 +135,12 @@ export default function DraftsPage() {
                         </span>
                       </div>
 
-                      <div className="w-48 shrink-0 text-sm truncate mr-4 text-[#FF3D00] font-black italic">
+                      <div className="w-48 shrink-0 text-sm truncate mr-4 text-[#FF3D00] font-bold italic">
                          [Borrador]
                       </div>
 
                       <div className="flex-1 min-w-0 flex items-baseline gap-2">
-                         <span className="text-sm truncate font-black text-slate-900">
+                         <span className="text-sm truncate font-semibold text-slate-800">
                            {message.subject || "(sin asunto)"}
                          </span>
                          <span className="text-sm text-slate-400 truncate font-medium">

@@ -53,6 +53,25 @@ export default function InboxPage() {
       .finally(() => setLoading(false));
   }, [folder, router]);
 
+  useEffect(() => {
+    if (!selectedId) return;
+    const message = messages.find((m) => m.id === selectedId);
+    if (message && !message.read) {
+      // Optimistic local state update
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === selectedId ? { ...msg, read: true } : msg
+        )
+      );
+
+      // Backend update
+      setMailRead(selectedId, true)
+        .then(() => fetchMailFolders())
+        .then((nextFolders) => setFolders(nextFolders))
+        .catch((err) => console.error("Failed to mark message as read:", err));
+    }
+  }, [selectedId, messages]);
+
   const selectedMessage = useMemo<MailMessageSummary | null>(
     () => messages.find((item) => item.id === selectedId) ?? messages[0] ?? null,
     [messages, selectedId]
@@ -129,21 +148,11 @@ export default function InboxPage() {
                   messages.map((message) => (
                     <div
                       key={message.id}
-                      onClick={async () => {
-                        setSelectedId(message.id);
-                        if (!message.read) {
-                          try {
-                            await setMailRead(message.id, true);
-                            await loadAll(folder);
-                          } catch (err) {
-                            console.error("Failed to mark message as read:", err);
-                          }
-                        }
-                      }}
+                      onClick={() => setSelectedId(message.id)}
                       className={`
                         group flex items-center px-4 py-3 border-b border-slate-50 cursor-pointer transition-all relative
                         ${selectedId === message.id ? "bg-[#00A3FF]/5 z-10" : "hover:bg-slate-50 hover:shadow-md hover:z-10"}
-                        ${!message.read ? "bg-white" : "bg-slate-50/40"}
+                        ${!message.read && selectedId !== message.id ? "bg-white" : "bg-slate-50/40"}
                       `}
                     >
                       <div className="flex items-center gap-3 shrink-0 mr-4">
@@ -156,12 +165,12 @@ export default function InboxPage() {
                         </span>
                       </div>
 
-                      <div className={`w-48 shrink-0 text-sm truncate mr-4 ${!message.read ? "font-bold text-slate-900" : "font-normal text-slate-500"}`}>
+                      <div className={`w-48 shrink-0 text-sm truncate mr-4 ${!message.read && selectedId !== message.id ? "font-bold text-slate-900" : "font-normal text-slate-500"}`}>
                          {message.from}
                       </div>
 
                       <div className="flex-1 min-w-0 flex items-baseline gap-2">
-                         <span className={`text-sm truncate ${!message.read ? "font-bold text-slate-900" : "font-normal text-slate-700"}`}>
+                         <span className={`text-sm truncate ${!message.read && selectedId !== message.id ? "font-bold text-slate-900" : "font-normal text-slate-700"}`}>
                            {message.subject}
                          </span>
                          <span className="text-sm text-slate-400 truncate font-medium">
@@ -169,7 +178,7 @@ export default function InboxPage() {
                          </span>
                       </div>
 
-                      <div className={`shrink-0 ml-4 text-[11px] font-bold uppercase tracking-tight ${!message.read ? "text-slate-900" : "text-slate-400"}`}>
+                      <div className={`shrink-0 ml-4 text-[11px] font-bold uppercase tracking-tight ${!message.read && selectedId !== message.id ? "text-slate-900" : "text-slate-400"}`}>
                          {message.receivedAt}
                       </div>
 
