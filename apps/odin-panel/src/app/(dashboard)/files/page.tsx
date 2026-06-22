@@ -80,6 +80,12 @@ export default function FileManagerPage() {
     setCurrentPath(target);
   };
 
+  const navigateUp = () => {
+    const parts = currentPath.split("/").filter(Boolean);
+    parts.pop();
+    setCurrentPath("/" + parts.join("/"));
+  };
+
   const { data: files, isLoading, refetch } = useFiles(currentPath);
   const deleteMutation = useDeleteFile();
   const createFolderMutation = useCreateFolder();
