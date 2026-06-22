@@ -72,7 +72,10 @@ export const installWpSchema = z.object({
   siteTitle: z.string().min(1, "Título requerido"),
   siteDescription: z.string().optional(),
   wpVersion: z.string().default("6.4.3"),
-  protocol: z.enum(["http://", "https://"]).default("http://")
+  protocol: z.enum(["http://", "https://"]).default("http://"),
+  dbName: z.string().optional(),
+  dbUser: z.string().optional(),
+  tablePrefix: z.string().optional()
 });
 
 export type InstallWpInput = z.infer<typeof installWpSchema>;
