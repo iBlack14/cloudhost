@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import dns from "node:dns";
 import nodemailer from "nodemailer";
 
 import type {
@@ -710,6 +711,21 @@ export const moveMailMessage = async (
   );
 };
 
+const resolveMxHost = async (domain: string): Promise<string> => {
+  try {
+    const records = await dns.promises.resolveMx(domain);
+    if (!records || records.length === 0) {
+      return domain;
+    }
+    // Sort by priority (lowest value is highest priority)
+    records.sort((a, b) => a.priority - b.priority);
+    return records[0].exchange;
+  } catch (err) {
+    console.warn(`[Mail Service] Fallback MX resolution for ${domain} failed, using domain directly:`, err);
+    return domain;
+  }
+};
+
 export const sendMailMessage = async (
   session: MailSessionTokenPayload,
   input: {
@@ -753,37 +769,83 @@ export const sendMailMessage = async (
     });
   }
 
-  // 2. Deliver to external recipients via SMTP
+  // 2. Deliver to external recipients
   const localAddresses = new Set(localRecipients.rows.map((r) => normalizeAddress(r.address)));
   const externalRecipients = input.to.filter((addr) => !localAddresses.has(normalizeAddress(addr)));
 
   if (externalRecipients.length > 0) {
-    try {
-      const transporter = nodemailer.createTransport({
-        host: env.SMTP_HOST,
-        port: env.SMTP_PORT,
-        secure: env.SMTP_SECURE,
-        auth: env.SMTP_USER && env.SMTP_PASS ? {
-          user: env.SMTP_USER,
-          pass: env.SMTP_PASS
-        } : undefined,
-        tls: {
-          rejectUnauthorized: false
-        }
-      });
+    // Determine if an external SMTP relay is configured
+    const isSmtpRelayConfigured = env.SMTP_HOST !== "127.0.0.1" || !!(env.SMTP_USER && env.SMTP_PASS);
 
-      await transporter.sendMail({
-        from: `"${me.username}" <${me.address}>`,
-        to: externalRecipients.join(", "),
-        subject: input.subject,
-        text: input.body,
-        html: input.body.includes("<") && input.body.includes(">") ? input.body : undefined
-      });
-    } catch (smtpError) {
-      console.error("[SMTP_SEND_FAILED] Error sending mail via SMTP:", smtpError);
-      throw new Error(
-        `SMTP_SEND_FAILED: ${smtpError instanceof Error ? smtpError.message : "Error al enviar correo externo"}`
-      );
+    if (isSmtpRelayConfigured) {
+      try {
+        const transporter = nodemailer.createTransport({
+          host: env.SMTP_HOST,
+          port: env.SMTP_PORT,
+          secure: env.SMTP_SECURE,
+          auth: env.SMTP_USER && env.SMTP_PASS ? {
+            user: env.SMTP_USER,
+            pass: env.SMTP_PASS
+          } : undefined,
+          tls: {
+            rejectUnauthorized: false
+          }
+        });
+
+        await transporter.sendMail({
+          from: `"${me.username}" <${me.address}>`,
+          to: externalRecipients.join(", "),
+          subject: input.subject,
+          text: input.body,
+          html: input.body.includes("<") && input.body.includes(">") ? input.body : undefined
+        });
+      } catch (smtpError) {
+        console.error("[SMTP_SEND_FAILED] Error sending mail via SMTP relay:", smtpError);
+        throw new Error(
+          `SMTP_SEND_FAILED: ${smtpError instanceof Error ? smtpError.message : "Error al enviar correo externo"}`
+        );
+      }
+    } else {
+      // Direct MX delivery: Group recipients by domain and deliver to each domain's MX server directly
+      const groupedRecipients: Record<string, string[]> = {};
+      for (const email of externalRecipients) {
+        const domain = email.split("@")[1]?.toLowerCase();
+        if (domain) {
+          if (!groupedRecipients[domain]) {
+            groupedRecipients[domain] = [];
+          }
+          groupedRecipients[domain].push(email);
+        }
+      }
+
+      for (const [domain, recipients] of Object.entries(groupedRecipients)) {
+        try {
+          const mxHost = await resolveMxHost(domain);
+          console.log(`[Mail Service] Direct MX delivery for ${domain} via MX host: ${mxHost}`);
+          
+          const transporter = nodemailer.createTransport({
+            host: mxHost,
+            port: 25,
+            secure: false,
+            tls: {
+              rejectUnauthorized: false
+            }
+          });
+
+          await transporter.sendMail({
+            from: `"${me.username}" <${me.address}>`,
+            to: recipients.join(", "),
+            subject: input.subject,
+            text: input.body,
+            html: input.body.includes("<") && input.body.includes(">") ? input.body : undefined
+          });
+        } catch (mxError) {
+          console.error(`[SMTP_SEND_FAILED] Direct MX delivery to domain ${domain} failed:`, mxError);
+          throw new Error(
+            `SMTP_SEND_FAILED: Error al entregar a ${domain} (${mxError instanceof Error ? mxError.message : "Error de red"})`
+          );
+        }
+      }
     }
   }
 };
