@@ -96,17 +96,25 @@ export default function WordPressManagerPage() {
   // Matches the backend logic: primary domain → public_html/, addon → ~/domain.com/
   const primaryDomain = domains[0]?.domain_name ?? "";
 
+  useEffect(() => {
+    if (domains.length > 0 && !formData.domain) {
+      setFormData(prev => ({
+        ...prev,
+        domain: domains[0].domain_name,
+        adminEmail: prev.adminEmail === "admin@domain.com" ? `admin@${domains[0].domain_name}` : prev.adminEmail
+      }));
+    }
+  }, [domains, formData.domain]);
+
   const getDirectoryPreview = (domain: string, subdir: string) => {
     if (!domain) return "";
     const isPrimary = domain === primaryDomain;
-    const base = isPrimary ? "~/public_html" : `~/${domain}`;
-    return subdir ? `${base}/${subdir}/` : `${base}/`;
+    const base = isPrimary ? "public_html" : domain;
+    return subdir ? `${base}/${subdir}` : base;
   };
 
   const dirPreview = getDirectoryPreview(formData.domain, formData.directory);
 
-  // DB name = [username]_[suffix]  (cPanel convention, e.g. blxkstudio_ab3f)
-  // DB user = [username]_[suffix]  (same prefix, same suffix for traceability)
   const sanitizePart = (s: string) => s.replace(/[^a-z0-9]/gi, "_").toLowerCase();
   const dbPrefix     = osUsername ? `${sanitizePart(osUsername)}_` : "wp_";
   const dbUserPrefix = osUsername ? `${sanitizePart(osUsername)}_` : "u_";
@@ -157,6 +165,7 @@ export default function WordPressManagerPage() {
     try {
       await installMutation.mutateAsync({
         ...formData,
+        wpVersion: formData.wpVersion || (wpVersions[0]?.version ?? "6.4.3"),
         // Send the resolved DB name/user/prefix so backend can use them
         dbName: fullDbName,
         dbUser: fullDbUser,
@@ -196,7 +205,7 @@ export default function WordPressManagerPage() {
             </div>
           </div>
         </header>
-
+ 
         <div className="bg-white border border-slate-200 rounded-[2rem] p-8 shadow-sm max-w-4xl mx-auto">
           {isInstalling ? (
             <div className="py-12 flex flex-col items-center px-8 text-center animate-in fade-in duration-500">
@@ -252,33 +261,78 @@ export default function WordPressManagerPage() {
             </div>
           ) : (
             <div className="space-y-6">
-              {/* Row 1: Domain (with inline dir) + WP + PHP */}
-              <div className="grid grid-cols-12 gap-4">
-                <div className="col-span-12 md:col-span-5 space-y-1.5">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Dominio de destino</label>
-                  <select
-                    value={formData.domain}
-                    onChange={(e) => setFormData(prev => ({ ...prev, domain: e.target.value, adminEmail: `admin@${e.target.value}` }))}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-900 font-bold outline-none focus:border-[#00A3FF] transition-all cursor-pointer"
-                  >
-                    <option value="">— Selecciona un dominio —</option>
-                    {domains.map(d => (
-                      <option key={d.id} value={d.domain_name}>{d.domain_name}</option>
-                    ))}
-                  </select>
-                  {/* inline dir preview */}
-                  {formData.domain && (
-                    <div className="flex items-center gap-2 bg-slate-50 border border-slate-100 rounded-xl p-2.5 mt-2">
-                      <span className="material-symbols-outlined text-[14px] text-slate-400">folder_open</span>
-                      <span className="text-[10px] font-mono font-bold text-slate-500 truncate flex-1">{dirPreview}</span>
-                      <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-full shrink-0 ${formData.domain === primaryDomain ? "bg-[#00A3FF]/10 text-[#00A3FF]" : "bg-violet-100 text-violet-600"}`}>
-                        {formData.domain === primaryDomain ? "Principal" : "Addon"}
-                      </span>
-                      <input className="w-20 bg-white border border-slate-200 rounded-lg px-2 py-1 text-[10px] font-mono text-slate-600 font-bold outline-none focus:border-[#00A3FF]" placeholder="sub/" value={formData.directory} onChange={(e) => setFormData(prev => ({ ...prev, directory: e.target.value }))} />
-                    </div>
-                  )}
+              {/* Dirección de Instalación */}
+              <div className="border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+                <div className="flex items-center gap-2 px-4 py-3 bg-slate-50 border-b border-slate-200">
+                  <span className="material-symbols-outlined text-[15px] text-slate-400">link</span>
+                  <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">URL de Instalación</span>
                 </div>
-                <div className="col-span-12 md:col-span-4 space-y-1.5">
+                <div className="px-4 py-4 space-y-3 bg-white">
+                  <div className="grid grid-cols-12 gap-3">
+                    {/* Protocol */}
+                    <div className="col-span-12 md:col-span-3 space-y-1.5">
+                      <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block">Protocolo</label>
+                      <select 
+                        value={formData.protocol} 
+                        onChange={(e) => setFormData(prev => ({ ...prev, protocol: e.target.value }))}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-700 outline-none focus:border-[#00A3FF] transition-all cursor-pointer"
+                      >
+                        <option value="https://">https://</option>
+                        <option value="http://">http://</option>
+                        <option value="https://www.">https://www.</option>
+                        <option value="http://www.">http://www.</option>
+                      </select>
+                    </div>
+
+                    {/* Domain */}
+                    <div className="col-span-12 md:col-span-6 space-y-1.5">
+                      <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block">Elige un Dominio</label>
+                      <select
+                        value={formData.domain}
+                        onChange={(e) => setFormData(prev => ({ ...prev, domain: e.target.value, adminEmail: `admin@${e.target.value}` }))}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 font-bold outline-none focus:border-[#00A3FF] transition-all cursor-pointer"
+                      >
+                        <option value="">— Selecciona un dominio —</option>
+                        {domains.map(d => (
+                          <option key={d.id} value={d.domain_name}>{d.domain_name}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Directory */}
+                    <div className="col-span-12 md:col-span-3 space-y-1.5">
+                      <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block">En el Directorio</label>
+                      <input 
+                        placeholder="ej. wp (opcional)" 
+                        value={formData.directory} 
+                        onChange={(e) => setFormData(prev => ({ ...prev, directory: e.target.value.replace(/^\/+|\/+$/g, "") }))}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 font-bold outline-none focus:border-[#00A3FF] focus:bg-white transition-all" 
+                      />
+                    </div>
+                  </div>
+
+                  {/* URL Preview & Help Text */}
+                  <div className="pt-2 border-t border-slate-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                    <div className="space-y-1">
+                      <p className="text-[10px] font-bold text-slate-600">
+                        URL de instalación: <span className="text-[#00A3FF] font-black font-mono">{formData.domain ? `${formData.protocol}${formData.domain}${formData.directory ? `/${formData.directory}` : ""}` : "— Selecciona un dominio —"}</span>
+                      </p>
+                      {formData.domain && (
+                        <p className="text-[10px] font-bold text-slate-500">
+                          Ruta en el servidor: <span className="text-emerald-600 font-black font-mono">/home/{osUsername}/{dirPreview}</span>
+                        </p>
+                      )}
+                    </div>
+                    <p className="text-[9px] text-slate-400 font-medium max-w-md">
+                      Si se deja vacío, se instalará en la raíz del dominio ({formData.domain === primaryDomain ? "public_html" : formData.domain || "directorio del dominio"}). Si escribes una carpeta (ej. `blog`), se usará esa carpeta como nueva instalación.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Versión y PHP */}
+              <div className="grid grid-cols-12 gap-4">
+                <div className="col-span-12 md:col-span-6 space-y-1.5">
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Versión de WordPress</label>
                   <select
                     value={formData.wpVersion || (wpVersions[0]?.version ?? "")}
@@ -294,7 +348,7 @@ export default function WordPressManagerPage() {
                     )}
                   </select>
                 </div>
-                <div className="col-span-12 md:col-span-3 space-y-1.5">
+                <div className="col-span-12 md:col-span-6 space-y-1.5">
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Versión de PHP</label>
                   <select value={formData.phpVersion} onChange={(e) => setFormData(prev => ({ ...prev, phpVersion: e.target.value }))} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-700 outline-none focus:border-[#00A3FF] transition-all">
                     <option value="8.4">8.4 🔥</option>
