@@ -370,7 +370,4 @@ export default function CreateEmailAccountPage() {
       </form>
     </div>
   );
-}/form>
-    </div>
-  );
 }

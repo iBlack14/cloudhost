@@ -135,7 +135,7 @@ function FloatingCompose({ onClose }: { onClose: () => void }) {
       await sendMailMessage({ to: [to], subject, body });
       onClose();
     } catch (e) {
-      alert("Error enviando mensaje");
+      alert("Error enviando mensaje: " + (e instanceof Error ? e.message : "Error desconocido"));
     } finally {
       setLoading(false);
     }
