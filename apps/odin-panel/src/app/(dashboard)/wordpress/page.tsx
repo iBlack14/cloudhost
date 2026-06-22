@@ -171,6 +171,233 @@ export default function WordPressManagerPage() {
   const isLoading = sitesLoading || domainsLoading;
   const isInstalling = installMutation.isPending;
 
+  if (isWizardOpen) {
+    return (
+      <div className="space-y-8 animate-in fade-in duration-500">
+        <header className="flex justify-between items-center border-b border-slate-200 pb-6">
+          <div className="flex items-center gap-4">
+            <button 
+              onClick={() => !isInstalling && setIsWizardOpen(false)}
+              disabled={isInstalling}
+              className="w-10 h-10 bg-white border border-slate-200 rounded-xl flex items-center justify-center text-slate-500 hover:text-slate-900 transition-all hover:shadow-sm disabled:opacity-40"
+              title="Volver"
+            >
+              <span className="material-symbols-outlined">arrow_back</span>
+            </button>
+            <div>
+              <div className="flex items-center gap-2 mb-0.5">
+                 <span className="px-2 py-0.5 bg-[#00A3FF]/10 text-[#00A3FF] text-[9px] font-bold uppercase rounded-full tracking-wider">
+                    Instalar WordPress
+                 </span>
+              </div>
+              <h1 className="text-2xl font-black text-slate-900 uppercase">
+                Nueva <span className="text-[#00A3FF]">Instancia</span>
+              </h1>
+            </div>
+          </div>
+        </header>
+
+        <div className="bg-white border border-slate-200 rounded-[2rem] p-8 shadow-sm max-w-4xl mx-auto">
+          {isInstalling ? (
+            <div className="py-12 flex flex-col items-center px-8 text-center animate-in fade-in duration-500">
+              <div className="w-20 h-20 relative mb-8 flex items-center justify-center bg-[#00A3FF]/5 rounded-full border border-[#00A3FF]/10 shadow-lg shadow-[#00A3FF]/5">
+                {/* Ring spinner */}
+                <div className="absolute inset-0 border-[3px] border-[#00A3FF]/10 rounded-full" />
+                <div className="absolute inset-0 border-[3px] border-[#00A3FF] rounded-full border-t-transparent animate-spin" />
+                <span className="material-symbols-outlined text-[#00A3FF] text-3xl animate-pulse">cloud_download</span>
+              </div>
+
+              {/* Progress bar */}
+              <div className="w-full max-w-sm mb-6 space-y-2">
+                <div className="flex justify-between items-center text-[9px] font-black uppercase tracking-widest text-slate-400">
+                  <span>Progreso del despliegue</span>
+                  <span className="text-[#00A3FF] font-black">{Math.round((installStep / (installLogs.length - 1)) * 100)}%</span>
+                </div>
+                <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
+                  <div className="h-full bg-gradient-to-r from-[#00A3FF] to-[#00C2FF] rounded-full transition-all duration-500" style={{ width: `${(installStep / (installLogs.length - 1)) * 100}%` }} />
+                </div>
+              </div>
+
+              {/* Steps Card */}
+              <div className="w-full max-w-sm bg-gradient-to-b from-slate-50 to-white border border-slate-100 rounded-2xl p-6 space-y-4 shadow-sm text-left">
+                {installLogs.map((log, i) => {
+                  const isDone = i < installStep;
+                  const isActive = i === installStep;
+                  return (
+                    <div key={i} className={`flex items-center gap-3 transition-all duration-300 ${isDone || isActive ? 'opacity-100' : 'opacity-25'}`}>
+                      <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 border transition-all ${
+                        isDone ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500' : 
+                        isActive ? 'bg-[#00A3FF]/10 border-[#00A3FF]/20 text-[#00A3FF]' : 
+                        'bg-slate-50 border-slate-200 text-slate-400'
+                      }`}>
+                        {isDone ? (
+                          <span className="material-symbols-outlined text-[10px] font-bold">check</span>
+                        ) : isActive ? (
+                          <span className="w-1.5 h-1.5 rounded-full bg-[#00A3FF] animate-pulse" />
+                        ) : (
+                          <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
+                        )}
+                      </div>
+                      <span className={`text-[10px] font-bold tracking-tight transition-colors ${
+                        isDone ? 'text-slate-400 line-through decoration-slate-200' : 
+                        isActive ? 'text-slate-800 font-black' : 
+                        'text-slate-400'
+                      }`}>
+                        {log}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-6">
+              {/* Row 1: Domain (with inline dir) + WP + PHP */}
+              <div className="grid grid-cols-12 gap-4">
+                <div className="col-span-12 md:col-span-5 space-y-1.5">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Dominio de destino</label>
+                  <select
+                    value={formData.domain}
+                    onChange={(e) => setFormData(prev => ({ ...prev, domain: e.target.value, adminEmail: `admin@${e.target.value}` }))}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-900 font-bold outline-none focus:border-[#00A3FF] transition-all cursor-pointer"
+                  >
+                    <option value="">— Selecciona un dominio —</option>
+                    {domains.map(d => (
+                      <option key={d.id} value={d.domain_name}>{d.domain_name}</option>
+                    ))}
+                  </select>
+                  {/* inline dir preview */}
+                  {formData.domain && (
+                    <div className="flex items-center gap-2 bg-slate-50 border border-slate-100 rounded-xl p-2.5 mt-2">
+                      <span className="material-symbols-outlined text-[14px] text-slate-400">folder_open</span>
+                      <span className="text-[10px] font-mono font-bold text-slate-500 truncate flex-1">{dirPreview}</span>
+                      <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-full shrink-0 ${formData.domain === primaryDomain ? "bg-[#00A3FF]/10 text-[#00A3FF]" : "bg-violet-100 text-violet-600"}`}>
+                        {formData.domain === primaryDomain ? "Principal" : "Addon"}
+                      </span>
+                      <input className="w-20 bg-white border border-slate-200 rounded-lg px-2 py-1 text-[10px] font-mono text-slate-600 font-bold outline-none focus:border-[#00A3FF]" placeholder="sub/" value={formData.directory} onChange={(e) => setFormData(prev => ({ ...prev, directory: e.target.value }))} />
+                    </div>
+                  )}
+                </div>
+                <div className="col-span-12 md:col-span-4 space-y-1.5">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Versión de WordPress</label>
+                  <select
+                    value={formData.wpVersion || (wpVersions[0]?.version ?? "")}
+                    onChange={(e) => setFormData(prev => ({ ...prev, wpVersion: e.target.value }))}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-700 outline-none focus:border-[#00A3FF] transition-all"
+                  >
+                    {wpVersions.length === 0 ? (
+                      <option value="latest">WP Latest ✔ Stable</option>
+                    ) : (
+                      wpVersions.slice(0, 8).map(v => (
+                        <option key={v.version} value={v.version}>{v.label}{v.isCurrent ? "" : v.isLegacy ? " (Legacy)" : ""}</option>
+                      ))
+                    )}
+                  </select>
+                </div>
+                <div className="col-span-12 md:col-span-3 space-y-1.5">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Versión de PHP</label>
+                  <select value={formData.phpVersion} onChange={(e) => setFormData(prev => ({ ...prev, phpVersion: e.target.value }))} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-700 outline-none focus:border-[#00A3FF] transition-all">
+                    <option value="8.4">8.4 🔥</option>
+                    <option value="8.3">8.3</option>
+                    <option value="8.2">8.2</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Row 2: Site title + Admin + Email + Password */}
+              <div className="grid grid-cols-12 gap-4">
+                <div className="col-span-12 md:col-span-4 space-y-1.5">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Título del Sitio</label>
+                  <input placeholder="Mi Blog de WordPress" value={formData.siteTitle} onChange={(e) => setFormData(prev => ({ ...prev, siteTitle: e.target.value }))} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-900 font-bold outline-none focus:border-[#00A3FF] focus:bg-white transition-all" />
+                </div>
+                <div className="col-span-12 md:col-span-2 space-y-1.5">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Usuario Admin</label>
+                  <input placeholder="admin" value={formData.adminUser} onChange={(e) => setFormData(prev => ({ ...prev, adminUser: e.target.value }))} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-900 font-bold outline-none focus:border-[#00A3FF] focus:bg-white transition-all" />
+                </div>
+                <div className="col-span-12 md:col-span-3 space-y-1.5">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Email Admin</label>
+                  <input placeholder="admin@dominio.com" value={formData.adminEmail} onChange={(e) => setFormData(prev => ({ ...prev, adminEmail: e.target.value }))} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-900 font-bold outline-none focus:border-[#00A3FF] focus:bg-white transition-all" />
+                </div>
+                <div className="col-span-12 md:col-span-3 space-y-1.5">
+                  <div className="flex justify-between items-center">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Contraseña</label>
+                    <button type="button" onClick={generatePassword} className="text-[9px] font-black text-[#00A3FF] flex items-center gap-0.5 hover:underline">
+                      <span className="material-symbols-outlined text-[12px]">cycle</span>Gen
+                    </button>
+                  </div>
+                  <div className="relative">
+                    <input type={showPassword ? "text" : "password"} placeholder="••••••••" value={formData.adminPass} onChange={(e) => setFormData(prev => ({ ...prev, adminPass: e.target.value }))} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-900 font-bold outline-none focus:border-[#00A3FF] focus:bg-white transition-all pr-10" />
+                    <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                      <span className="material-symbols-outlined text-[16px]">{showPassword ? "visibility_off" : "visibility"}</span>
+                    </button>
+                  </div>
+                  <div className="h-1 w-full bg-slate-100 rounded-full overflow-hidden mt-1">
+                    <div className={`h-full transition-all duration-500 ${strengthColor}`} style={{ width: `${passStrength}%` }} />
+                  </div>
+                </div>
+              </div>
+
+              {/* Row 3: DB Config */}
+              <div className="border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+                <div className="flex items-center gap-2 px-4 py-3 bg-slate-50 border-b border-slate-200">
+                  <span className="material-symbols-outlined text-[15px] text-slate-400">database</span>
+                  <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Base de Datos</span>
+                  <button type="button" onClick={() => setFormData(prev => ({ ...prev, dbSuffix: genSuffix() }))} className="ml-auto text-[9px] font-black text-slate-400 hover:text-[#00A3FF] flex items-center gap-0.5 transition-colors">
+                    <span className="material-symbols-outlined text-[13px]">cycle</span>Regenerar
+                  </button>
+                </div>
+                <div className="px-4 py-4 grid grid-cols-12 gap-4 bg-white">
+                  {/* DB Name */}
+                  <div className="col-span-12 md:col-span-5 space-y-1">
+                    <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block">Nombre BD</label>
+                    <div className="flex items-stretch border border-slate-200 rounded-xl overflow-hidden focus-within:border-[#00A3FF] transition-colors">
+                      <span className="bg-slate-50 text-slate-400 text-[10px] font-mono font-bold px-3 flex items-center border-r border-slate-200 select-none whitespace-nowrap shrink-0">{dbPrefix}</span>
+                      <input className="flex-1 px-3 py-2 text-xs font-mono font-bold text-slate-900 outline-none bg-white min-w-0" value={formData.dbSuffix} onChange={(e) => setFormData(prev => ({ ...prev, dbSuffix: e.target.value.replace(/[^a-z0-9]/gi, "").toLowerCase() }))} maxLength={8} spellCheck={false} />
+                    </div>
+                    <p className="text-[9px] text-slate-400 font-mono pl-0.5 mt-1">{fullDbName}</p>
+                  </div>
+                  {/* DB User */}
+                  <div className="col-span-12 md:col-span-4 space-y-1">
+                    <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block">Usuario DB</label>
+                    <div className="flex items-stretch border border-slate-200 rounded-xl overflow-hidden bg-slate-50">
+                      <span className="text-slate-400 text-[10px] font-mono font-bold px-3 flex items-center border-r border-slate-200 select-none whitespace-nowrap shrink-0">{dbUserPrefix}</span>
+                      <span className="flex-1 px-3 py-2 text-xs font-mono font-bold text-slate-500 select-none">{formData.dbSuffix}</span>
+                    </div>
+                    <p className="text-[9px] text-slate-400 font-mono pl-0.5 mt-1">{fullDbUser}</p>
+                  </div>
+                  {/* Table Prefix */}
+                  <div className="col-span-12 md:col-span-3 space-y-1">
+                    <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block">Prefijo</label>
+                    <input className="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs font-mono font-bold text-slate-900 outline-none focus:border-[#00A3FF] transition-colors bg-slate-50 focus:bg-white" value={formData.tablePrefix} onChange={(e) => setFormData(prev => ({ ...prev, tablePrefix: e.target.value }))} placeholder="wp_" maxLength={16} spellCheck={false} />
+                    <p className="text-[9px] text-slate-400 pl-0.5 mt-1">Host: 127.0.0.1</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Submit Row */}
+              <div className="pt-6 border-t border-slate-200 flex items-center justify-between">
+                <p className="text-[10px] font-bold">
+                  {formData.domain && formData.siteTitle && formData.adminPass
+                    ? <span className="text-emerald-500 font-black flex items-center gap-1.5"><span className="material-symbols-outlined text-[14px]">check_circle</span>Listo para desplegar</span>
+                    : <span className="text-slate-400">Completa los campos requeridos</span>}
+                </p>
+                <div className="flex gap-3">
+                  <button type="button" onClick={() => setIsWizardOpen(false)} className="px-6 py-3 bg-white border border-slate-200 rounded-xl text-slate-500 font-black uppercase text-[10px] tracking-widest hover:border-slate-300 transition-all shadow-sm">
+                    Cancelar
+                  </button>
+                  <button onClick={handleInstall} disabled={!formData.domain || !formData.adminPass || !formData.siteTitle} className="bg-[#00A3FF] px-8 py-3.5 rounded-xl text-white font-black uppercase text-[10px] tracking-widest shadow-lg shadow-[#00A3FF]/20 hover:bg-[#008EE0] active:scale-[0.98] transition-all disabled:opacity-40 flex items-center gap-2">
+                    <span className="material-symbols-outlined text-[16px]">rocket_launch</span>
+                    Iniciar Despliegue
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-12 animate-in fade-in duration-700">
       <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 border-b border-slate-200 pb-10">
@@ -290,233 +517,6 @@ export default function WordPressManagerPage() {
           ))
         )}
       </div>
-
-      {isWizardOpen && (
-        <ModalPortal>
-          <div className="fixed inset-0 z-[9999] flex items-center justify-center pl-72 pr-4 py-4 animate-in fade-in duration-300">
-            <div className="absolute inset-0 bg-slate-900/80 backdrop-blur-md" onClick={() => !isInstalling && setIsWizardOpen(false)} />
-
-          <div className="bg-white w-full max-w-3xl relative z-10 rounded-[2rem] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300 flex flex-col max-h-[90vh]">
-
-            {/* Header */}
-            <div className="flex items-center justify-between px-7 py-4 border-b border-slate-100 bg-slate-50/70 shrink-0">
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 bg-[#00A3FF]/10 rounded-xl flex items-center justify-center">
-                  <span className="material-symbols-outlined text-[#00A3FF] text-[20px]">deployed_code</span>
-                </div>
-                <div>
-                  <h2 className="text-sm font-black text-slate-900 uppercase tracking-tight">Instalar WordPress</h2>
-                  <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">Despliegue en Nodos de Alto Rendimiento</p>
-                </div>
-              </div>
-              {!isInstalling && (
-                <button onClick={() => setIsWizardOpen(false)} className="w-8 h-8 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-400 hover:text-slate-900 transition-all">
-                  <span className="material-symbols-outlined text-[18px]">close</span>
-                </button>
-              )}
-            </div>
-
-            {/* Body */}
-            <div className="flex-1">
-              {isInstalling ? (
-                <div className="py-12 flex flex-col items-center px-8 text-center animate-in fade-in duration-500">
-                  <div className="w-20 h-20 relative mb-8 flex items-center justify-center bg-[#00A3FF]/5 rounded-full border border-[#00A3FF]/10 shadow-lg shadow-[#00A3FF]/5">
-                    {/* Ring spinner */}
-                    <div className="absolute inset-0 border-[3px] border-[#00A3FF]/10 rounded-full" />
-                    <div className="absolute inset-0 border-[3px] border-[#00A3FF] rounded-full border-t-transparent animate-spin" />
-                    <span className="material-symbols-outlined text-[#00A3FF] text-3xl animate-pulse">cloud_download</span>
-                  </div>
-
-                  {/* Progress bar */}
-                  <div className="w-full max-w-sm mb-6 space-y-2">
-                    <div className="flex justify-between items-center text-[9px] font-black uppercase tracking-widest text-slate-400">
-                      <span>Progreso del despliegue</span>
-                      <span className="text-[#00A3FF] font-black">{Math.round((installStep / (installLogs.length - 1)) * 100)}%</span>
-                    </div>
-                    <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
-                      <div className="h-full bg-gradient-to-r from-[#00A3FF] to-[#00C2FF] rounded-full transition-all duration-500" style={{ width: `${(installStep / (installLogs.length - 1)) * 100}%` }} />
-                    </div>
-                  </div>
-
-                  {/* Steps Card */}
-                  <div className="w-full max-w-sm bg-gradient-to-b from-slate-50 to-white border border-slate-100 rounded-2xl p-6 space-y-4 shadow-sm text-left">
-                    {installLogs.map((log, i) => {
-                      const isDone = i < installStep;
-                      const isActive = i === installStep;
-                      return (
-                        <div key={i} className={`flex items-center gap-3 transition-all duration-300 ${isDone || isActive ? 'opacity-100' : 'opacity-25'}`}>
-                          <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 border transition-all ${
-                            isDone ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500' : 
-                            isActive ? 'bg-[#00A3FF]/10 border-[#00A3FF]/20 text-[#00A3FF]' : 
-                            'bg-slate-50 border-slate-200 text-slate-400'
-                          }`}>
-                            {isDone ? (
-                              <span className="material-symbols-outlined text-[10px] font-bold">check</span>
-                            ) : isActive ? (
-                              <span className="w-1.5 h-1.5 rounded-full bg-[#00A3FF] animate-pulse" />
-                            ) : (
-                              <span className="w-1 h-1 rounded-full bg-slate-400" />
-                            )}
-                          </div>
-                          <span className={`text-[10px] font-bold tracking-tight transition-colors ${
-                            isDone ? 'text-slate-400 line-through decoration-slate-200' : 
-                            isActive ? 'text-slate-800 font-black' : 
-                            'text-slate-400'
-                          }`}>
-                            {log}
-                          </span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              ) : (
-                <div className="px-6 py-4 space-y-3">
-
-                  {/* Row 1: Domain (with inline dir) + WP + PHP */}
-                  <div className="grid grid-cols-12 gap-3">
-                    <div className="col-span-5 space-y-1">
-                      <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block">Dominio</label>
-                      <select
-                        value={formData.domain}
-                        onChange={(e) => setFormData(prev => ({ ...prev, domain: e.target.value, adminEmail: `admin@${e.target.value}` }))}
-                        className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-xs text-slate-900 font-bold outline-none focus:border-[#00A3FF] transition-all cursor-pointer"
-                      >
-                        <option value="">— Selecciona —</option>
-                        {domains.map(d => (
-                          <option key={d.id} value={d.domain_name}>{d.domain_name}</option>
-                        ))}
-                      </select>
-                      {/* inline dir preview */}
-                      {formData.domain && (
-                        <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-100 rounded-lg px-2 py-1">
-                          <span className="material-symbols-outlined text-[12px] text-slate-300">folder_open</span>
-                          <span className="text-[10px] font-mono font-bold text-slate-500 truncate flex-1">{dirPreview}</span>
-                          <span className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded-full shrink-0 ${formData.domain === primaryDomain ? "bg-[#00A3FF]/10 text-[#00A3FF]" : "bg-violet-100 text-violet-600"}`}>
-                            {formData.domain === primaryDomain ? "Principal" : "Addon"}
-                          </span>
-                          <input className="w-16 bg-white border border-slate-100 rounded px-1.5 py-0.5 text-[10px] font-mono text-slate-600 font-bold outline-none focus:border-[#00A3FF]" placeholder="sub/" value={formData.directory} onChange={(e) => setFormData(prev => ({ ...prev, directory: e.target.value }))} />
-                        </div>
-                      )}
-                    </div>
-                    <div className="col-span-4 space-y-1">
-                      <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block">WordPress</label>
-                      <select
-                        value={formData.wpVersion || (wpVersions[0]?.version ?? "")}
-                        onChange={(e) => setFormData(prev => ({ ...prev, wpVersion: e.target.value }))}
-                        className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-bold text-slate-700 outline-none focus:border-[#00A3FF] transition-all"
-                      >
-                        {wpVersions.length === 0 ? (
-                          <option value="latest">WP Latest ✔ Stable</option>
-                        ) : (
-                          wpVersions.slice(0, 8).map(v => (
-                            <option key={v.version} value={v.version}>{v.label}{v.isCurrent ? "" : v.isLegacy ? " (Legacy)" : ""}</option>
-                          ))
-                        )}
-                      </select>
-                    </div>
-                    <div className="col-span-3 space-y-1">
-                      <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block">PHP</label>
-                      <select value={formData.phpVersion} onChange={(e) => setFormData(prev => ({ ...prev, phpVersion: e.target.value }))} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-bold text-slate-700 outline-none focus:border-[#00A3FF] transition-all">
-                        <option value="8.4">8.4 🔥</option>
-                        <option value="8.3">8.3</option>
-                        <option value="8.2">8.2</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  {/* Row 2: Site title + Admin + Email + Password all in one row */}
-                  <div className="grid grid-cols-12 gap-3">
-                    <div className="col-span-4 space-y-1">
-                      <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block">Título del Sitio</label>
-                      <input placeholder="Mi Blog" value={formData.siteTitle} onChange={(e) => setFormData(prev => ({ ...prev, siteTitle: e.target.value }))} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-xs text-slate-900 font-bold outline-none focus:border-[#00A3FF] focus:bg-white transition-all" />
-                    </div>
-                    <div className="col-span-2 space-y-1">
-                      <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block">Usuario</label>
-                      <input placeholder="admin" value={formData.adminUser} onChange={(e) => setFormData(prev => ({ ...prev, adminUser: e.target.value }))} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-xs text-slate-900 font-bold outline-none focus:border-[#00A3FF] focus:bg-white transition-all" />
-                    </div>
-                    <div className="col-span-3 space-y-1">
-                      <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block">Email Admin</label>
-                      <input placeholder="admin@dom.com" value={formData.adminEmail} onChange={(e) => setFormData(prev => ({ ...prev, adminEmail: e.target.value }))} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-xs text-slate-900 font-bold outline-none focus:border-[#00A3FF] focus:bg-white transition-all" />
-                    </div>
-                    <div className="col-span-3 space-y-1">
-                      <div className="flex justify-between items-center">
-                        <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Contraseña</label>
-                        <button type="button" onClick={generatePassword} className="text-[8px] font-black text-[#00A3FF] flex items-center gap-0.5 hover:underline">
-                          <span className="material-symbols-outlined text-[11px]">cycle</span>Gen
-                        </button>
-                      </div>
-                      <div className="relative">
-                        <input type={showPassword ? "text" : "password"} placeholder="••••••••" value={formData.adminPass} onChange={(e) => setFormData(prev => ({ ...prev, adminPass: e.target.value }))} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-xs text-slate-900 font-bold outline-none focus:border-[#00A3FF] focus:bg-white transition-all pr-8" />
-                        <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-300 hover:text-slate-600">
-                          <span className="material-symbols-outlined text-[14px]">{showPassword ? "visibility_off" : "visibility"}</span>
-                        </button>
-                      </div>
-                      <div className="h-0.5 w-full bg-slate-100 rounded-full overflow-hidden">
-                        <div className={`h-full transition-all duration-500 ${strengthColor}`} style={{ width: `${passStrength}%` }} />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Row 3: DB Config — compact single row */}
-                  <div className="border border-slate-200 rounded-xl overflow-hidden">
-                    <div className="flex items-center gap-2 px-3 py-2 bg-slate-50 border-b border-slate-100">
-                      <span className="material-symbols-outlined text-[13px] text-slate-400">database</span>
-                      <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Base de Datos</span>
-                      <button type="button" onClick={() => setFormData(prev => ({ ...prev, dbSuffix: genSuffix() }))} className="ml-auto text-[8px] font-black text-slate-400 hover:text-[#00A3FF] flex items-center gap-0.5 transition-colors">
-                        <span className="material-symbols-outlined text-[12px]">cycle</span>Regenerar
-                      </button>
-                    </div>
-                    <div className="px-3 py-2.5 grid grid-cols-12 gap-3">
-                      {/* DB Name */}
-                      <div className="col-span-5 space-y-1">
-                        <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block">Nombre BD</label>
-                        <div className="flex items-stretch border border-slate-200 rounded-lg overflow-hidden focus-within:border-[#00A3FF] transition-colors">
-                          <span className="bg-slate-50 text-slate-400 text-[10px] font-mono font-bold px-2 flex items-center border-r border-slate-200 select-none whitespace-nowrap shrink-0">{dbPrefix}</span>
-                          <input className="flex-1 px-2 py-1.5 text-xs font-mono font-bold text-slate-900 outline-none bg-white min-w-0" value={formData.dbSuffix} onChange={(e) => setFormData(prev => ({ ...prev, dbSuffix: e.target.value.replace(/[^a-z0-9]/gi, "").toLowerCase() }))} maxLength={8} spellCheck={false} />
-                        </div>
-                        <p className="text-[8px] text-slate-400 font-mono pl-0.5">{fullDbName}</p>
-                      </div>
-                      {/* DB User */}
-                      <div className="col-span-4 space-y-1">
-                        <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block">Usuario DB</label>
-                        <div className="flex items-stretch border border-slate-100 rounded-lg overflow-hidden bg-slate-50">
-                          <span className="text-slate-400 text-[10px] font-mono font-bold px-2 flex items-center border-r border-slate-200 select-none whitespace-nowrap shrink-0">{dbUserPrefix}</span>
-                          <span className="flex-1 px-2 py-1.5 text-xs font-mono font-bold text-slate-500 select-none">{formData.dbSuffix}</span>
-                        </div>
-                        <p className="text-[8px] text-slate-400 font-mono pl-0.5">{fullDbUser}</p>
-                      </div>
-                      {/* Table Prefix */}
-                      <div className="col-span-3 space-y-1">
-                        <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block">Prefijo</label>
-                        <input className="w-full border border-slate-200 rounded-lg px-2 py-1.5 text-xs font-mono font-bold text-slate-900 outline-none focus:border-[#00A3FF] transition-colors bg-slate-50 focus:bg-white" value={formData.tablePrefix} onChange={(e) => setFormData(prev => ({ ...prev, tablePrefix: e.target.value }))} placeholder="wp_" maxLength={16} spellCheck={false} />
-                        <p className="text-[8px] text-slate-400 pl-0.5">Host: 127.0.0.1</p>
-                      </div>
-                    </div>
-                  </div>
-
-                </div>
-              )}
-            </div>
-
-            {/* Footer */}
-            {!isInstalling && (
-              <div className="px-7 py-4 border-t border-slate-100 bg-slate-50/50 flex items-center justify-between shrink-0">
-                <p className="text-[10px] font-bold">
-                  {formData.domain && formData.siteTitle && formData.adminPass
-                    ? <span className="text-emerald-500 font-black flex items-center gap-1.5"><span className="material-symbols-outlined text-[13px]">check_circle</span>Listo para desplegar</span>
-                    : <span className="text-slate-400">Completa los campos requeridos</span>}
-                </p>
-                <button onClick={handleInstall} disabled={!formData.domain || !formData.adminPass || !formData.siteTitle} className="bg-[#00A3FF] px-7 py-3 rounded-xl text-white font-black uppercase text-[10px] tracking-widest shadow-lg shadow-[#00A3FF]/20 hover:bg-[#008EE0] active:scale-[0.98] transition-all disabled:opacity-40 flex items-center gap-2">
-                  <span className="material-symbols-outlined text-[16px]">rocket_launch</span>
-                  Iniciar Despliegue
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-        </ModalPortal>
-      )}
     </div>
   );
 }
