@@ -35,7 +35,7 @@ export default function TrashPage() {
     setMe(identity);
     setFolders(nextFolders);
     setMessages(nextMessages);
-    setSelectedId((current) => current && nextMessages.some((item) => item.id === current) ? current : nextMessages[0]?.id ?? null);
+    setSelectedId((current) => current && nextMessages.some((item) => item.id === current) ? current : null);
   };
 
   useEffect(() => {
@@ -52,7 +52,7 @@ export default function TrashPage() {
   }, [router]);
 
   const selectedMessage = useMemo<MailMessageSummary | null>(
-    () => messages.find((item) => item.id === selectedId) ?? messages[0] ?? null,
+    () => messages.find((item) => item.id === selectedId) ?? null,
     [messages, selectedId]
   );
 
