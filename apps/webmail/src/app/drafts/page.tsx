@@ -76,7 +76,7 @@ export default function DraftsPage() {
       <div className="flex h-full w-full overflow-hidden flex-col bg-white">
         
         {/* Gmail-Style Toolbar */}
-        <div className="h-14 border-b border-slate-100 flex items-center px-6 justify-between shrink-0 bg-white z-20">
+        <div className="h-12 border-b border-slate-100 flex items-center px-6 justify-between shrink-0 bg-white z-20">
            <div className="flex items-center gap-6">
               <div className="flex items-center gap-1">
                  <ToolbarIcon icon="check_box_outline_blank" />
@@ -87,7 +87,7 @@ export default function DraftsPage() {
            </div>
            
            <div className="flex items-center gap-4">
-              <span className="text-[11px] font-medium text-slate-500">1-{messages.length} de {messages.length}</span>
+              <span className="text-xs font-medium text-slate-400">1–{messages.length} de {messages.length}</span>
               <div className="flex items-center">
                  <ToolbarIcon icon="chevron_left" />
                  <ToolbarIcon icon="chevron_right" />
@@ -97,17 +97,17 @@ export default function DraftsPage() {
 
         <div className="flex-1 flex overflow-hidden">
           {/* Message List */}
-          <section className="flex flex-col w-full bg-white">
+          <section className={`flex flex-col bg-white transition-all duration-300 ${selectedId ? "w-[420px] min-w-[420px] border-r border-slate-100" : "w-full"}`}>
              <div className="flex-1 overflow-y-auto custom-scrollbar">
                  {loading ? (
                    <div className="p-24 flex flex-col items-center gap-4 opacity-30">
-                     <div className="w-8 h-8 border-4 border-slate-100 border-t-[#00A3FF] rounded-full animate-spin"></div>
-                     <span className="text-[11px] font-black uppercase tracking-widest text-slate-400">Cargando Borradores...</span>
+                     <div className="w-7 h-7 border-[3px] border-slate-100 border-t-[#00A3FF] rounded-full animate-spin"></div>
+                     <span className="text-xs font-medium text-slate-400">Cargando Borradores...</span>
                    </div>
                  ) : messages.length === 0 ? (
-                   <div className="p-32 text-center flex flex-col items-center opacity-40">
-                      <div className="w-20 h-20 rounded-full bg-slate-50 flex items-center justify-center mb-6 border border-slate-100">
-                         <span className="material-symbols-outlined text-4xl text-slate-300">edit_note</span>
+                   <div className="p-32 text-center flex flex-col items-center opacity-50">
+                      <div className="w-16 h-16 rounded-full bg-slate-50 flex items-center justify-center mb-5 border border-slate-100">
+                         <span className="material-symbols-outlined text-3xl text-slate-300">edit_note</span>
                       </div>
                       <div className="text-slate-500 text-sm font-medium">No tienes borradores guardados.</div>
                    </div>
@@ -117,40 +117,53 @@ export default function DraftsPage() {
                        key={message.id}
                        onClick={() => setSelectedId(message.id)}
                        className={`
-                         group flex items-center px-4 py-3 border-b border-slate-50 cursor-pointer transition-all relative
-                         ${selectedId === message.id ? "bg-[#FF3D00]/5 z-10" : "hover:bg-slate-50 hover:shadow-sm hover:z-10"}
+                         group flex items-center px-4 py-2.5 border-b border-slate-50/80 cursor-pointer transition-all relative
+                         ${selectedId === message.id ? "bg-orange-50/50 border-l-2 border-l-[#FF3D00]" : "hover:bg-slate-50/70 border-l-2 border-l-transparent"}
                          bg-white
                        `}
                      >
-                       <div className="flex items-center gap-3 shrink-0 mr-4">
-                         <span className="material-symbols-outlined text-slate-300 text-[20px]">check_box_outline_blank</span>
+                       <div className="flex items-center gap-2.5 shrink-0 mr-3">
+                         <span className="material-symbols-outlined text-slate-300 text-[18px]">check_box_outline_blank</span>
                          <span 
                            onClick={(e) => { e.stopPropagation(); toggleStar(message); }}
-                           className={`material-symbols-outlined text-[20px] transition-colors ${message.starred ? "text-amber-400 font-variation-fill" : "text-slate-300 hover:text-slate-500"}`}
+                           className={`material-symbols-outlined text-[18px] transition-colors ${message.starred ? "text-amber-400 font-variation-fill" : "text-slate-300 hover:text-slate-500"}`}
                          >
                            {message.starred ? "star" : "star_outline"}
                          </span>
                        </div>
 
-                       <div className="w-48 shrink-0 text-sm truncate mr-4 text-[#FF3D00] font-bold italic">
-                          [Borrador]
-                       </div>
+                       {selectedId ? (
+                         <div className="flex-1 min-w-0">
+                           <div className="flex items-center justify-between mb-0.5">
+                             <span className="text-[13px] font-medium text-[#FF3D00] italic">Borrador</span>
+                             <span className="text-[11px] font-medium text-[#FF3D00] shrink-0 ml-2">{message.receivedAt}</span>
+                           </div>
+                           <div className="text-[13px] truncate font-medium text-slate-700">{message.subject || "(sin asunto)"}</div>
+                           <div className="text-xs text-slate-400 truncate mt-0.5 font-normal">{message.preview}</div>
+                         </div>
+                       ) : (
+                         <>
+                           <div className="w-48 shrink-0 text-[13px] truncate mr-4 text-[#FF3D00] font-medium italic">
+                              Borrador
+                           </div>
 
-                       <div className="flex-1 min-w-0 flex items-baseline gap-2">
-                          <span className="text-sm truncate font-semibold text-slate-800">
-                            {message.subject || "(sin asunto)"}
-                          </span>
-                          <span className="text-sm text-slate-400 truncate font-medium">
-                            - {message.preview}
-                          </span>
-                       </div>
+                           <div className="flex-1 min-w-0 flex items-baseline gap-1.5">
+                              <span className="text-[13px] truncate font-medium text-slate-700">
+                                {message.subject || "(sin asunto)"}
+                              </span>
+                              <span className="text-[13px] text-slate-400 truncate font-normal">
+                                — {message.preview}
+                              </span>
+                           </div>
 
-                       <div className="shrink-0 ml-4 text-[11px] font-bold uppercase tracking-tight text-[#FF3D00]">
-                          {message.receivedAt}
-                       </div>
+                           <div className="shrink-0 ml-4 text-xs font-medium text-[#FF3D00]">
+                              {message.receivedAt}
+                           </div>
+                         </>
+                       )}
 
                        {/* Hover Actions */}
-                       <div className="absolute right-4 inset-y-0 flex items-center gap-1 bg-inherit px-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                       <div className="absolute right-3 inset-y-0 flex items-center gap-0.5 bg-inherit px-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
                           <ToolbarIcon icon="edit" onClick={(e) => { e.stopPropagation(); router.push(`/compose?id=${message.id}`); }} />
                           <ToolbarIcon icon="delete" onClick={(e) => { e.stopPropagation(); trashMessage(message); }} />
                        </div>
@@ -160,47 +173,39 @@ export default function DraftsPage() {
               </div>
           </section>
 
-          {/* Reading/Edit Preview Pane Modal Window */}
+          {/* Inline Draft Preview Pane */}
           {selectedId && (
-            <div 
-              onClick={() => setSelectedId(null)}
-              className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 md:p-6 animate-in fade-in duration-200"
-            >
-              <div 
-                onClick={(e) => e.stopPropagation()}
-                className="bg-white w-full max-w-5xl h-[85vh] rounded-[2rem] shadow-[0_32px_128px_rgba(0,163,255,0.15)] border border-slate-200/50 flex flex-col overflow-hidden animate-in zoom-in-95 duration-200"
-              >
-                <div className="flex flex-col h-full bg-white">
-                   {/* Toolbar */}
-                   <div className="h-14 border-b border-slate-100 flex items-center px-6 gap-6 shrink-0">
-                      <ToolbarIcon icon="arrow_back" onClick={() => setSelectedId(null)} />
-                      <div className="h-6 w-px bg-slate-100 mx-2"></div>
-                      <ToolbarIcon icon="delete" onClick={() => selectedMessage && trashMessage(selectedMessage)} />
-                      <div className="h-6 w-px bg-slate-100 mx-2"></div>
-                      <ToolbarIcon icon="more_vert" />
-                      <div className="ml-auto">
-                         <ToolbarIcon icon="close" onClick={() => setSelectedId(null)} />
-                      </div>
-                   </div>
+            <section className="flex-1 min-w-0 bg-white flex flex-col animate-in slide-in-from-right-5 duration-200">
+              <div className="flex flex-col h-full bg-white">
+                 {/* Toolbar */}
+                 <div className="h-12 border-b border-slate-100 flex items-center px-5 gap-4 shrink-0">
+                    <ToolbarIcon icon="arrow_back" onClick={() => setSelectedId(null)} />
+                    <div className="h-5 w-px bg-slate-100"></div>
+                    <ToolbarIcon icon="delete" onClick={() => selectedMessage && trashMessage(selectedMessage)} />
+                    <div className="h-5 w-px bg-slate-100"></div>
+                    <ToolbarIcon icon="more_vert" />
+                    <div className="ml-auto">
+                       <ToolbarIcon icon="close" onClick={() => setSelectedId(null)} />
+                    </div>
+                 </div>
 
-                   <div className="flex-1 flex flex-col items-center justify-center p-20 text-center space-y-8">
-                      <div className="w-24 h-24 rounded-[2rem] bg-orange-50 flex items-center justify-center text-[#FF3D00] shadow-inner">
-                         <span className="material-symbols-outlined text-5xl">edit_square</span>
-                      </div>
-                      <div className="space-y-4">
-                         <h3 className="text-2xl font-black text-slate-900 tracking-tight uppercase italic">Borrador en pausa</h3>
-                         <p className="text-sm text-slate-500 max-w-xs mx-auto font-medium">Este mensaje no ha sido enviado. Puedes continuar redactándolo ahora mismo.</p>
-                      </div>
-                      <button 
-                         onClick={() => router.push(`/compose?id=${selectedId}`)}
-                         className="bg-[#FF3D00] text-white text-[11px] font-black uppercase tracking-widest px-10 py-4 rounded-2xl shadow-xl shadow-orange-500/20 hover:scale-105 active:scale-95 transition-all"
-                      >
-                         Continuar Redactando
-                      </button>
-                   </div>
-                </div>
+                 <div className="flex-1 flex flex-col items-center justify-center p-16 text-center space-y-6">
+                    <div className="w-20 h-20 rounded-2xl bg-orange-50 flex items-center justify-center text-[#FF3D00]">
+                       <span className="material-symbols-outlined text-4xl">edit_square</span>
+                    </div>
+                    <div className="space-y-3">
+                       <h3 className="text-xl font-bold text-slate-900">Borrador en pausa</h3>
+                       <p className="text-sm text-slate-500 max-w-xs mx-auto">Este mensaje no ha sido enviado. Puedes continuar redactándolo ahora mismo.</p>
+                    </div>
+                    <button 
+                       onClick={() => router.push(`/compose?id=${selectedId}`)}
+                       className="bg-[#FF3D00] text-white text-xs font-semibold px-8 py-3 rounded-xl shadow-lg shadow-orange-500/15 hover:scale-[1.03] active:scale-95 transition-all"
+                    >
+                       Continuar Redactando
+                    </button>
+                 </div>
               </div>
-            </div>
+            </section>
           )}
         </div>
       </div>
@@ -212,7 +217,7 @@ function ToolbarIcon({ icon, onClick }: { icon: string; onClick?: (e: React.Mous
   return (
     <button 
       onClick={onClick}
-      className="w-10 h-10 rounded-full flex items-center justify-center text-slate-500 hover:bg-slate-100 hover:text-slate-900 transition-all active:scale-90"
+      className="w-9 h-9 rounded-lg flex items-center justify-center text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-all active:scale-95"
     >
       <span className="material-symbols-outlined text-[20px]">{icon}</span>
     </button>

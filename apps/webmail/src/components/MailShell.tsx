@@ -35,8 +35,8 @@ export function MailShell({
            </button>
            <div className="flex items-center gap-3 group cursor-pointer" onClick={() => router.push("/inbox")}>
               <img src="/logo.png" alt="Odisea" className="h-8 w-8 object-contain" />
-              <span className="text-xl font-black tracking-tighter uppercase italic text-slate-800">
-                ODISEA <span className="text-[#00A3FF] not-italic">MAIL</span>
+              <span className="text-xl font-bold tracking-tight text-slate-800">
+                Odisea <span className="text-[#00A3FF] font-semibold">Mail</span>
               </span>
            </div>
         </div>
@@ -55,13 +55,13 @@ export function MailShell({
 
         <div className="flex items-center gap-3 ml-auto">
            <div className="hidden lg:flex flex-col items-end mr-4">
-              <div className="text-[10px] font-black text-[#00A3FF] uppercase tracking-widest leading-none mb-1">{me?.address}</div>
-              <div className="text-[9px] font-bold text-slate-400 uppercase tracking-widest leading-none">Canal Seguro Activo</div>
+              <div className="text-xs font-semibold text-[#00A3FF] leading-none mb-1">{me?.address}</div>
+              <div className="text-[10px] font-medium text-slate-400 leading-none">Canal Seguro Activo</div>
            </div>
            <button className="p-2 hover:bg-slate-100 rounded-full text-slate-500">
               <span className="material-symbols-outlined">help_outline</span>
            </button>
-           <div className="w-9 h-9 rounded-full bg-slate-900 text-white flex items-center justify-center font-black text-xs shadow-lg shadow-slate-900/20">
+           <div className="w-9 h-9 rounded-full bg-slate-900 text-white flex items-center justify-center font-semibold text-xs shadow-lg shadow-slate-900/20">
               {me?.address?.charAt(0).toUpperCase()}
            </div>
         </div>
@@ -82,7 +82,7 @@ export function MailShell({
              `}
            >
               <span className="material-symbols-outlined text-[#00A3FF] group-hover:scale-110 transition-transform">edit</span>
-              {isSidebarOpen && <span className="text-sm font-black tracking-tight text-slate-700">Redactar</span>}
+              {isSidebarOpen && <span className="text-sm font-semibold text-slate-700">Redactar</span>}
            </button>
 
            <nav className="flex-1 flex flex-col gap-1 overflow-y-auto custom-scrollbar">
@@ -109,8 +109,8 @@ export function MailShell({
       </div>
 
       <style jsx global>{`
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
-        body { font-family: 'Inter', sans-serif; overflow: hidden; background: white; }
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
+        body { font-family: 'Plus Jakarta Sans', sans-serif; overflow: hidden; background: white; }
         ::-webkit-scrollbar { width: 5px; height: 5px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #E2E8F0; border-radius: 10px; }
@@ -155,7 +155,7 @@ function FloatingCompose({ onClose }: { onClose: () => void }) {
        <div className="h-12 bg-[#1A1F2D] text-white flex items-center justify-between px-6 rounded-t-2xl shrink-0 cursor-pointer group" onClick={() => setMinimized(!minimized)}>
           <div className="flex items-center gap-3">
              <div className="w-1.5 h-1.5 rounded-full bg-[#00A3FF] animate-pulse"></div>
-             <span className="text-[10px] font-black uppercase tracking-[0.2em] opacity-90 group-hover:opacity-100 transition-opacity">Mensaje nuevo</span>
+             <span className="text-xs font-semibold tracking-wide opacity-90 group-hover:opacity-100 transition-opacity">Mensaje nuevo</span>
           </div>
           <div className="flex items-center gap-5">
              <button onClick={(e) => { e.stopPropagation(); setMinimized(!minimized); }} className="material-symbols-outlined text-[18px] opacity-40 hover:opacity-100 hover:text-[#00A3FF] transition-all">remove</button>
@@ -168,14 +168,14 @@ function FloatingCompose({ onClose }: { onClose: () => void }) {
          <>
            <div className="flex-1 flex flex-col p-8 space-y-px overflow-hidden">
               <div className="flex items-center border-b border-slate-100 py-3">
-                 <span className="text-xs font-black text-slate-400 w-12 uppercase tracking-widest">Para</span>
+                 <span className="text-xs font-semibold text-slate-400 w-12">Para</span>
                  <input 
                    type="text" 
                    value={to} 
                    onChange={(e) => setTo(e.target.value)} 
-                   className="flex-1 outline-none text-sm font-black text-slate-800" 
+                   className="flex-1 outline-none text-sm font-medium text-slate-800" 
                  />
-                 <div className="flex gap-4 text-[9px] font-black text-slate-300 uppercase tracking-widest">
+                 <div className="flex gap-4 text-xs font-medium text-slate-300">
                     <button className="hover:text-[#00A3FF]">Cc</button>
                     <button className="hover:text-[#00A3FF]">Cco</button>
                  </div>
@@ -186,7 +186,7 @@ function FloatingCompose({ onClose }: { onClose: () => void }) {
                    placeholder="Asunto" 
                    value={subject} 
                    onChange={(e) => setSubject(e.target.value)} 
-                   className="w-full outline-none text-sm font-black text-slate-800 placeholder:text-slate-200" 
+                   className="w-full outline-none text-sm font-medium text-slate-800 placeholder:text-slate-300" 
                  />
               </div>
               <textarea 
@@ -205,7 +205,7 @@ function FloatingCompose({ onClose }: { onClose: () => void }) {
                     <button 
                       onClick={handleSend}
                       disabled={loading || !to || !subject || !body}
-                      className="px-8 py-3.5 text-[11px] font-black uppercase tracking-widest text-white hover:bg-[#008EE0] transition-colors disabled:opacity-50"
+                      className="px-8 py-3.5 text-xs font-semibold tracking-wide text-white hover:bg-[#008EE0] transition-colors disabled:opacity-50"
                     >
                        {loading ? "Sincronizando..." : "Enviar"}
                     </button>
@@ -284,10 +284,10 @@ function MailNavItem({
         <span className={`material-symbols-outlined text-[22px] ${active ? "text-[#00A3FF]" : "text-slate-400 group-hover:text-slate-600"}`}>
           {icon}
         </span>
-        {sidebarOpen && <span className={`text-[13px] font-bold tracking-tight ${active ? "font-black" : ""}`}>{label}</span>}
+        {sidebarOpen && <span className={`text-[13px] ${active ? "font-semibold" : "font-medium"}`}>{label}</span>}
       </div>
       {sidebarOpen && count !== undefined && (
-        <span className={`text-[10px] font-black ${active ? "text-[#00A3FF]" : "text-slate-400"}`}>{count}</span>
+        <span className={`text-[10px] font-semibold ${active ? "text-[#00A3FF]" : "text-slate-400"}`}>{count}</span>
       )}
     </Link>
   );

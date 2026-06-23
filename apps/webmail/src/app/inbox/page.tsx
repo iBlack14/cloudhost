@@ -102,7 +102,7 @@ export default function InboxPage() {
       <div className="flex h-full w-full overflow-hidden flex-col">
         
         {/* 1. Gmail-Style Toolbar */}
-        <div className="h-14 border-b border-slate-100 flex items-center px-6 justify-between shrink-0 bg-white z-20">
+        <div className="h-12 border-b border-slate-100 flex items-center px-6 justify-between shrink-0 bg-white z-20">
            <div className="flex items-center gap-6">
               <div className="flex items-center gap-1">
                  <ToolbarIcon icon="check_box_outline_blank" />
@@ -113,16 +113,17 @@ export default function InboxPage() {
            </div>
            
            <div className="flex items-center gap-4">
-              <span className="text-[11px] font-medium text-slate-500">1-{messages.length} de {messages.length}</span>
+              <span className="text-xs font-medium text-slate-400">1–{messages.length} de {messages.length}</span>
               <div className="flex items-center">
                  <ToolbarIcon icon="chevron_left" />
                  <ToolbarIcon icon="chevron_right" />
               </div>
            </div>
         </div>
+
         <div className="flex-1 flex overflow-hidden">
-          {/* 2. Message List with Tabs */}
-          <section className="flex flex-col w-full bg-white">
+          {/* 2. Message List */}
+          <section className={`flex flex-col bg-white transition-all duration-300 ${selectedId ? "w-[420px] min-w-[420px] border-r border-slate-100" : "w-full"}`}>
              {/* Tabs Header */}
              <div className="flex px-4 border-b border-slate-100 bg-white">
                 <MailTab icon="inbox" label="Principal" active={activeTab === 'principal'} onClick={() => setActiveTab('principal')} color="blue" />
@@ -133,8 +134,8 @@ export default function InboxPage() {
              <div className="flex-1 overflow-y-auto custom-scrollbar">
                  {loading ? (
                    <div className="p-24 flex flex-col items-center gap-4 opacity-30">
-                     <div className="w-8 h-8 border-4 border-slate-100 border-t-[#00A3FF] rounded-full animate-spin"></div>
-                     <span className="text-[11px] font-black uppercase tracking-widest text-slate-400">Sincronizando...</span>
+                     <div className="w-7 h-7 border-[3px] border-slate-100 border-t-[#00A3FF] rounded-full animate-spin"></div>
+                     <span className="text-xs font-medium text-slate-400">Sincronizando...</span>
                    </div>
                  ) : messages.length === 0 ? (
                    <div className="p-20 text-center text-slate-400 text-sm font-medium">Buzón vacío.</div>
@@ -144,40 +145,61 @@ export default function InboxPage() {
                        key={message.id}
                        onClick={() => setSelectedId(message.id)}
                        className={`
-                         group flex items-center px-4 py-3 border-b border-slate-50 cursor-pointer transition-all relative
-                         ${selectedId === message.id ? "bg-[#00A3FF]/5 z-10" : "hover:bg-slate-50 hover:shadow-md hover:z-10"}
-                         ${!message.read && selectedId !== message.id ? "bg-white" : "bg-slate-50/40"}
+                         group flex items-center px-4 py-2.5 border-b border-slate-50/80 cursor-pointer transition-all relative
+                         ${selectedId === message.id ? "bg-[#00A3FF]/[0.06] border-l-2 border-l-[#00A3FF]" : "hover:bg-slate-50/70 border-l-2 border-l-transparent"}
+                         ${!message.read && selectedId !== message.id ? "bg-white" : "bg-slate-50/30"}
                        `}
                      >
-                       <div className="flex items-center gap-3 shrink-0 mr-4">
-                         <span className="material-symbols-outlined text-slate-300 text-[20px] hover:text-slate-500">check_box_outline_blank</span>
+                       <div className="flex items-center gap-2.5 shrink-0 mr-3">
+                         <span className="material-symbols-outlined text-slate-300 text-[18px] hover:text-slate-500">check_box_outline_blank</span>
                          <span 
                            onClick={(e) => { e.stopPropagation(); toggleStar(message); }}
-                           className={`material-symbols-outlined text-[20px] transition-colors ${message.starred ? "text-amber-400 font-variation-fill" : "text-slate-300 hover:text-slate-500"}`}
+                           className={`material-symbols-outlined text-[18px] transition-colors ${message.starred ? "text-amber-400 font-variation-fill" : "text-slate-300 hover:text-slate-500"}`}
                          >
                            {message.starred ? "star" : "star_outline"}
                          </span>
                        </div>
 
-                       <div className={`w-48 shrink-0 text-sm truncate mr-4 ${!message.read && selectedId !== message.id ? "font-bold text-slate-900" : "font-normal text-slate-500"}`}>
-                          {message.from}
-                       </div>
+                       {selectedId ? (
+                         /* Compact mode when reading pane is open */
+                         <div className="flex-1 min-w-0">
+                           <div className="flex items-center justify-between mb-0.5">
+                             <span className={`text-[13px] truncate ${!message.read && selectedId !== message.id ? "font-semibold text-slate-900" : "font-normal text-slate-600"}`}>
+                               {message.from}
+                             </span>
+                             <span className="text-[11px] font-medium text-slate-400 shrink-0 ml-2">{message.receivedAt}</span>
+                           </div>
+                           <div className={`text-[13px] truncate ${!message.read && selectedId !== message.id ? "font-semibold text-slate-800" : "font-normal text-slate-600"}`}>
+                             {message.subject}
+                           </div>
+                           <div className="text-xs text-slate-400 truncate mt-0.5 font-normal">
+                             {message.preview}
+                           </div>
+                         </div>
+                       ) : (
+                         /* Full width mode */
+                         <>
+                           <div className={`w-48 shrink-0 text-[13px] truncate mr-4 ${!message.read && selectedId !== message.id ? "font-semibold text-slate-900" : "font-normal text-slate-500"}`}>
+                              {message.from}
+                           </div>
 
-                       <div className="flex-1 min-w-0 flex items-baseline gap-2">
-                          <span className={`text-sm truncate ${!message.read && selectedId !== message.id ? "font-bold text-slate-900" : "font-normal text-slate-700"}`}>
-                            {message.subject}
-                          </span>
-                          <span className="text-sm text-slate-400 truncate font-medium">
-                            - {message.preview}
-                          </span>
-                       </div>
+                           <div className="flex-1 min-w-0 flex items-baseline gap-1.5">
+                              <span className={`text-[13px] truncate ${!message.read && selectedId !== message.id ? "font-semibold text-slate-900" : "font-normal text-slate-700"}`}>
+                                {message.subject}
+                              </span>
+                              <span className="text-[13px] text-slate-400 truncate font-normal">
+                                — {message.preview}
+                              </span>
+                           </div>
 
-                       <div className={`shrink-0 ml-4 text-[11px] font-bold uppercase tracking-tight ${!message.read && selectedId !== message.id ? "text-slate-900" : "text-slate-400"}`}>
-                          {message.receivedAt}
-                       </div>
+                           <div className={`shrink-0 ml-4 text-xs font-medium ${!message.read && selectedId !== message.id ? "text-slate-800" : "text-slate-400"}`}>
+                              {message.receivedAt}
+                           </div>
+                         </>
+                       )}
 
                        {/* Hover Actions */}
-                       <div className="absolute right-4 inset-y-0 flex items-center gap-1 bg-inherit px-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                       <div className="absolute right-3 inset-y-0 flex items-center gap-0.5 bg-inherit px-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
                           <ToolbarIcon icon="archive" />
                           <ToolbarIcon icon="delete" onClick={(e) => { e.stopPropagation(); trashMessage(message); }} />
                           <ToolbarIcon icon="mark_email_read" onClick={(e) => { e.stopPropagation(); toggleRead(message); }} />
@@ -188,27 +210,19 @@ export default function InboxPage() {
               </div>
           </section>
 
-          {/* 3. Message Details Modal Window */}
+          {/* 3. Inline Reading Pane */}
           {selectedId && selectedMessage && (
-            <div 
-              onClick={() => setSelectedId(null)}
-              className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 md:p-6 animate-in fade-in duration-200"
-            >
-              <div 
-                onClick={(e) => e.stopPropagation()}
-                className="bg-white w-full max-w-5xl h-[85vh] rounded-[2rem] shadow-[0_32px_128px_rgba(0,163,255,0.15)] border border-slate-200/50 flex flex-col overflow-hidden animate-in zoom-in-95 duration-200"
-              >
-                <MessagePane
-                  key={selectedMessage.id}
-                  me={me}
-                  summary={selectedMessage}
-                  onClose={() => setSelectedId(null)}
-                  onToggleRead={() => toggleRead(selectedMessage)}
-                  onToggleStar={() => toggleStar(selectedMessage)}
-                  onTrash={() => trashMessage(selectedMessage)}
-                />
-              </div>
-            </div>
+            <section className="flex-1 min-w-0 bg-white flex flex-col animate-in slide-in-from-right-5 duration-200">
+              <MessagePane
+                key={selectedMessage.id}
+                me={me}
+                summary={selectedMessage}
+                onClose={() => setSelectedId(null)}
+                onToggleRead={() => toggleRead(selectedMessage)}
+                onToggleStar={() => toggleStar(selectedMessage)}
+                onTrash={() => trashMessage(selectedMessage)}
+              />
+            </section>
           )}
         </div>
       </div>
@@ -248,57 +262,52 @@ function MessagePane({
   return (
     <div className="flex flex-col h-full bg-white">
        {/* Message Header Toolbar */}
-       <div className="h-14 border-b border-slate-100 flex items-center px-6 gap-6 shrink-0">
+       <div className="h-12 border-b border-slate-100 flex items-center px-5 gap-4 shrink-0">
           <ToolbarIcon icon="arrow_back" onClick={onClose} />
-          <div className="h-6 w-px bg-slate-100 mx-2"></div>
+          <div className="h-5 w-px bg-slate-100"></div>
           <ToolbarIcon icon="archive" />
           <ToolbarIcon icon="report" />
           <ToolbarIcon icon="delete" onClick={onTrash} />
-          <div className="h-6 w-px bg-slate-100 mx-2"></div>
+          <div className="h-5 w-px bg-slate-100"></div>
           <ToolbarIcon icon="mark_email_unread" onClick={onToggleRead} />
           <ToolbarIcon icon="drive_file_move" />
           <ToolbarIcon icon="label" />
           <ToolbarIcon icon="more_vert" />
-          <div className="ml-auto">
-             <ToolbarIcon icon="close" onClick={onClose} />
+          <div className="ml-auto flex items-center gap-1">
+             <ToolbarIcon icon="print" />
+             <ToolbarIcon icon="open_in_new" />
           </div>
        </div>
 
-       <div className="flex-1 overflow-y-auto p-10 lg:p-14 custom-scrollbar">
-          <div className="max-w-4xl mx-auto space-y-10">
-             <div className="flex items-start justify-between">
-                <h2 className="text-3xl font-black text-slate-900 tracking-tight leading-tight uppercase italic">{summary.subject}</h2>
-                <div className="flex items-center gap-2">
-                   <ToolbarIcon icon="print" />
-                   <ToolbarIcon icon="open_in_new" />
-                </div>
-             </div>
+       <div className="flex-1 overflow-y-auto p-8 lg:p-10 custom-scrollbar">
+          <div className="max-w-3xl mx-auto space-y-8">
+             <h2 className="text-2xl font-bold text-slate-900 leading-snug">{summary.subject}</h2>
 
              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-full bg-slate-900 text-white flex items-center justify-center font-black text-lg">
+                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-slate-700 to-slate-900 text-white flex items-center justify-center font-semibold text-sm">
                    {summary.from?.charAt(0).toUpperCase()}
                 </div>
-                <div className="flex-1">
-                   <div className="flex items-center justify-between mb-1">
-                      <div className="flex items-center gap-2">
-                         <span className="text-base font-black text-slate-900">{summary.from}</span>
-                         <span className="text-xs text-slate-400 font-bold tracking-tight">&lt;{summary.fromAddress}&gt;</span>
+                <div className="flex-1 min-w-0">
+                   <div className="flex items-center justify-between mb-0.5">
+                      <div className="flex items-center gap-2 min-w-0">
+                         <span className="text-sm font-semibold text-slate-900">{summary.from}</span>
+                         <span className="text-xs text-slate-400 truncate">&lt;{summary.fromAddress}&gt;</span>
                       </div>
-                      <div className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">{summary.receivedAt}</div>
+                      <div className="text-xs font-medium text-slate-400 shrink-0 ml-4">{summary.receivedAt}</div>
                    </div>
-                   <div className="text-[10px] font-medium text-slate-400">
-                      para <span className="text-slate-900 font-black">{me?.address}</span>
+                   <div className="text-xs text-slate-400">
+                      para <span className="text-slate-600 font-medium">{me?.address}</span>
                    </div>
                 </div>
              </div>
 
-             <div className="text-slate-700 text-lg leading-[1.8] font-medium whitespace-pre-line border-t border-slate-50 pt-10">
+             <div className="text-slate-700 text-[15px] leading-[1.8] whitespace-pre-line border-t border-slate-100 pt-8">
                 {message?.body ? (
-                   <div className="animate-in fade-in duration-700">{message.body}</div>
+                   <div className="animate-in fade-in duration-500">{message.body}</div>
                 ) : (
-                  <div className="flex items-center gap-4 text-slate-300">
-                    <div className="w-5 h-5 border-2 border-slate-100 border-t-[#00A3FF] rounded-full animate-spin"></div>
-                    <span className="text-[10px] font-black uppercase tracking-widest">Cargando contenido...</span>
+                  <div className="flex items-center gap-3 text-slate-300">
+                    <div className="w-4 h-4 border-2 border-slate-200 border-t-[#00A3FF] rounded-full animate-spin"></div>
+                    <span className="text-xs font-medium text-slate-400">Cargando contenido...</span>
                   </div>
                 )}
              </div>
@@ -312,7 +321,7 @@ function ToolbarIcon({ icon, onClick }: { icon: string; onClick?: (e: React.Mous
   return (
     <button 
       onClick={onClick}
-      className="w-10 h-10 rounded-full flex items-center justify-center text-slate-500 hover:bg-slate-100 hover:text-slate-900 transition-all active:scale-90"
+      className="w-9 h-9 rounded-lg flex items-center justify-center text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-all active:scale-95"
     >
       <span className="material-symbols-outlined text-[20px]">{icon}</span>
     </button>
@@ -330,15 +339,15 @@ function MailTab({ icon, label, active, color, badge, onClick }: { icon: string;
     <button 
       onClick={onClick}
       className={`
-        flex items-center gap-4 px-6 py-4 border-b-4 transition-all shrink-0
+        flex items-center gap-3 px-5 py-3.5 border-b-[3px] transition-all shrink-0
         ${colors[color]}
         ${!active && "border-transparent"}
       `}
     >
        <span className="material-symbols-outlined text-[20px]">{icon}</span>
        <div className="flex flex-col items-start">
-          <span className={`text-sm tracking-tight ${active ? "font-black" : "font-bold"}`}>{label}</span>
-          {badge && <span className={`text-[9px] font-black uppercase tracking-widest ${active ? "opacity-100" : "opacity-0"}`}>{badge}</span>}
+          <span className={`text-[13px] ${active ? "font-semibold" : "font-medium"}`}>{label}</span>
+          {badge && <span className={`text-[10px] font-medium ${active ? "opacity-100" : "opacity-0"}`}>{badge}</span>}
        </div>
     </button>
   );

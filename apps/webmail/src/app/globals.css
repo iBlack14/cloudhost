@@ -4,7 +4,8 @@
 
 @layer base {
   body {
-    @apply bg-white text-slate-900 font-sans antialiased;
+    @apply bg-white text-slate-900 antialiased;
+    font-family: 'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   }
 }
 
