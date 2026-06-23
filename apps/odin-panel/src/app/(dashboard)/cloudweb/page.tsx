@@ -1042,14 +1042,24 @@ export default function CloudWebPage() {
         <div className="grid grid-cols-1 gap-8">
           {apps?.map((app: any) => {
             const isAppBuilding = app.status === "building";
+            
+            // Compiler tag colors
+            const compilerColors = (() => {
+              switch (app.build_type) {
+                case "static": return "bg-emerald-50 text-emerald-600 border-emerald-100";
+                case "dockerfile": return "bg-slate-50 text-slate-600 border-slate-200";
+                default: return "bg-indigo-50 text-indigo-600 border-indigo-100";
+              }
+            })();
+
             return (
-              <div key={app.id} className="bg-white border border-slate-200 p-8 rounded-[2.5rem] flex flex-col xl:flex-row justify-between items-center gap-10 group hover:border-[#00A3FF]/30 transition-all duration-500 shadow-sm">
-                <div className="flex gap-6 items-center w-full xl:w-1/3">
+              <div key={app.id} className="bg-white border border-slate-200 hover:border-[#00A3FF]/40 p-8 rounded-[2.5rem] flex flex-col xl:flex-row justify-between items-center gap-10 group transition-all duration-500 shadow-sm hover:shadow-xl hover:shadow-[#00A3FF]/5 active:scale-[0.99]">
+                <div className="flex gap-6 items-center w-full xl:w-5/12">
                   <div className="w-16 h-16 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-400 group-hover:bg-[#00A3FF] group-hover:text-white transition-all shadow-sm shrink-0">
                     <span className="material-symbols-outlined text-3xl">cloud</span>
                   </div>
-                  <div className="space-y-1">
-                    <h3 className="text-2xl font-black text-slate-900 group-hover:text-[#00A3FF] transition-colors flex items-center gap-3">
+                  <div className="space-y-2 min-w-0 flex-1">
+                    <h3 className="text-2xl font-black text-slate-900 group-hover:text-[#00A3FF] transition-colors flex items-center gap-3 truncate">
                       {app.name}
                       {app.build_type !== "static" && (
                         <span 
@@ -1069,26 +1079,37 @@ export default function CloudWebPage() {
                         </span>
                       )}
                     </h3>
-                    <div className="flex flex-wrap gap-3">
+                    <div className="flex flex-wrap gap-2.5">
                       {app.build_type !== "static" && (
-                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                          Puerto Docker: <strong className="text-[#00A3FF]">{app.host_port || "Asignando..."}</strong>
+                        <span className="inline-flex items-center px-2.5 py-1 bg-sky-50 border border-sky-100 text-sky-600 text-[10px] font-bold rounded-xl tracking-wider uppercase select-none">
+                          Puerto: <strong className="text-[#00A3FF] ml-1 font-black">{app.host_port || "Asignando..."}</strong>
                         </span>
                       )}
-                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Compilador: <strong className="text-[#00A3FF] uppercase">{app.build_type}</strong></span>
-                      <span className="text-[10px] font-black text-[#00A3FF] tracking-widest">https://{app.domain}</span>
+                      <span className={`inline-flex items-center px-2.5 py-1 border text-[10px] font-black rounded-xl tracking-wider uppercase select-none ${compilerColors}`}>
+                        {app.build_type}
+                      </span>
+                      <a 
+                        href={`https://${app.domain}`} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 px-2.5 py-1 bg-[#00A3FF]/5 hover:bg-[#00A3FF]/10 border border-[#00A3FF]/10 hover:border-[#00A3FF]/30 text-[#00A3FF] text-[10px] font-black rounded-xl tracking-wider transition-all select-all lowercase"
+                      >
+                        <span className="material-symbols-outlined text-[11px] shrink-0">open_in_new</span>
+                        {app.domain}
+                      </a>
                       {app.github_repo && (
                         <a href={`https://github.com/${app.github_repo}`} target="_blank" rel="noopener noreferrer"
-                          className="flex items-center gap-1 text-[10px] font-black text-slate-500 hover:text-slate-800 transition-colors"
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-slate-50 hover:bg-slate-100 border border-slate-200 hover:border-slate-350 text-slate-500 hover:text-slate-800 text-[10px] font-black rounded-xl transition-all"
                         >
-                          <GitHubIcon className="w-3 h-3" /> {app.github_repo} ({app.github_branch})
+                          <GitHubIcon className="w-3 h-3 text-slate-400 shrink-0" /> 
+                          {app.github_repo.split("/")[1] || app.github_repo} ({app.github_branch})
                         </a>
                       )}
                     </div>
                   </div>
                 </div>
 
-                <div className="flex flex-col md:flex-row gap-6 md:gap-10 items-center flex-1 w-full xl:w-auto border-y xl:border-y-0 xl:border-x border-slate-100 py-6 xl:py-0 px-8 justify-end">
+                <div className="flex flex-col md:flex-row gap-6 md:gap-8 items-center flex-1 w-full xl:w-auto border-y xl:border-y-0 xl:border-x border-slate-100 py-6 xl:py-0 px-8 justify-end">
                   {app.build_type !== "static" ? (
                     <div className="flex gap-2 bg-slate-50 p-2 rounded-2xl border border-slate-100 shadow-inner">
                       <button 

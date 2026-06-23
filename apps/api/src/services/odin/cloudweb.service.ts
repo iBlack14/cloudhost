@@ -317,8 +317,40 @@ server {
          await fs.writeFile(`/etc/nginx/sites-available/${targetDomain}`, nginxConfig, "utf8");
          await execAsync(`ln -sf /etc/nginx/sites-available/${targetDomain} /etc/nginx/sites-enabled/`);
          await execAsync(`systemctl reload nginx`);
+
+         // AUTOMATIC LET'S ENCRYPT SSL GENERATION VIA CERTBOT
+         let userEmail = "soporte@odiseacloud.com";
+         try {
+            const userRes = await db.query("SELECT email FROM users WHERE id = $1", [userId]);
+            if (userRes.rows.length > 0 && userRes.rows[0].email) {
+               userEmail = userRes.rows[0].email;
+            }
+         } catch (err) {
+            // ignorar
+         }
+
+         writeLog('info', `Issuing Let's Encrypt SSL certificate for ${targetDomain}...`);
+         try {
+            // Intentar emitir certificado para el dominio raíz y el subdominio www
+            const sslCmd = `certbot --nginx -d ${targetDomain} -d www.${targetDomain} --non-interactive --agree-tos -m ${userEmail} --redirect`;
+            await execAsync(sslCmd);
+            writeLog('success', `SSL certificate successfully installed and configured for ${targetDomain} and www.${targetDomain}.`);
+         } catch (sslErr: any) {
+            writeLog('info', `Certbot failed with www subdomain: ${sslErr.message || String(sslErr)}. Retrying for root domain ${targetDomain} only...`);
+            try {
+               // Reintentar solo con el dominio base
+               const sslCmdBase = `certbot --nginx -d ${targetDomain} --non-interactive --agree-tos -m ${userEmail} --redirect`;
+               await execAsync(sslCmdBase);
+               writeLog('success', `SSL certificate successfully installed and configured for root domain ${targetDomain}.`);
+            } catch (fallbackErr: any) {
+               writeLog('error', `Failed to issue root SSL certificate: ${fallbackErr.message || String(fallbackErr)}. Deployed over HTTP only.`);
+            }
+         }
+
+         // Recargar Nginx de nuevo para asegurar los cambios de Certbot
+         await execAsync(`systemctl reload nginx`).catch(() => {});
       }
-      writeLog('success', 'Nginx configuration applied successfully.');
+      writeLog('success', 'Nginx configuration and routing applied successfully.');
 
       // 5. Eliminar capas e imágenes huérfanas/dangling de Docker
       try {
