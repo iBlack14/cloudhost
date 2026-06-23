@@ -1,6 +1,7 @@
-import { exec } from "node:child_process";
+import { exec, spawn } from "node:child_process";
 import { promisify } from "node:util";
 import fs from "node:fs/promises";
+import { createWriteStream } from "node:fs";
 import path from "node:path";
 import os from "node:os";
 import { db } from "../../config/db.js";
@@ -120,60 +121,124 @@ export const listApps = async (userId: string) => {
 };
 
 /**
- * Despliega una aplicación clonando de git, compilando con nixpacks/dockerfile y levantando el contenedor.
+ * Ejecuta un comando externo capturando y escribiendo sus salidas de log línea por línea.
  */
-export const deployApp = async (userId: string, input: CreateDockerAppInput) => {
-   await ensureDockerAppsTable();
-   
-   // 1. Verificar la cuota de disco antes de iniciar
-   await checkDiskQuotaOrThrow(userId, 50); // Asumimos un costo mínimo estimado de 50MB por clonado inicial
+const runCommandWithLog = (
+   cmd: string, 
+   args: string[], 
+   options: any, 
+   logStream: any, 
+   logType: 'info' | 'debug' = 'info'
+): Promise<void> => {
+   return new Promise((resolve, reject) => {
+      const child = spawn(cmd, args, options);
+      
+      let pendingLine = "";
+      const handleData = (data: Buffer) => {
+         const chunk = pendingLine + data.toString("utf8");
+         const lines = chunk.split("\n");
+         pendingLine = lines.pop() || "";
+         for (const line of lines) {
+            const clean = line.replace(/\r/g, "").trim();
+            if (clean) {
+               logStream.write(`[${logType}] ${clean}\n`);
+            }
+         }
+      };
 
+      child.stdout?.on("data", handleData);
+      child.stderr?.on("data", handleData);
+
+      child.on("close", (code) => {
+         if (pendingLine) {
+            const clean = pendingLine.replace(/\r/g, "").trim();
+            if (clean) logStream.write(`[${logType}] ${clean}\n`);
+         }
+         if (code === 0) {
+            resolve();
+         } else {
+            reject(new Error(`Command "${cmd} ${args.join(" ")}" failed with exit code ${code}`));
+         }
+      });
+
+      child.on("error", (err) => {
+         reject(err);
+      });
+   });
+};
+
+/**
+ * Procesa la compilación y el levantamiento de la aplicación en segundo plano.
+ */
+export const runBackgroundBuild = async (
+   userId: string,
+   appId: string,
+   input: CreateDockerAppInput,
+   buildPath: string,
+   imageName: string,
+   containerName: string,
+   userHome: string
+) => {
    const appName = sanitize(input.name);
    const branch = input.githubBranch || "main";
    const buildType = input.buildType || "nixpacks";
+   const targetDomain = input.domain.trim().toLowerCase();
+
+   // Asegurar que exista la carpeta de logs
+   const logsDir = path.join(userHome, "logs");
+   await fs.mkdir(logsDir, { recursive: true });
    
-   const userHome = await getUserHomePath(userId);
-   const buildPath = path.join(userHome, "cloud-web-src", appName);
-   const imageName = `odin-app-${userId}-${appName}`.toLowerCase();
-   const containerName = `odin-container-${userId}-${appName}`.toLowerCase();
+   const logPath = path.join(logsDir, `build-${appId}.log`);
+   const logStream = createWriteStream(logPath, { flags: "w" });
 
-   // Asegurar que las carpetas del host existen
-   await fs.mkdir(path.dirname(buildPath), { recursive: true });
-
-   // Si ya existe la carpeta de compilación, limpiarla
-   await fs.rm(buildPath, { recursive: true, force: true }).catch(() => {});
+   const writeLog = (type: 'info' | 'success' | 'debug' | 'error', msg: string) => {
+      logStream.write(`[${type}] ${msg}\n`);
+      console.log(`[cloud-web:build:${appId}] [${type}] ${msg}`);
+   };
 
    try {
-      // 2. Clonar repositorio
-      const repoUrl = `https://github.com/${input.githubRepo}.git`;
-      await execAsync(`git clone --depth=1 --branch ${branch} ${repoUrl} ${buildPath}`);
+      writeLog('info', 'Initializing deployment...');
+      writeLog('success', 'Starting build process...');
 
-      // Comprobar espacio en disco del proyecto clonado para no saturar
+      // Asegurar que la carpeta de compilación exista y esté limpia
+      await fs.mkdir(path.dirname(buildPath), { recursive: true });
+      await fs.rm(buildPath, { recursive: true, force: true }).catch(() => {});
+
+      // 1. Clonar repositorio
+      writeLog('info', `Cloning branch "${branch}" from repository "https://github.com/${input.githubRepo}.git"...`);
+      const repoUrl = `https://github.com/${input.githubRepo}.git`;
+      await runCommandWithLog('git', ['clone', '--depth=1', '--branch', branch, repoUrl, buildPath], {}, logStream, 'info');
+      writeLog('success', 'Repository cloned successfully.');
+
+      // Comprobar espacio en disco del proyecto clonado
       if (os.platform() !== "win32") {
          const { stdout: sizeOut } = await execAsync(`du -sm ${buildPath}`);
          const sizeMb = parseInt(sizeOut.split(/\s+/)[0], 10) || 0;
-         // Lanzar error si la cuota de disco se excede con el proyecto clonado
+         writeLog('info', `Project directory size: ${sizeMb} MB`);
          await checkDiskQuotaOrThrow(userId, sizeMb);
       }
 
-      // 3. Compilación e Imagen
-      console.log(`[cloud-web:deploy] Compilando con tipo: ${buildType} para ${appName}`);
+      // 2. Compilación e Imagen
+      writeLog('info', `Compiling application using Build Type: ${buildType}...`);
       if (buildType === "dockerfile") {
-         await execAsync(`DOCKER_BUILDKIT=0 docker build -t ${imageName} ${buildPath}`);
+         await runCommandWithLog('docker', ['build', '-t', imageName, buildPath], { env: { ...process.env, DOCKER_BUILDKIT: '0' } }, logStream, 'info');
       } else if (buildType === "static") {
-         // Para despliegue estático, no necesitamos nixpacks en docker,
-         // sino servir los archivos directamente desde Nginx.
-         // Asignaremos una ruta de Nginx que apunte al directorio estático compilado del usuario.
-         const installCommand = "npm install && npm run build";
-         await execAsync(installCommand, { cwd: buildPath });
+         writeLog('info', 'Running npm install...');
+         const npmCmd = process.platform === "win32" ? "npm.cmd" : "npm";
+         await runCommandWithLog(npmCmd, ['install'], { cwd: buildPath }, logStream, 'info');
+         writeLog('info', 'Running npm run build...');
+         await runCommandWithLog(npmCmd, ['run', 'build'], { cwd: buildPath }, logStream, 'info');
       } else {
-         // Default Nixpacks (u otros buildpacks que use Nixpacks internamente)
-         await execAsync(`DOCKER_BUILDKIT=0 nixpacks build ${buildPath} --name ${imageName}`);
+         // Nixpacks
+         await runCommandWithLog('nixpacks', ['build', buildPath, '--name', imageName], { env: { ...process.env, DOCKER_BUILDKIT: '0' } }, logStream, 'info');
       }
+      writeLog('success', 'Build finished successfully.');
 
-      // 4. Detener y remover contenedor existente si lo hay
+      // 3. Detener y remover contenedor existente si lo hay
+      writeLog('info', 'Checking for existing Docker containers...');
       try {
          await execAsync(`docker stop ${containerName} && docker rm ${containerName}`);
+         writeLog('info', 'Old container stopped and removed.');
       } catch {
          // No existía previamente, ignorar
       }
@@ -182,22 +247,29 @@ export const deployApp = async (userId: string, input: CreateDockerAppInput) => 
       if (buildType !== "static") {
          // Generar puerto dinámico libre en el host
          hostPort = 4000 + Math.floor(Math.random() * 1000);
+         writeLog('info', `Configuring host port: ${hostPort} mapped to container port: ${input.port}`);
 
-         // Formatear variables de entorno para Docker
-         const envString = Object.entries(input.envVars || {})
-            .map(([key, value]) => `-e ${key}="${value.replace(/"/g, '\\"')}"`)
-            .join(" ");
+         const dockerArgs = [
+            'run', '-d',
+            '--name', containerName,
+            '--restart', 'always',
+            '-p', `${hostPort}:${input.port}`
+         ];
+         for (const [key, value] of Object.entries(input.envVars || {})) {
+            dockerArgs.push('-e', `${key}=${value}`);
+         }
+         dockerArgs.push(imageName);
 
-         // Ejecutar el contenedor
-         await execAsync(`docker run -d --name ${containerName} --restart always -p ${hostPort}:${input.port} ${envString} ${imageName}`);
+         writeLog('info', `Starting Docker container: ${containerName}...`);
+         await runCommandWithLog('docker', dockerArgs, {}, logStream, 'info');
+         writeLog('success', 'Container is up and running.');
       }
 
-      // 5. Configurar el proxy Nginx para el dominio del cliente
-      const targetDomain = input.domain.trim().toLowerCase();
+      // 4. Configurar el proxy Nginx para el dominio del cliente
+      writeLog('info', 'Configuring Nginx reverse proxy...');
       let nginxConfig = "";
 
       if (buildType === "static") {
-         // Buscar el directorio de exportación estático (típicamente 'out' o 'dist')
          const buildOutPath = path.join(buildPath, "out");
          const distPath = path.join(buildPath, "dist");
          let publicRoot = buildPath;
@@ -220,7 +292,6 @@ server {
 }
          `.trim();
       } else {
-         // Reverse Proxy a puerto dinámico de Docker
          nginxConfig = `
 server {
     listen 80;
@@ -247,23 +318,24 @@ server {
          await execAsync(`ln -sf /etc/nginx/sites-available/${targetDomain} /etc/nginx/sites-enabled/`);
          await execAsync(`systemctl reload nginx`);
       }
+      writeLog('success', 'Nginx configuration applied successfully.');
 
-      // 6. Eliminar capas e imágenes huérfanas/dangling de Docker para optimizar espacio
+      // 5. Eliminar capas e imágenes huérfanas/dangling de Docker
       try {
          await execAsync(`docker image prune -f --filter "dangling=true"`);
       } catch (err) {
-         console.warn("[cloud-web:cleanup:error] No se pudieron purgar imágenes colgantes:", err);
+         // ignorar
       }
 
-      // 7. Guardar en Base de Datos
-      const res = await db.query(
-         `INSERT INTO docker_apps (user_id, name, image_name, container_name, domain, host_port, container_port, build_type, env_vars, github_repo, github_branch)
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10, $11)
-          RETURNING *`,
-         [userId, input.name, imageName, containerName, targetDomain, hostPort, input.port, buildType, JSON.stringify(input.envVars || {}), input.githubRepo, branch]
+      // 6. Actualizar base de datos
+      await db.query(
+         `UPDATE docker_apps 
+          SET host_port = $1, status = 'online', updated_at = NOW() 
+          WHERE id = $2`,
+         [hostPort, appId]
       );
 
-      // Sincronizar el uso real de disco en hosting_accounts
+      // Sincronizar el uso real de disco
       if (os.platform() !== "win32") {
          const { stdout: finalSize } = await execAsync(`du -sm ${userHome}`);
          const userSizeMb = parseInt(finalSize.split(/\s+/)[0], 10) || 0;
@@ -273,13 +345,65 @@ server {
          );
       }
 
-      return res.rows[0];
+      writeLog('success', `Deployment complete! Application is now online at http://${targetDomain}`);
 
-   } catch (error) {
+   } catch (error: any) {
+      writeLog('error', `Build failed: ${error.message || String(error)}`);
+      
       // Limpiar carpeta en caso de fallo crítico
       await fs.rm(buildPath, { recursive: true, force: true }).catch(() => {});
-      throw error;
+      
+      // Actualizar estado en la base de datos a 'offline'
+      await db.query(
+         "UPDATE docker_apps SET status = 'offline', updated_at = NOW() WHERE id = $1",
+         [appId]
+      );
+   } finally {
+      logStream.end();
    }
+};
+
+/**
+ * Despliega una aplicación de forma asíncrona registrándola con estado 'building'.
+ */
+export const deployApp = async (userId: string, input: CreateDockerAppInput) => {
+   await ensureDockerAppsTable();
+   
+   // 1. Verificar la cuota de disco antes de iniciar
+   await checkDiskQuotaOrThrow(userId, 50); // Asumimos un costo mínimo estimado de 50MB por clonado inicial
+
+   const appName = sanitize(input.name);
+   const branch = input.githubBranch || "main";
+   const buildType = input.buildType || "nixpacks";
+   const targetDomain = input.domain.trim().toLowerCase();
+
+   // Verificar si ya existe una app con el mismo dominio
+   const existing = await db.query("SELECT id FROM docker_apps WHERE domain = $1", [targetDomain]);
+   if (existing.rows.length > 0) {
+      throw new Error("El dominio ya está siendo usado por otra aplicación.");
+   }
+
+   const userHome = await getUserHomePath(userId);
+   const buildPath = path.join(userHome, "cloud-web-src", appName);
+   const imageName = `odin-app-${userId}-${appName}`.toLowerCase();
+   const containerName = `odin-container-${userId}-${appName}`.toLowerCase();
+
+   // Guardar preliminarmente en la Base de Datos como 'building'
+   const res = await db.query(
+      `INSERT INTO docker_apps (user_id, name, image_name, container_name, domain, host_port, container_port, build_type, env_vars, github_repo, github_branch, status)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10, $11, 'building')
+       RETURNING *`,
+      [userId, input.name, imageName, containerName, targetDomain, 0, input.port, buildType, JSON.stringify(input.envVars || {}), input.githubRepo, branch]
+   );
+
+   const app = res.rows[0];
+
+   // Iniciar el proceso de compilación y levantamiento asíncrono
+   runBackgroundBuild(userId, app.id, input, buildPath, imageName, containerName, userHome).catch((err) => {
+      console.error("[cloud-web:background-build:error]", err);
+   });
+
+   return app;
 };
 
 /**
@@ -371,11 +495,23 @@ export const getAppLogs = async (userId: string, appId: string) => {
    if (result.rows.length === 0) throw new Error("Aplicación no encontrada");
    const app = result.rows[0];
 
+   if (app.status === "building") {
+      // Leer el archivo de log de construcción
+      try {
+         const userHome = await getUserHomePath(userId);
+         const logPath = path.join(userHome, "logs", `build-${appId}.log`);
+         const content = await fs.readFile(logPath, "utf8");
+         return content.trim().split("\n");
+      } catch (err) {
+         return ["Iniciando compilación..."];
+      }
+   }
+
    if (app.build_type === "static") {
       return ["Los despliegues estáticos son servidos directamente por Nginx y no generan logs de Docker."];
    }
 
-    try {
+   try {
       const { stdout } = await execAsync(`docker logs ${app.container_name} --tail 150`);
       return stdout.trim().split("\n");
    } catch {
