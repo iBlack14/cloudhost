@@ -304,10 +304,10 @@ run_apt apt install -y curl git ca-certificates
 
 if ! command -v docker > /dev/null 2>&1; then
   echo -e "${YELLOW}🐳 Installing Docker...${NC}"
-  run_apt apt install -y docker.io docker-compose docker-buildx-plugin
+  run_apt apt install -y docker.io docker-compose docker-buildx
 else
   # Ensure buildx plugin is installed on existing docker setup
-  run_apt apt install -y docker-buildx-plugin || true
+  run_apt apt install -y docker-buildx || true
 fi
 echo -e "${GREEN}✅ Docker dependencies ready${NC}"
 
