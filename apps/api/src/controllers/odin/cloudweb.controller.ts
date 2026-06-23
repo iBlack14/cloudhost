@@ -106,3 +106,20 @@ export const getAppLogsHandler = async (req: Request, res: Response): Promise<Re
       });
    }
 };
+
+export const updateAppEnvHandler = async (req: Request, res: Response): Promise<Response> => {
+   const schema = z.object({ envs: z.record(z.string()) });
+   const parsed = schema.safeParse(req.body);
+   if (!parsed.success) return res.status(422).json({ success: false, error: parsed.error.flatten() });
+
+   try {
+      const userId = await getUserId(req);
+      await cloudwebService.updateAppEnv(userId, req.params.id as string, parsed.data.envs);
+      return res.status(200).json({ success: true, message: "Variables de entorno actualizadas. El contenedor ha sido reiniciado." });
+   } catch (error) {
+      return res.status(500).json({ 
+         success: false, 
+         error: { message: getErrorMessage(error, "Error al actualizar las variables de entorno.") } 
+      });
+   }
+};

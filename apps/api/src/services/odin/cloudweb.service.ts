@@ -375,10 +375,43 @@ export const getAppLogs = async (userId: string, appId: string) => {
       return ["Los despliegues estáticos son servidos directamente por Nginx y no generan logs de Docker."];
    }
 
-   try {
+    try {
       const { stdout } = await execAsync(`docker logs ${app.container_name} --tail 150`);
       return stdout.trim().split("\n");
    } catch {
       return ["Logs del contenedor no disponibles o contenedor inactivo."];
+   }
+};
+
+/**
+ * Actualiza las variables de entorno de una aplicación Docker y recrea el contenedor para aplicarlas.
+ */
+export const updateAppEnv = async (userId: string, appId: string, envVars: Record<string, string>) => {
+   await ensureDockerAppsTable();
+   
+   const result = await db.query(
+      "SELECT * FROM docker_apps WHERE id = $1 AND user_id = $2",
+      [appId, userId]
+   );
+   if (result.rows.length === 0) throw new Error("Aplicación no encontrada");
+   const app = result.rows[0];
+
+   await db.query(
+      "UPDATE docker_apps SET env_vars = $1, updated_at = NOW() WHERE id = $2 AND user_id = $3",
+      [JSON.stringify(envVars), appId, userId]
+   );
+
+   if (app.build_type !== "static") {
+      try {
+         await execAsync(`docker stop ${app.container_name} && docker rm ${app.container_name}`);
+      } catch (err) {
+         // Ignorar si ya estaba apagado
+      }
+
+      const envString = Object.entries(envVars)
+         .map(([key, value]) => `-e ${key}="${value.replace(/"/g, '\\"')}"`)
+         .join(" ");
+
+      await execAsync(`DOCKER_BUILDKIT=0 docker run -d --name ${app.container_name} --restart always -p ${app.host_port}:${app.container_port} ${envString} ${app.image_name}`);
    }
 };
