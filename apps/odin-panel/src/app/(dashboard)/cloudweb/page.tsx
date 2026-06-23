@@ -701,14 +701,26 @@ export default function CloudWebPage() {
                   <div className="flex gap-2 p-1 bg-slate-100 rounded-xl max-w-xs">
                     <button
                       type="button"
-                      onClick={() => setEnvMode("keyvalue")}
+                      onClick={() => {
+                        const parsed = parseBulkEnv(bulkEnvText);
+                        const vars = Object.entries(parsed).map(([key, value]) => ({ key, value }));
+                        setEnvVars(vars);
+                        setEnvMode("keyvalue");
+                      }}
                       className={`flex-1 py-2 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all ${envMode === "keyvalue" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-900"}`}
                     >
                       Clave-Valor
                     </button>
                     <button
                       type="button"
-                      onClick={() => setEnvMode("bulk")}
+                      onClick={() => {
+                        const bulk = envVars
+                          .filter((v) => v.key.trim())
+                          .map((v) => `${v.key.trim()}=${v.value}`)
+                          .join("\n");
+                        setBulkEnvText(bulk);
+                        setEnvMode("bulk");
+                      }}
                       className={`flex-1 py-2 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all ${envMode === "bulk" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-900"}`}
                     >
                       Pegar .env (Masivo)
