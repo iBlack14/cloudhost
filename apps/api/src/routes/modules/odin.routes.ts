@@ -69,6 +69,13 @@ import {
 } from "../../controllers/odin/python.controller.js";
 import { ensurePythonTables } from "../../services/odin/python.service.js";
 import {
+  listAppsHandler as listCloudWebAppsHandler,
+  deployAppHandler as deployCloudWebAppHandler,
+  deleteAppHandler as deleteCloudWebAppHandler,
+  manageAppHandler as manageCloudWebAppHandler,
+  getAppLogsHandler as getCloudWebAppLogsHandler
+} from "../../controllers/odin/cloudweb.controller.js";
+import {
   createMailAccountHandler,
   getMailAccountHandler,
   issueMailSsoHandler,
@@ -274,3 +281,10 @@ odinRouter.delete("/python/:id", deletePythonAppHandler);
 odinRouter.post("/python/:id/:action(start|stop|restart)", managePythonAppHandler);
 odinRouter.get("/python/:id/logs", getPythonAppLogsHandler);
 odinRouter.put("/python/:id/env", updatePythonAppEnvHandler);
+
+// ── Cloud Web / Nixpacks + Docker Integrations ──────────────────────────────
+odinRouter.get("/cloud-web", listCloudWebAppsHandler);
+odinRouter.post("/cloud-web/deploy", heavyOpLimiter, deployCloudWebAppHandler);
+odinRouter.delete("/cloud-web/:id", deleteCloudWebAppHandler);
+odinRouter.post("/cloud-web/:id/:action(start|stop|restart)", manageCloudWebAppHandler);
+odinRouter.get("/cloud-web/:id/logs", getCloudWebAppLogsHandler);

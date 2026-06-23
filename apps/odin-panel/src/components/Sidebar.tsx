@@ -42,6 +42,7 @@ export function Sidebar() {
         <NavItem href="/email/accounts" icon="alternate_email" label="Correos" active={pathname.startsWith("/email")} />
         <NavItem href="/domains" icon="language" label="Dominios" active={pathname.startsWith("/domains")} />
         <NavItem href="/nodejs" icon="javascript" label="NodeJS Engine" active={pathname.startsWith("/nodejs")} />
+        <NavItem href="/cloudweb" icon="cloud_sync" label="Cloud Web" active={pathname.startsWith("/cloudweb")} />
       </nav>
 
       <div className="mt-auto pt-6 border-t border-slate-100 space-y-2">

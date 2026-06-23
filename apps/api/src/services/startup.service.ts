@@ -11,6 +11,7 @@ import { ensureDomainsTable } from "./odin/domain.service.js";
 import { ensureNodejsTables } from "./odin/nodejs.service.js";
 import { ensurePythonTables } from "./odin/python.service.js";
 import { ensureMailSchema } from "./mail.service.js";
+import { ensureDockerAppsTable } from "./odin/cloudweb.service.js";
 
 const ensureUserDatabasesTable = async () => {
   await db.query(`
@@ -70,6 +71,7 @@ export const runStartupInit = async (): Promise<void> => {
       ensureUserDatabasesTable(),
       ensureServerSettings(),
       ensureMailSchema(),
+      ensureDockerAppsTable(),
     ]);
 
     // Add plan_expires_at column dynamically if it doesn't exist
