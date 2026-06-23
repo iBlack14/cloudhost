@@ -159,7 +159,7 @@ export const deployApp = async (userId: string, input: CreateDockerAppInput) => 
       // 3. Compilación e Imagen
       console.log(`[cloud-web:deploy] Compilando con tipo: ${buildType} para ${appName}`);
       if (buildType === "dockerfile") {
-         await execAsync(`docker build -t ${imageName} ${buildPath}`);
+         await execAsync(`DOCKER_BUILDKIT=0 docker build -t ${imageName} ${buildPath}`);
       } else if (buildType === "static") {
          // Para despliegue estático, no necesitamos nixpacks en docker,
          // sino servir los archivos directamente desde Nginx.
@@ -168,7 +168,7 @@ export const deployApp = async (userId: string, input: CreateDockerAppInput) => 
          await execAsync(installCommand, { cwd: buildPath });
       } else {
          // Default Nixpacks (u otros buildpacks que use Nixpacks internamente)
-         await execAsync(`nixpacks build ${buildPath} --name ${imageName}`);
+         await execAsync(`DOCKER_BUILDKIT=0 nixpacks build ${buildPath} --name ${imageName}`);
       }
 
       // 4. Detener y remover contenedor existente si lo hay
