@@ -74,7 +74,8 @@ import {
   deleteAppHandler as deleteCloudWebAppHandler,
   manageAppHandler as manageCloudWebAppHandler,
   getAppLogsHandler as getCloudWebAppLogsHandler,
-  updateAppEnvHandler as updateCloudWebAppEnvHandler
+  updateAppEnvHandler as updateCloudWebAppEnvHandler,
+  issueAppSslHandler as issueCloudWebAppSslHandler
 } from "../../controllers/odin/cloudweb.controller.js";
 import {
   createMailAccountHandler,
@@ -83,6 +84,8 @@ import {
   listMailAccountsHandler,
   changeMailPasswordHandler
 } from "../../controllers/odin/mail.controller.js";
+import { issueSystemSsl } from "../../services/odin/ssl.service.js";
+
 import rateLimit from "express-rate-limit";
 import { getSysStats } from "../../services/sys-stats.service.js";
 
@@ -290,3 +293,31 @@ odinRouter.delete("/cloud-web/:id", deleteCloudWebAppHandler);
 odinRouter.post("/cloud-web/:id/:action(start|stop|restart)", manageCloudWebAppHandler);
 odinRouter.get("/cloud-web/:id/logs", getCloudWebAppLogsHandler);
 odinRouter.put("/cloud-web/:id/env", updateCloudWebAppEnvHandler);
+odinRouter.post("/cloud-web/:id/ssl", heavyOpLimiter, issueCloudWebAppSslHandler);
+
+// ── System SSL Integration ──────────────────────────────────────────────────
+odinRouter.post("/system/ssl", heavyOpLimiter, async (req, res) => {
+  try {
+    const host = req.headers.host || "";
+    const parts = host.split(".");
+    if (parts.length < 2) {
+      throw new Error("No se pudo detectar el dominio base a partir del Host.");
+    }
+    const baseDomain = parts.slice(-2).join(".");
+    
+    const userId = req.auth?.userId;
+    let userEmail = "soporte@odiseacloud.com";
+    if (userId) {
+      const userRes = await db.query("SELECT email FROM users WHERE id = $1", [userId]);
+      if (userRes.rows.length > 0 && userRes.rows[0].email) {
+        userEmail = userRes.rows[0].email;
+      }
+    }
+
+    await issueSystemSsl(baseDomain, userEmail);
+    res.status(200).json({ success: true, message: `Certificados SSL emitidos para el sistema ${baseDomain}.` });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: { message: error.message || "Error al emitir SSL del sistema" } });
+  }
+});
+

@@ -72,3 +72,44 @@ export const revokeSsl = async (domain: string): Promise<void> => {
     // Ignore if not present
   }
 };
+
+/**
+ * Issues Let's Encrypt SSL certificates for the system control panels (panel, api, whm, mail).
+ */
+export const issueSystemSsl = async (baseDomain: string, email: string): Promise<void> => {
+  if (process.platform === "win32") {
+    throw new Error("La emisión de SSL no está soportada en Windows.");
+  }
+
+  const subdomains = [
+    `panel.${baseDomain}`,
+    `api.${baseDomain}`,
+    `whm.${baseDomain}`,
+    `mail.${baseDomain}`
+  ];
+
+  try {
+    // Intentar emitir certificado para todos los subdominios a la vez
+    const domainsStr = subdomains.map(d => `-d ${d}`).join(" ");
+    const cmd = `certbot --nginx ${domainsStr} --non-interactive --agree-tos -m ${email} --redirect`;
+    await execAsync(cmd);
+    await execAsync("systemctl reload nginx").catch(() => {});
+  } catch (error: any) {
+    // Si falla combinando todos, intentamos uno por uno para que al menos el panel y la api funcionen si alguno falla
+    console.warn(`[ssl] Certbot failed to issue multi-domain certificate: ${error.message}. Retrying individually...`);
+    let errors: string[] = [];
+    for (const sub of subdomains) {
+      try {
+        const cmd = `certbot --nginx -d ${sub} --non-interactive --agree-tos -m ${email} --redirect`;
+        await execAsync(cmd);
+      } catch (subErr: any) {
+        errors.push(`${sub}: ${subErr.message}`);
+      }
+    }
+    await execAsync("systemctl reload nginx").catch(() => {});
+    if (errors.length === subdomains.length) {
+      throw new Error(`Fallo al emitir todos los certificados del sistema: ${errors.join(", ")}`);
+    }
+  }
+};
+

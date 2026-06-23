@@ -80,6 +80,8 @@ export default function CloudWebPage() {
   // IA Asistente y Logs Parsing
   const [aiExplanation, setAiExplanation] = useState<string | null>(null);
   const [isExplaining, setIsExplaining] = useState(false);
+  const [issuingSslAppId, setIssuingSslAppId] = useState<string | null>(null);
+
 
   const parseLogLine = (log: string) => {
     const match = log.match(/^\[(info|success|debug|error)\]\s*(.*)$/);
@@ -367,6 +369,27 @@ export default function CloudWebPage() {
     }
     updateEnvMutation.mutate({ id: editingEnvApp.id, envs });
   };
+
+  const handleIssueSsl = async (appId: string) => {
+    setIssuingSslAppId(appId);
+    try {
+      const res = await fetch(`${API_BASE}/odin-panel/cloud-web/${appId}/ssl`, {
+        method: "POST",
+        headers: authHeaders(),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data?.error?.message ?? "Error al activar SSL");
+      }
+      alert(data?.message ?? "SSL activado correctamente.");
+      queryClient.invalidateQueries({ queryKey: ["odin_cloudweb_apps"] });
+    } catch (err: any) {
+      alert(err.message || "Error al solicitar el certificado SSL. Asegúrate de que tu dominio apunta al servidor.");
+    } finally {
+      setIssuingSslAppId(null);
+    }
+  };
+
 
   if (isLoading) {
     return (
@@ -1089,7 +1112,7 @@ export default function CloudWebPage() {
                         {app.build_type}
                       </span>
                       <a 
-                        href={`https://${app.domain}`} 
+                        href={app.ssl_enabled ? `https://${app.domain}` : `http://${app.domain}`} 
                         target="_blank" 
                         rel="noopener noreferrer"
                         className="inline-flex items-center gap-1 px-2.5 py-1 bg-[#00A3FF]/5 hover:bg-[#00A3FF]/10 border border-[#00A3FF]/10 hover:border-[#00A3FF]/30 text-[#00A3FF] text-[10px] font-black rounded-xl tracking-wider transition-all select-all lowercase"
@@ -1097,6 +1120,37 @@ export default function CloudWebPage() {
                         <span className="material-symbols-outlined text-[11px] shrink-0">open_in_new</span>
                         {app.domain}
                       </a>
+                      {app.ssl_enabled ? (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-50 border border-emerald-100 text-emerald-600 text-[10px] font-bold rounded-xl tracking-wider uppercase select-none">
+                          <span className="material-symbols-outlined text-[11px] shrink-0 text-emerald-500">lock</span>
+                          SSL Activo
+                        </span>
+                      ) : (
+                        <div className="flex items-center gap-1.5">
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-50 border border-amber-100 text-amber-600 text-[10px] font-bold rounded-xl tracking-wider uppercase select-none">
+                            <span className="material-symbols-outlined text-[11px] shrink-0 text-amber-500">lock_open</span>
+                            Sin SSL
+                          </span>
+                          <button
+                            onClick={() => handleIssueSsl(app.id)}
+                            disabled={issuingSslAppId === app.id}
+                            className="inline-flex items-center gap-1 px-2.5 py-1 bg-[#00A3FF]/10 hover:bg-[#00A3FF] text-[#00A3FF] hover:text-white border border-[#00A3FF]/20 text-[9px] font-black rounded-xl tracking-wider uppercase transition-all disabled:opacity-40"
+                          >
+                            {issuingSslAppId === app.id ? (
+                              <>
+                                <span className="w-2.5 h-2.5 border border-t-transparent border-[#00A3FF] rounded-full animate-spin shrink-0 mr-1" />
+                                Activando...
+                              </>
+                            ) : (
+                              <>
+                                <span className="material-symbols-outlined text-[10px] mr-1">security</span>
+                                Activar SSL
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      )}
+
                       {app.github_repo && (
                         <a href={`https://github.com/${app.github_repo}`} target="_blank" rel="noopener noreferrer"
                           className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-slate-50 hover:bg-slate-100 border border-slate-200 hover:border-slate-350 text-slate-500 hover:text-slate-800 text-[10px] font-black rounded-xl transition-all"

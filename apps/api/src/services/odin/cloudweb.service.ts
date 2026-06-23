@@ -88,7 +88,7 @@ export const checkDiskQuotaOrThrow = async (userId: string, estimatedAddMb: numb
 };
 
 /**
- * Obtiene la lista de aplicaciones del usuario e inyecta estadísticas en tiempo real de Docker.
+ * Obtiene la lista de aplicaciones del usuario e inyecta estadísticas en tiempo real de Docker y estado SSL.
  */
 export const listApps = async (userId: string) => {
    await ensureDockerAppsTable();
@@ -99,7 +99,7 @@ export const listApps = async (userId: string) => {
 
    const apps = result.rows;
 
-   // Intentar mezclar con el estado real de Docker
+   // Intentar mezclar con el estado real de Docker y verificar SSL
    try {
       const { stdout } = await execAsync("docker ps --format '{{.Names}}|{{.Status}}'");
       const activeContainers = stdout.trim().split("\n").reduce((acc: Record<string, string>, line) => {
@@ -108,15 +108,43 @@ export const listApps = async (userId: string) => {
          return acc;
       }, {});
 
-      return apps.map(app => {
+      const appsEnriched = await Promise.all(apps.map(async (app) => {
+         let sslEnabled = false;
+         if (os.platform() !== "win32") {
+            try {
+               await fs.access(`/etc/letsencrypt/live/${app.domain}/cert.pem`);
+               sslEnabled = true;
+            } catch {
+               sslEnabled = false;
+            }
+         }
          const dockerStatus = activeContainers[app.container_name];
          return {
             ...app,
-            status: dockerStatus ? (dockerStatus.includes("Up") ? "online" : "offline") : "offline"
+            status: dockerStatus ? (dockerStatus.includes("Up") ? "online" : "offline") : "offline",
+            ssl_enabled: sslEnabled
          };
-      });
+      }));
+
+      return appsEnriched;
    } catch {
-      return apps.map(app => ({ ...app, status: "offline" }));
+      const appsEnriched = await Promise.all(apps.map(async (app) => {
+         let sslEnabled = false;
+         if (os.platform() !== "win32") {
+            try {
+               await fs.access(`/etc/letsencrypt/live/${app.domain}/cert.pem`);
+               sslEnabled = true;
+            } catch {
+               sslEnabled = false;
+            }
+         }
+         return {
+            ...app,
+            status: "offline",
+            ssl_enabled: sslEnabled
+         };
+      }));
+      return appsEnriched;
    }
 };
 
@@ -569,17 +597,65 @@ export const updateAppEnv = async (userId: string, appId: string, envVars: Recor
       [JSON.stringify(envVars), appId, userId]
    );
 
-   if (app.build_type !== "static") {
-      try {
-         await execAsync(`docker stop ${app.container_name} && docker rm ${app.container_name}`);
-      } catch (err) {
-         // Ignorar si ya estaba apagado
+    if (app.build_type !== "static") {
+       try {
+          await execAsync(`docker stop ${app.container_name} && docker rm ${app.container_name}`);
+       } catch (err) {
+          // Ignorar si ya estaba apagado
+       }
+
+       const envString = Object.entries(envVars)
+          .map(([key, value]) => `-e ${key}="${value.replace(/"/g, '\\"')}"`)
+          .join(" ");
+
+       await execAsync(`DOCKER_BUILDKIT=0 docker run -d --name ${app.container_name} --restart always -p ${app.host_port}:${app.container_port} ${envString} ${app.image_name}`);
+    }
+};
+
+/**
+ * Intenta emitir un certificado SSL de Let's Encrypt para el dominio de una aplicación Cloud Web.
+ */
+export const issueAppSsl = async (userId: string, appId: string) => {
+   await ensureDockerAppsTable();
+   const result = await db.query(
+      "SELECT * FROM docker_apps WHERE id = $1 AND user_id = $2",
+      [appId, userId]
+   );
+
+   if (result.rows.length === 0) throw new Error("Aplicación no encontrada");
+   const app = result.rows[0];
+   const targetDomain = app.domain.trim().toLowerCase();
+
+   if (os.platform() === "win32") {
+      throw new Error("La emisión de SSL no está soportada en Windows.");
+   }
+
+   let userEmail = "soporte@odiseacloud.com";
+   try {
+      const userRes = await db.query("SELECT email FROM users WHERE id = $1", [userId]);
+      if (userRes.rows.length > 0 && userRes.rows[0].email) {
+         userEmail = userRes.rows[0].email;
       }
+   } catch (err) {
+      // ignorar
+   }
 
-      const envString = Object.entries(envVars)
-         .map(([key, value]) => `-e ${key}="${value.replace(/"/g, '\\"')}"`)
-         .join(" ");
-
-      await execAsync(`DOCKER_BUILDKIT=0 docker run -d --name ${app.container_name} --restart always -p ${app.host_port}:${app.container_port} ${envString} ${app.image_name}`);
+   try {
+      // Intentar emitir certificado para el dominio raíz y el subdominio www
+      const sslCmd = `certbot --nginx -d ${targetDomain} -d www.${targetDomain} --non-interactive --agree-tos -m ${userEmail} --redirect`;
+      await execAsync(sslCmd);
+      await execAsync(`systemctl reload nginx`).catch(() => {});
+      return { success: true, message: `Certificado SSL activado correctamente para ${targetDomain} y www.${targetDomain}.` };
+   } catch (sslErr: any) {
+      console.warn(`[cloudweb:ssl] Certbot failed with www subdomain: ${sslErr.message || String(sslErr)}. Retrying for root domain only...`);
+      try {
+         // Reintentar solo con el dominio base
+         const sslCmdBase = `certbot --nginx -d ${targetDomain} --non-interactive --agree-tos -m ${userEmail} --redirect`;
+         await execAsync(sslCmdBase);
+         await execAsync(`systemctl reload nginx`).catch(() => {});
+         return { success: true, message: `Certificado SSL activado para el dominio base ${targetDomain}.` };
+      } catch (fallbackErr: any) {
+         throw new Error(`Error al emitir SSL para ${targetDomain}: ${fallbackErr.message || String(fallbackErr)}. Asegúrate de que los registros DNS (A/CNAME) apunten aquí.`);
+      }
    }
 };

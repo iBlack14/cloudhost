@@ -123,3 +123,17 @@ export const updateAppEnvHandler = async (req: Request, res: Response): Promise<
       });
    }
 };
+
+export const issueAppSslHandler = async (req: Request, res: Response): Promise<Response> => {
+   try {
+      const userId = await getUserId(req);
+      const result = await cloudwebService.issueAppSsl(userId, req.params.id as string);
+      return res.status(200).json(result);
+   } catch (error) {
+      return res.status(500).json({ 
+         success: false, 
+         error: { message: getErrorMessage(error, "Error al emitir el certificado SSL.") } 
+      });
+   }
+};
+
