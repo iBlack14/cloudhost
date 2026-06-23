@@ -137,3 +137,43 @@ export const issueAppSslHandler = async (req: Request, res: Response): Promise<R
    }
 };
 
+export const listDeploymentsHandler = async (req: Request, res: Response): Promise<Response> => {
+   try {
+      const userId = await getUserId(req);
+      const deployments = await cloudwebService.getAppDeployments(userId, req.params.id as string);
+      return res.status(200).json({ success: true, data: deployments });
+   } catch (error) {
+      return res.status(500).json({ 
+         success: false, 
+         error: { message: getErrorMessage(error, "Error al obtener el historial de despliegues.") } 
+      });
+   }
+};
+
+export const redeployAppHandler = async (req: Request, res: Response): Promise<Response> => {
+   try {
+      const userId = await getUserId(req);
+      const deploy = await cloudwebService.triggerRedeploy(userId, req.params.id as string);
+      return res.status(201).json({ success: true, data: deploy });
+   } catch (error) {
+      return res.status(500).json({ 
+         success: false, 
+         error: { message: getErrorMessage(error, "Error al desencadenar la compilación.") } 
+      });
+   }
+};
+
+export const getDeploymentLogsHandler = async (req: Request, res: Response): Promise<Response> => {
+   try {
+      const userId = await getUserId(req);
+      const logs = await cloudwebService.getDeploymentLogs(userId, req.params.deployId as string);
+      return res.status(200).json({ success: true, data: logs });
+   } catch (error) {
+      return res.status(500).json({ 
+         success: false, 
+         error: { message: getErrorMessage(error, "Error al obtener los logs de la compilación.") } 
+      });
+   }
+};
+
+

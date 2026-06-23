@@ -75,7 +75,10 @@ import {
   manageAppHandler as manageCloudWebAppHandler,
   getAppLogsHandler as getCloudWebAppLogsHandler,
   updateAppEnvHandler as updateCloudWebAppEnvHandler,
-  issueAppSslHandler as issueCloudWebAppSslHandler
+  issueAppSslHandler as issueCloudWebAppSslHandler,
+  listDeploymentsHandler as listCloudWebDeploymentsHandler,
+  redeployAppHandler as redeployCloudWebAppHandler,
+  getDeploymentLogsHandler as getCloudWebDeploymentLogsHandler
 } from "../../controllers/odin/cloudweb.controller.js";
 import {
   createMailAccountHandler,
@@ -85,6 +88,7 @@ import {
   changeMailPasswordHandler
 } from "../../controllers/odin/mail.controller.js";
 import { issueSystemSsl } from "../../services/odin/ssl.service.js";
+
 
 import rateLimit from "express-rate-limit";
 import { getSysStats } from "../../services/sys-stats.service.js";
@@ -294,6 +298,10 @@ odinRouter.post("/cloud-web/:id/:action(start|stop|restart)", manageCloudWebAppH
 odinRouter.get("/cloud-web/:id/logs", getCloudWebAppLogsHandler);
 odinRouter.put("/cloud-web/:id/env", updateCloudWebAppEnvHandler);
 odinRouter.post("/cloud-web/:id/ssl", heavyOpLimiter, issueCloudWebAppSslHandler);
+odinRouter.get("/cloud-web/:id/deployments", listCloudWebDeploymentsHandler);
+odinRouter.post("/cloud-web/:id/deploy", heavyOpLimiter, redeployCloudWebAppHandler);
+odinRouter.get("/cloud-web/deployments/:deployId/logs", getCloudWebDeploymentLogsHandler);
+
 
 // ── System SSL Integration ──────────────────────────────────────────────────
 odinRouter.post("/system/ssl", heavyOpLimiter, async (req, res) => {

@@ -81,6 +81,9 @@ export default function CloudWebPage() {
   const [aiExplanation, setAiExplanation] = useState<string | null>(null);
   const [isExplaining, setIsExplaining] = useState(false);
   const [issuingSslAppId, setIssuingSslAppId] = useState<string | null>(null);
+  const [logsTab, setLogsTab] = useState<"live" | "history">("live");
+  const [viewingDeploymentId, setViewingDeploymentId] = useState<string | null>(null);
+
 
 
   const parseLogLine = (log: string) => {
@@ -390,6 +393,57 @@ export default function CloudWebPage() {
     }
   };
 
+  const redeployMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await fetch(`${API_BASE}/odin-panel/cloud-web/${id}/deploy`, {
+        method: "POST",
+        headers: authHeaders(),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(data?.error?.message ?? "Error al desplegar cambios.");
+      return data;
+    },
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ["odin_cloudweb_apps"] });
+      if (data?.data?.app_id) {
+        setViewingLogsAppId(data.data.app_id);
+        setLogsTab("live");
+      }
+    },
+    onError: (e: Error) => alert(e.message),
+  });
+
+  const { data: appDeployments = [], refetch: refetchDeployments } = useQuery({
+    queryKey: ["odin_cloudweb_deployments", viewingLogsAppId],
+    queryFn: async () => {
+      if (!viewingLogsAppId) return [];
+      const res = await fetch(`${API_BASE}/odin-panel/cloud-web/${viewingLogsAppId}/deployments`, { headers: authHeaders() });
+      if (!res.ok) return [];
+      return (await res.json()).data ?? [];
+    },
+    enabled: !!viewingLogsAppId,
+    refetchInterval: (query) => {
+      const hasBuilding = query.state.data?.some((d: any) => d.status === "building");
+      return hasBuilding ? 3000 : false;
+    }
+  });
+
+  const { data: deploymentLogs = [] } = useQuery({
+    queryKey: ["odin_cloudweb_deployment_logs", viewingDeploymentId],
+    queryFn: async () => {
+      if (!viewingDeploymentId) return [];
+      const res = await fetch(`${API_BASE}/odin-panel/cloud-web/deployments/${viewingDeploymentId}/logs`, { headers: authHeaders() });
+      if (!res.ok) return ["No se pudieron cargar los logs de esta compilación."];
+      return (await res.json()).data ?? [];
+    },
+    enabled: !!viewingDeploymentId,
+    refetchInterval: () => {
+      const currentDeploy = appDeployments.find((d: any) => d.id === viewingDeploymentId);
+      return currentDeploy?.status === "building" ? 3000 : false;
+    }
+  });
+
+
 
   if (isLoading) {
     return (
@@ -429,124 +483,234 @@ export default function CloudWebPage() {
                 rel="noopener noreferrer"
                 className="w-full py-4 rounded-xl bg-[#00A3FF] text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-[#00A3FF]/15 hover:bg-[#008EE0] transition-all"
               >
-                Comunicarse con Soporte
-              </a>
-              <button
-                onClick={() => setDiskQuotaAlert(false)}
-                className="w-full py-3.5 rounded-xl border border-slate-200 text-slate-400 hover:text-slate-800 hover:bg-slate-50 text-[10px] font-black uppercase tracking-widest transition-all"
-              >
-                Cerrar Ventana
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Visor de logs Docker */}
+      {/* Visor de logs Docker y Despliegues */}
       {viewingLogsAppId && (() => {
         const activeApp = apps?.find((a: any) => a.id === viewingLogsAppId);
         const isBuilding = activeApp?.status === "building";
+        const currentLogs = viewingDeploymentId ? deploymentLogs : appLogs;
+
         return (
           <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-[999] flex items-center justify-center p-4">
             <div className="bg-[#050B14] border border-[#00A3FF]/20 rounded-[2.5rem] max-w-4xl w-full h-[550px] flex flex-col p-8 shadow-2xl animate-in zoom-in-95 duration-200">
+              
               <div className="flex items-center justify-between border-b border-[#00A3FF]/25 pb-4 mb-4 shrink-0">
-                <div className="flex flex-col">
+                <div className="flex items-center gap-6">
                   <h3 className="text-xl font-bold text-white tracking-tight">
-                    {isBuilding ? "Deployment" : "Docker Container Logs"}
+                    {viewingDeploymentId 
+                      ? "Logs de Compilación" 
+                      : logsTab === "live" 
+                        ? (isBuilding ? "Deployment Logs" : "Docker Container Logs") 
+                        : "Historial de Despliegues"}
                   </h3>
-                  <div className="flex flex-wrap items-center gap-2 mt-1">
-                    <span className="text-xs text-slate-400">
-                      {isBuilding ? "See all the details of this deployment" : "Real-time execution logs and output history"}
-                    </span>
-                    <span className="text-[#00A3FF]/30 text-xs">|</span>
-                    <span className="bg-[#111B2F] text-[#00A3FF] border border-[#00A3FF]/20 text-[10px] font-mono px-2 py-0.5 rounded-full font-bold">
-                      {appLogs.length} {appLogs.length === 1 ? "line" : "lines"}
-                    </span>
-                    {appLogs.length > 0 && (
-                      <button 
-                        onClick={() => {
-                          navigator.clipboard.writeText(appLogs.join("\n"));
-                          alert("¡Logs copiados al portapapeles!");
-                        }}
-                        title="Copiar Logs"
-                        className="w-7 h-7 rounded-lg bg-[#111B2F] hover:bg-[#00A3FF]/15 text-[#00A3FF] hover:text-[#00E5FF] flex items-center justify-center transition-colors active:scale-95 ml-1 border border-[#00A3FF]/20"
+                  {!viewingDeploymentId && (
+                    <div className="flex gap-1.5 p-1 bg-[#111B2F] border border-[#00A3FF]/15 rounded-xl">
+                      <button
+                        onClick={() => setLogsTab("live")}
+                        className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all ${logsTab === "live" ? "bg-[#00A3FF] text-white" : "text-slate-400 hover:text-white"}`}
                       >
-                        <span className="material-symbols-outlined text-[16px]">content_copy</span>
+                        Logs en Vivo
                       </button>
-                    )}
-                  </div>
-                </div>
-                <button onClick={() => setViewingLogsAppId(null)} className="w-8 h-8 rounded-full hover:bg-red-500/10 text-slate-400 hover:text-red-400 flex items-center justify-center transition-all border border-[#00A3FF]/15 hover:border-red-500/20">
-                  <span className="material-symbols-outlined text-[20px]">close</span>
-                </button>
-              </div>
-
-              <div className="flex-1 overflow-y-auto bg-[#0A1221] border border-[#00A3FF]/15 rounded-2xl py-3 px-0 font-mono text-[11px] text-slate-300 leading-relaxed logs-terminal flex flex-col">
-                <style>{`
-                  .logs-terminal::-webkit-scrollbar {
-                    width: 6px;
-                    height: 6px;
-                  }
-                  .logs-terminal::-webkit-scrollbar-track {
-                    background: #0A1221;
-                  }
-                  .logs-terminal::-webkit-scrollbar-thumb {
-                    background: rgba(0, 163, 255, 0.2);
-                    border-radius: 9999px;
-                  }
-                  .logs-terminal::-webkit-scrollbar-thumb:hover {
-                    background: rgba(0, 163, 255, 0.4);
-                  }
-                `}</style>
-                {appLogs.length === 0 ? (
-                  <div className="flex items-center justify-center h-full text-slate-500 text-[10px] font-bold uppercase tracking-widest py-10">
-                    Ninguna línea de log registrada aún.
-                  </div>
-                ) : (
-                  appLogs.map((log: string, idx: number) => {
-                    const { type, message } = parseLogLine(log);
-                    let borderLeftColor = "transparent";
-                    let badgeClass = "text-slate-400 bg-slate-800 border border-slate-700/50";
-                    
-                    if (type === "info") {
-                      borderLeftColor = "#00A3FF";
-                      badgeClass = "text-[#00A3FF] bg-[#00A3FF]/10 border border-[#00A3FF]/20";
-                    } else if (type === "success") {
-                      borderLeftColor = "#00E5FF";
-                      badgeClass = "text-[#00E5FF] bg-[#00E5FF]/10 border border-[#00E5FF]/20";
-                    } else if (type === "debug") {
-                      borderLeftColor = "#1e293b";
-                      badgeClass = "text-slate-400 bg-[#111B2F]/40 border border-slate-700/30";
-                    } else if (type === "error") {
-                      borderLeftColor = "#ef4444";
-                      badgeClass = "text-red-400 bg-red-500/10 border border-red-500/20";
-                    }
-
-                    return (
-                      <div 
-                        key={idx} 
-                        className="flex items-stretch hover:bg-[#111B2F]/40 transition-colors border-l-4 py-0.5 pl-4 pr-3" 
-                        style={{ borderLeftColor }}
+                      <button
+                        onClick={() => {
+                          setLogsTab("history");
+                          refetchDeployments();
+                        }}
+                        className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all ${logsTab === "history" ? "bg-[#00A3FF] text-white" : "text-slate-400 hover:text-white"}`}
                       >
-                        <div className="flex items-center shrink-0 w-20 select-none">
-                          <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest text-center w-16 block ${badgeClass}`}>
-                            {type}
-                          </span>
-                        </div>
-                        <div className="flex-1 font-mono text-[11px] text-slate-300 whitespace-pre-wrap select-text leading-relaxed pl-3">
-                          {message}
-                        </div>
-                      </div>
-                    );
-                  })
-                )}
+                        Historial
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-3">
+                  {viewingDeploymentId && (
+                    <button 
+                      onClick={() => setViewingDeploymentId(null)}
+                      className="px-4 py-2 bg-[#111B2F] border border-[#00A3FF]/20 text-[#00A3FF] rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-[#00A3FF]/10 flex items-center gap-1.5 transition-all"
+                    >
+                      <span className="material-symbols-outlined text-[14px]">arrow_back</span>
+                      Volver
+                    </button>
+                  )}
+                  {logsTab === "live" && currentLogs.length > 0 && (
+                    <button 
+                      onClick={() => {
+                        navigator.clipboard.writeText(currentLogs.join("\n"));
+                        alert("¡Logs copiados al portapapeles!");
+                      }}
+                      title="Copiar Logs"
+                      className="w-8 h-8 rounded-lg bg-[#111B2F] hover:bg-[#00A3FF]/15 text-[#00A3FF] hover:text-[#00E5FF] flex items-center justify-center transition-colors active:scale-95 border border-[#00A3FF]/20"
+                    >
+                      <span className="material-symbols-outlined text-[16px]">content_copy</span>
+                    </button>
+                  )}
+                  <button onClick={() => { setViewingLogsAppId(null); setViewingDeploymentId(null); }} className="w-8 h-8 rounded-full hover:bg-red-500/10 text-slate-400 hover:text-red-400 flex items-center justify-center transition-all border border-[#00A3FF]/15 hover:border-red-500/20">
+                    <span className="material-symbols-outlined text-[20px]">close</span>
+                  </button>
+                </div>
               </div>
+
+              {/* Contenido Dinámico de la Pestaña */}
+              {logsTab === "live" || viewingDeploymentId ? (
+                <div className="flex-1 overflow-y-auto bg-[#0A1221] border border-[#00A3FF]/15 rounded-2xl py-3 px-0 font-mono text-[11px] text-slate-300 leading-relaxed logs-terminal flex flex-col">
+                  <style>{`
+                    .logs-terminal::-webkit-scrollbar {
+                      width: 6px;
+                      height: 6px;
+                    }
+                    .logs-terminal::-webkit-scrollbar-track {
+                      background: #0A1221;
+                    }
+                    .logs-terminal::-webkit-scrollbar-thumb {
+                      background: rgba(0, 163, 255, 0.2);
+                      border-radius: 9999px;
+                    }
+                    .logs-terminal::-webkit-scrollbar-thumb:hover {
+                      background: rgba(0, 163, 255, 0.4);
+                    }
+                  `}</style>
+                  {currentLogs.length === 0 ? (
+                    <div className="flex items-center justify-center h-full text-slate-500 text-[10px] font-bold uppercase tracking-widest py-10">
+                      Cargando líneas de log...
+                    </div>
+                  ) : (
+                    currentLogs.map((log: string, idx: number) => {
+                      const { type, message } = parseLogLine(log);
+                      let borderLeftColor = "transparent";
+                      let badgeClass = "text-slate-400 bg-slate-800 border border-slate-700/50";
+                      
+                      if (type === "info") {
+                        borderLeftColor = "#00A3FF";
+                        badgeClass = "text-[#00A3FF] bg-[#00A3FF]/10 border border-[#00A3FF]/20";
+                      } else if (type === "success") {
+                        borderLeftColor = "#00E5FF";
+                        badgeClass = "text-[#00E5FF] bg-[#00E5FF]/10 border border-[#00E5FF]/20";
+                      } else if (type === "debug") {
+                        borderLeftColor = "#1e293b";
+                        badgeClass = "text-slate-400 bg-[#111B2F]/40 border border-slate-700/30";
+                      } else if (type === "error") {
+                        borderLeftColor = "#ef4444";
+                        badgeClass = "text-red-400 bg-red-500/10 border border-red-500/20";
+                      }
+
+                      return (
+                        <div 
+                          key={idx} 
+                          className="flex items-stretch hover:bg-[#111B2F]/40 transition-colors border-l-4 py-0.5 pl-4 pr-3" 
+                          style={{ borderLeftColor }}
+                        >
+                          <div className="flex items-center shrink-0 w-20 select-none">
+                            <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest text-center w-16 block ${badgeClass}`}>
+                              {type}
+                            </span>
+                          </div>
+                          <div className="flex-1 font-mono text-[11px] text-slate-300 whitespace-pre-wrap select-text leading-relaxed pl-3">
+                            {message}
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              ) : (
+                <div className="flex-1 overflow-y-auto space-y-4 pr-2 logs-terminal">
+                  <style>{`
+                    .logs-terminal::-webkit-scrollbar {
+                      width: 6px;
+                      height: 6px;
+                    }
+                    .logs-terminal::-webkit-scrollbar-track {
+                      background: #050B14;
+                    }
+                    .logs-terminal::-webkit-scrollbar-thumb {
+                      background: rgba(0, 163, 255, 0.2);
+                      border-radius: 9999px;
+                    }
+                  `}</style>
+                  {appDeployments.length === 0 ? (
+                    <div className="text-center py-16 text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                      Sin registros de compilación.
+                    </div>
+                  ) : (
+                    appDeployments.map((d: any, idx: number) => {
+                      const isDeployBuilding = d.status === "building";
+                      const isDeploySuccess = d.status === "success";
+                      const isDeployError = d.status === "error";
+
+                      const statusColors = isDeployBuilding
+                        ? "bg-[#00A3FF] animate-pulse shadow-[0_0_8px_#00a3ff]"
+                        : isDeploySuccess
+                          ? "bg-emerald-500 shadow-[0_0_8px_#10b981]"
+                          : isDeployError
+                            ? "bg-red-500"
+                            : "bg-slate-400";
+
+                      const relativeTime = (() => {
+                        const diffMs = Date.now() - new Date(d.created_at).getTime();
+                        const diffMins = Math.floor(diffMs / 60000);
+                        const diffHours = Math.floor(diffMins / 60);
+                        const diffDays = Math.floor(diffHours / 24);
+
+                        if (diffMins < 1) return "hace unos segundos";
+                        if (diffMins < 60) return `hace ${diffMins}m`;
+                        if (diffHours < 24) return `hace ${diffHours}h`;
+                        return `hace ${diffDays}d`;
+                      })();
+
+                      const durationStr = d.duration_seconds
+                        ? `${Math.floor(d.duration_seconds / 60)}m ${d.duration_seconds % 60}s`
+                        : "";
+
+                      return (
+                        <div key={d.id} className="bg-[#111B2F] border border-[#00A3FF]/10 hover:border-[#00A3FF]/25 p-5 rounded-2xl flex justify-between items-center gap-4 transition-all">
+                          <div className="space-y-1 flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className={`w-2 h-2 rounded-full ${statusColors}`} />
+                              <h4 className="text-[10px] font-black text-white uppercase tracking-wider">
+                                {idx + 1}. {d.status === "building" ? "Compilando" : d.status === "success" ? "Completado" : d.status === "error" ? "Error" : "Cancelado"}
+                              </h4>
+                              <span className="text-[#00A3FF]/20 text-[10px] font-bold">•</span>
+                              <span className="text-slate-400 text-[10px] font-bold">{relativeTime}</span>
+                              {durationStr && (
+                                <>
+                                  <span className="text-[#00A3FF]/20 text-[10px] font-bold">•</span>
+                                  <span className="text-[#00E5FF] text-[10px] font-mono font-black uppercase tracking-wider flex items-center gap-1">
+                                    <span className="material-symbols-outlined text-[12px]">schedule</span>
+                                    {durationStr}
+                                  </span>
+                                </>
+                              )}
+                            </div>
+                            <p className="text-slate-300 text-[11px] font-medium leading-relaxed truncate select-text">
+                              {d.commit_message || "Manual deployment"}
+                            </p>
+                            {d.commit_hash && d.commit_hash !== "unknown" && (
+                              <p className="text-[9px] text-slate-500 font-mono tracking-wider uppercase select-text">
+                                Commit: <span className="text-[#00A3FF] font-black">{d.commit_hash}</span>
+                              </p>
+                            )}
+                          </div>
+                          <button
+                            onClick={() => setViewingDeploymentId(d.id)}
+                            className="bg-[#00A3FF]/15 hover:bg-[#00A3FF] text-[#00A3FF] hover:text-white px-5 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all shrink-0 active:scale-95"
+                          >
+                            Ver Logs
+                          </button>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              )}
+
             </div>
           </div>
         );
       })()}
 
       {/* Modal Editar Variables de Entorno */}
+
       {editingEnvApp && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[999] flex items-center justify-center p-4">
           <div className="bg-white border border-slate-200 rounded-[2.5rem] max-w-2xl w-full max-h-[90vh] flex flex-col p-8 shadow-2xl animate-in zoom-in-95 duration-200 overflow-hidden">
@@ -1195,6 +1359,24 @@ export default function CloudWebPage() {
                   {app.build_type !== "static" && (
                     <>
                       <button
+                        onClick={() => redeployMutation.mutate(app.id)}
+                        disabled={isAppBuilding || redeployMutation.isPending}
+                        className="flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-slate-100 hover:bg-[#00A3FF] hover:text-white transition-all text-slate-500 text-[10px] font-black uppercase tracking-widest disabled:opacity-30 disabled:cursor-not-allowed"
+                        title="Desplegar últimos cambios"
+                      >
+                        {redeployMutation.isPending && redeployMutation.variables === app.id ? (
+                          <>
+                            <span className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin shrink-0" />
+                            Subiendo...
+                          </>
+                        ) : (
+                          <>
+                            <span className="material-symbols-outlined text-[16px]">publish</span>
+                            Desplegar
+                          </>
+                        )}
+                      </button>
+                      <button
                         onClick={() => handleOpenEnvModal(app)}
                         disabled={isAppBuilding}
                         className="flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-slate-100 hover:bg-[#00A3FF] hover:text-white transition-all text-slate-500 text-[10px] font-black uppercase tracking-widest disabled:opacity-30 disabled:cursor-not-allowed"
@@ -1203,7 +1385,7 @@ export default function CloudWebPage() {
                         Variables
                       </button>
                       <button
-                        onClick={() => setViewingLogsAppId(app.id)}
+                        onClick={() => { setViewingLogsAppId(app.id); setLogsTab("live"); }}
                         className="flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-slate-100 hover:bg-[#00A3FF] hover:text-white transition-all text-slate-500 text-[10px] font-black uppercase tracking-widest"
                       >
                         <span className="material-symbols-outlined text-[16px]">terminal</span>
@@ -1211,6 +1393,7 @@ export default function CloudWebPage() {
                       </button>
                     </>
                   )}
+
                 </div>
 
                 <button 

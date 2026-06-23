@@ -44,8 +44,22 @@ export const ensureDockerAppsTable = async () => {
           updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
       );
    `);
+   await db.query(`
+      CREATE TABLE IF NOT EXISTS docker_app_deployments (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          app_id UUID NOT NULL REFERENCES docker_apps(id) ON DELETE CASCADE,
+          commit_hash TEXT,
+          commit_message TEXT,
+          status TEXT NOT NULL DEFAULT 'building',
+          log_path TEXT,
+          duration_seconds INTEGER,
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      );
+   `);
    _dockerTableReady = true;
 };
+
 
 const sanitize = (str: string) => str.replace(/[^a-z0-9]/gi, "_").toLowerCase();
 
@@ -196,15 +210,16 @@ const runCommandWithLog = (
 };
 
 /**
- * Procesa la compilación y el levantamiento de la aplicación en segundo plano.
+ * Procesa la compilación y el levantamiento de la aplicación en segundo plano con soporte Zero-Downtime.
  */
 export const runBackgroundBuild = async (
    userId: string,
    appId: string,
+   deployId: string,
    input: CreateDockerAppInput,
    buildPath: string,
    imageName: string,
-   containerName: string,
+   baseContainerName: string,
    userHome: string
 ) => {
    const appName = sanitize(input.name);
@@ -216,13 +231,30 @@ export const runBackgroundBuild = async (
    const logsDir = path.join(userHome, "logs");
    await fs.mkdir(logsDir, { recursive: true });
    
-   const logPath = path.join(logsDir, `build-${appId}.log`);
+   const logPath = path.join(logsDir, `deploy-${deployId}.log`);
    const logStream = createWriteStream(logPath, { flags: "w" });
 
    const writeLog = (type: 'info' | 'success' | 'debug' | 'error', msg: string) => {
       logStream.write(`[${type}] ${msg}\n`);
-      console.log(`[cloud-web:build:${appId}] [${type}] ${msg}`);
+      console.log(`[cloud-web:build:${appId}:${deployId}] [${type}] ${msg}`);
    };
+
+   const startTime = Date.now();
+   // El nuevo contenedor tendrá un sufijo único derivado de la compilación para evitar colisión de nombres
+   const newContainerName = `${baseContainerName}-${deployId.substring(0, 8)}`.toLowerCase();
+
+   // Obtener el nombre del contenedor anterior y su puerto para mantenerlos vivos durante el build
+   let oldContainerName = "";
+   let oldHostPort = 0;
+   try {
+      const currentAppRes = await db.query("SELECT container_name, host_port FROM docker_apps WHERE id = $1", [appId]);
+      if (currentAppRes.rows.length > 0) {
+         oldContainerName = currentAppRes.rows[0].container_name;
+         oldHostPort = currentAppRes.rows[0].host_port;
+      }
+   } catch (err) {
+      // ignore
+   }
 
    try {
       writeLog('info', 'Initializing deployment...');
@@ -237,6 +269,23 @@ export const runBackgroundBuild = async (
       const repoUrl = `https://github.com/${input.githubRepo}.git`;
       await runCommandWithLog('git', ['clone', '--depth=1', '--branch', branch, repoUrl, buildPath], {}, logStream, 'info');
       writeLog('success', 'Repository cloned successfully.');
+
+      // Extraer hash y mensaje del commit de Git
+      let commitHash = "unknown";
+      let commitMessage = "Manual deployment";
+      try {
+         const { stdout } = await execAsync('git log -1 --format="%h|%s"', { cwd: buildPath });
+         const parts = stdout.trim().split("|");
+         if (parts[0]) commitHash = parts[0];
+         if (parts[1]) commitMessage = parts[1];
+      } catch (gitErr) {
+         // ignore
+      }
+      writeLog('info', `Last Commit: ${commitHash} - "${commitMessage}"`);
+      await db.query(
+         "UPDATE docker_app_deployments SET commit_hash = $1, commit_message = $2, log_path = $3 WHERE id = $4",
+         [commitHash, commitMessage, logPath, deployId]
+      );
 
       // Comprobar espacio en disco del proyecto clonado
       if (os.platform() !== "win32") {
@@ -262,15 +311,6 @@ export const runBackgroundBuild = async (
       }
       writeLog('success', 'Build finished successfully.');
 
-      // 3. Detener y remover contenedor existente si lo hay
-      writeLog('info', 'Checking for existing Docker containers...');
-      try {
-         await execAsync(`docker stop ${containerName} && docker rm ${containerName}`);
-         writeLog('info', 'Old container stopped and removed.');
-      } catch {
-         // No existía previamente, ignorar
-      }
-
       let hostPort = 0;
       if (buildType !== "static") {
          // Generar puerto dinámico libre en el host
@@ -279,7 +319,7 @@ export const runBackgroundBuild = async (
 
          const dockerArgs = [
             'run', '-d',
-            '--name', containerName,
+            '--name', newContainerName,
             '--restart', 'always',
             '-p', `${hostPort}:${input.port}`
          ];
@@ -288,9 +328,9 @@ export const runBackgroundBuild = async (
          }
          dockerArgs.push(imageName);
 
-         writeLog('info', `Starting Docker container: ${containerName}...`);
+         writeLog('info', `Starting new Docker container: ${newContainerName}...`);
          await runCommandWithLog('docker', dockerArgs, {}, logStream, 'info');
-         writeLog('success', 'Container is up and running.');
+         writeLog('success', 'New container is up and running.');
       }
 
       // 4. Configurar el proxy Nginx para el dominio del cliente
@@ -359,14 +399,12 @@ server {
 
          writeLog('info', `Issuing Let's Encrypt SSL certificate for ${targetDomain}...`);
          try {
-            // Intentar emitir certificado para el dominio raíz y el subdominio www
             const sslCmd = `certbot --nginx -d ${targetDomain} -d www.${targetDomain} --non-interactive --agree-tos -m ${userEmail} --redirect`;
             await execAsync(sslCmd);
             writeLog('success', `SSL certificate successfully installed and configured for ${targetDomain} and www.${targetDomain}.`);
          } catch (sslErr: any) {
             writeLog('info', `Certbot failed with www subdomain: ${sslErr.message || String(sslErr)}. Retrying for root domain ${targetDomain} only...`);
             try {
-               // Reintentar solo con el dominio base
                const sslCmdBase = `certbot --nginx -d ${targetDomain} --non-interactive --agree-tos -m ${userEmail} --redirect`;
                await execAsync(sslCmdBase);
                writeLog('success', `SSL certificate successfully installed and configured for root domain ${targetDomain}.`);
@@ -380,7 +418,18 @@ server {
       }
       writeLog('success', 'Nginx configuration and routing applied successfully.');
 
-      // 5. Eliminar capas e imágenes huérfanas/dangling de Docker
+      // 5. Apagar y remover el contenedor anterior (ZERO-DOWNTIME SWITCH!)
+      if (oldContainerName && oldContainerName !== newContainerName && buildType !== "static") {
+         writeLog('info', `Stopping and removing old container: ${oldContainerName}...`);
+         try {
+            await execAsync(`docker stop ${oldContainerName} && docker rm ${oldContainerName}`);
+            writeLog('success', 'Old container stopped and removed successfully.');
+         } catch (err) {
+            writeLog('info', `Could not stop old container: ${err instanceof Error ? err.message : String(err)}`);
+         }
+      }
+
+      // Eliminar capas e imágenes huérfanas/dangling de Docker
       try {
          await execAsync(`docker image prune -f --filter "dangling=true"`);
       } catch (err) {
@@ -390,9 +439,18 @@ server {
       // 6. Actualizar base de datos
       await db.query(
          `UPDATE docker_apps 
-          SET host_port = $1, status = 'online', updated_at = NOW() 
+          SET host_port = $1, container_name = $2, status = 'online', updated_at = NOW() 
+          WHERE id = $3`,
+         [hostPort, newContainerName, appId]
+      );
+
+      // Actualizar registro de despliegue a 'success'
+      const durationSeconds = Math.round((Date.now() - startTime) / 1000);
+      await db.query(
+         `UPDATE docker_app_deployments 
+          SET status = 'success', duration_seconds = $1, updated_at = NOW() 
           WHERE id = $2`,
-         [hostPort, appId]
+         [durationSeconds, deployId]
       );
 
       // Sincronizar el uso real de disco
@@ -412,11 +470,31 @@ server {
       
       // Limpiar carpeta en caso de fallo crítico
       await fs.rm(buildPath, { recursive: true, force: true }).catch(() => {});
-      
-      // Actualizar estado en la base de datos a 'offline'
+
+      // Apagar y remover el nuevo contenedor si alcanzó a crearse
+      if (buildType !== "static") {
+         try {
+            await execAsync(`docker stop ${newContainerName} && docker rm ${newContainerName}`);
+         } catch {
+            // ignore
+         }
+      }
+
+      // Si existía un contenedor anterior corriendo con éxito (oldHostPort > 0), revertimos el estado de la app en DB a 'online'.
+      // De lo contrario, queda 'offline'.
+      const finalStatus = (oldHostPort > 0) ? 'online' : 'offline';
       await db.query(
-         "UPDATE docker_apps SET status = 'offline', updated_at = NOW() WHERE id = $1",
-         [appId]
+         "UPDATE docker_apps SET status = $1, updated_at = NOW() WHERE id = $2",
+         [finalStatus, appId]
+      );
+
+      // Actualizar registro de despliegue a 'error'
+      const durationSeconds = Math.round((Date.now() - startTime) / 1000);
+      await db.query(
+         `UPDATE docker_app_deployments 
+          SET status = 'error', duration_seconds = $1, updated_at = NOW() 
+          WHERE id = $2`,
+         [durationSeconds, deployId]
       );
    } finally {
       logStream.end();
@@ -458,13 +536,110 @@ export const deployApp = async (userId: string, input: CreateDockerAppInput) => 
 
    const app = res.rows[0];
 
+   // Crear registro en la tabla de despliegues
+   const deployRes = await db.query(
+      `INSERT INTO docker_app_deployments (app_id, status) VALUES ($1, 'building') RETURNING id`,
+      [app.id]
+   );
+   const deployId = deployRes.rows[0].id;
+
    // Iniciar el proceso de compilación y levantamiento asíncrono
-   runBackgroundBuild(userId, app.id, input, buildPath, imageName, containerName, userHome).catch((err) => {
+   runBackgroundBuild(userId, app.id, deployId, input, buildPath, imageName, containerName, userHome).catch((err) => {
       console.error("[cloud-web:background-build:error]", err);
    });
 
    return app;
 };
+
+/**
+ * Obtiene la lista de despliegues (historial) para una aplicación.
+ */
+export const getAppDeployments = async (userId: string, appId: string) => {
+   await ensureDockerAppsTable();
+   // Verificar propiedad de la app
+   const appRes = await db.query("SELECT id FROM docker_apps WHERE id = $1 AND user_id = $2", [appId, userId]);
+   if (appRes.rows.length === 0) throw new Error("Aplicación no encontrada");
+
+   const res = await db.query(
+      `SELECT * FROM docker_app_deployments WHERE app_id = $1 ORDER BY created_at DESC`,
+      [appId]
+   );
+   return res.rows;
+};
+
+/**
+ * Desencadena un nuevo redeploy zero-downtime para una aplicación.
+ */
+export const triggerRedeploy = async (userId: string, appId: string) => {
+   await ensureDockerAppsTable();
+   
+   const appRes = await db.query("SELECT * FROM docker_apps WHERE id = $1 AND user_id = $2", [appId, userId]);
+   if (appRes.rows.length === 0) throw new Error("Aplicación no encontrada");
+   const app = appRes.rows[0];
+
+   await checkDiskQuotaOrThrow(userId, 50);
+
+   const appName = sanitize(app.name);
+   const userHome = await getUserHomePath(userId);
+   const buildPath = path.join(userHome, "cloud-web-src", appName);
+
+   // Actualizar el estado de la app en la base de datos a 'building' para reflejar el proceso activo en el dashboard,
+   // pero mantendremos el contenedor existente corriendo.
+   await db.query("UPDATE docker_apps SET status = 'building', updated_at = NOW() WHERE id = $1", [appId]);
+
+   // Crear registro de despliegue
+   const deployRes = await db.query(
+      `INSERT INTO docker_app_deployments (app_id, status) VALUES ($1, 'building') RETURNING *`,
+      [appId]
+   );
+   const deploy = deployRes.rows[0];
+
+   const input: CreateDockerAppInput = {
+      name: app.name,
+      githubRepo: app.github_repo,
+      githubBranch: app.github_branch,
+      domain: app.domain,
+      port: app.container_port,
+      buildType: app.build_type,
+      envVars: app.env_vars
+   };
+
+   const baseContainerName = `odin-container-${userId}-${appName}`.toLowerCase();
+
+   runBackgroundBuild(userId, app.id, deploy.id, input, buildPath, app.image_name, baseContainerName, userHome).catch((err) => {
+      console.error("[cloud-web:redeploy:background:error]", err);
+   });
+
+   return deploy;
+};
+
+/**
+ * Obtiene las líneas de logs de una compilación/despliegue específico.
+ */
+export const getDeploymentLogs = async (userId: string, deployId: string) => {
+   await ensureDockerAppsTable();
+   
+   // Verificar propiedad a través del app_id de la compilación
+   const res = await db.query(
+      `SELECT d.*, a.user_id FROM docker_app_deployments d
+       INNER JOIN docker_apps a ON a.id = d.app_id
+       WHERE d.id = $1 AND a.user_id = $2`,
+      [deployId, userId]
+   );
+
+   if (res.rows.length === 0) throw new Error("Despliegue no encontrado");
+   const deploy = res.rows[0];
+
+   try {
+      const userHome = await getUserHomePath(userId);
+      const logPath = path.join(userHome, "logs", `deploy-${deployId}.log`);
+      const content = await fs.readFile(logPath, "utf8");
+      return content.trim().split("\n");
+   } catch (err) {
+      return ["Iniciando compilación...", `Estado actual: ${deploy.status}`];
+   }
+};
+
 
 /**
  * Controla las acciones del ciclo de vida de un contenedor Docker.
@@ -556,16 +731,24 @@ export const getAppLogs = async (userId: string, appId: string) => {
    const app = result.rows[0];
 
    if (app.status === "building") {
-      // Leer el archivo de log de construcción
       try {
-         const userHome = await getUserHomePath(userId);
-         const logPath = path.join(userHome, "logs", `build-${appId}.log`);
-         const content = await fs.readFile(logPath, "utf8");
-         return content.trim().split("\n");
+         const latestDeployRes = await db.query(
+            "SELECT id FROM docker_app_deployments WHERE app_id = $1 ORDER BY created_at DESC LIMIT 1",
+            [appId]
+         );
+         if (latestDeployRes.rows.length > 0) {
+            const latestDeployId = latestDeployRes.rows[0].id;
+            const userHome = await getUserHomePath(userId);
+            const logPath = path.join(userHome, "logs", `deploy-${latestDeployId}.log`);
+            const content = await fs.readFile(logPath, "utf8");
+            return content.trim().split("\n");
+         }
       } catch (err) {
-         return ["Iniciando compilación..."];
+         // fallback
       }
+      return ["Iniciando compilación..."];
    }
+
 
    if (app.build_type === "static") {
       return ["Los despliegues estáticos son servidos directamente por Nginx y no generan logs de Docker."];
