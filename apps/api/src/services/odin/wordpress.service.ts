@@ -454,19 +454,29 @@ export const deleteWordPress = async (id: string, userId: string) => {
     console.warn(`[odin:wordpress:delete] Could not drop MySQL resources for ${site.db_name}`);
   }
 
-  // 3. Remove files from disk (optional but recommended)
+  // 3. Remove files from disk and restore default 4 placeholder files
   if (osUsername && site.install_path) {
     try {
       const targetPath = site.install_path;
-      const normalizedPath = targetPath.replace(/\/$/, "");
-      const isRoot = normalizedPath === `/home/${osUsername}` || 
-                     normalizedPath === `/home/${osUsername}/public_html` ||
-                     normalizedPath === `/home/${osUsername}/${domain}`;
-      if (!isRoot) {
-         await execAsync(`rm -rf ${targetPath}`);
-      }
+      // Delete all files and folders inside targetPath safely
+      await execAsync(`find ${targetPath} -mindepth 1 -delete`).catch(() => {});
+      
+      // Ensure targetPath exists
+      await fs.mkdir(targetPath, { recursive: true });
+      
+      // Write the 4 demo template files
+      const { INDEX_TEMPLATE, ERROR_404_TEMPLATE, ERROR_500_TEMPLATE, ERROR_503_TEMPLATE } = await import("../../utils/html-templates.js");
+      await fs.writeFile(`${targetPath}/index.html`, INDEX_TEMPLATE, "utf8");
+      await fs.writeFile(`${targetPath}/404.html`, ERROR_404_TEMPLATE, "utf8");
+      await fs.writeFile(`${targetPath}/500.html`, ERROR_500_TEMPLATE, "utf8");
+      await fs.writeFile(`${targetPath}/503.html`, ERROR_503_TEMPLATE, "utf8");
+
+      // Fix ownership and permissions
+      await execAsync(`chown -R ${osUsername}:www-data ${targetPath}`);
+      await execAsync(`chmod 755 ${targetPath}`);
+      await execAsync(`chmod 644 ${targetPath}/*.html`).catch(() => {});
     } catch (e) {
-       console.warn("[odin:wordpress:delete] Could not clean up files from disk", e);
+       console.warn("[odin:wordpress:delete] Could not clean up files from disk and restore templates", e);
     }
   }
 
