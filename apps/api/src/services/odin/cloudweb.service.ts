@@ -336,18 +336,103 @@ export const runBackgroundBuild = async (
       // 4. Configurar el proxy Nginx para el dominio del cliente
       writeLog('info', 'Configuring Nginx reverse proxy...');
       let nginxConfig = "";
+      let hasSslCert = false;
+      let hasSslParams = false;
+      let hasDhParams = false;
 
-      if (buildType === "static") {
-         const buildOutPath = path.join(buildPath, "out");
-         const distPath = path.join(buildPath, "dist");
-         let publicRoot = buildPath;
+      if (os.platform() !== "win32") {
+         try {
+            await fs.access(`/etc/letsencrypt/live/${targetDomain}/fullchain.pem`);
+            hasSslCert = true;
+         } catch {}
+         try {
+            await fs.access(`/etc/letsencrypt/options-ssl-nginx.conf`);
+            hasSslParams = true;
+         } catch {}
+         try {
+            await fs.access(`/etc/letsencrypt/ssl-dhparams.pem`);
+            hasDhParams = true;
+         } catch {}
+      }
 
-         const isOut = await fs.stat(buildOutPath).then(s => s.isDirectory()).catch(() => false);
-         const isDist = await fs.stat(distPath).then(s => s.isDirectory()).catch(() => false);
-         if (isOut) publicRoot = buildOutPath;
-         else if (isDist) publicRoot = distPath;
+      if (hasSslCert) {
+         if (buildType === "static") {
+            const buildOutPath = path.join(buildPath, "out");
+            const distPath = path.join(buildPath, "dist");
+            let publicRoot = buildPath;
 
-         nginxConfig = `
+            const isOut = await fs.stat(buildOutPath).then(s => s.isDirectory()).catch(() => false);
+            const isDist = await fs.stat(distPath).then(s => s.isDirectory()).catch(() => false);
+            if (isOut) publicRoot = buildOutPath;
+            else if (isDist) publicRoot = distPath;
+
+            nginxConfig = `
+server {
+    listen 80;
+    server_name ${targetDomain} www.${targetDomain};
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl;
+    server_name ${targetDomain} www.${targetDomain};
+    root ${publicRoot};
+    index index.html index.htm;
+
+    ssl_certificate /etc/letsencrypt/live/${targetDomain}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/${targetDomain}/privkey.pem;
+    ${hasSslParams ? `include /etc/letsencrypt/options-ssl-nginx.conf;` : ""}
+    ${hasDhParams ? `ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;` : ""}
+
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+}
+            `.trim();
+         } else {
+            nginxConfig = `
+server {
+    listen 80;
+    server_name ${targetDomain} www.${targetDomain};
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl;
+    server_name ${targetDomain} www.${targetDomain};
+    client_max_body_size 100M;
+
+    ssl_certificate /etc/letsencrypt/live/${targetDomain}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/${targetDomain}/privkey.pem;
+    ${hasSslParams ? `include /etc/letsencrypt/options-ssl-nginx.conf;` : ""}
+    ${hasDhParams ? `ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;` : ""}
+
+    location / {
+        proxy_pass http://127.0.0.1:${hostPort};
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_cache_bypass $http_upgrade;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+            `.trim();
+         }
+      } else {
+         if (buildType === "static") {
+            const buildOutPath = path.join(buildPath, "out");
+            const distPath = path.join(buildPath, "dist");
+            let publicRoot = buildPath;
+
+            const isOut = await fs.stat(buildOutPath).then(s => s.isDirectory()).catch(() => false);
+            const isDist = await fs.stat(distPath).then(s => s.isDirectory()).catch(() => false);
+            if (isOut) publicRoot = buildOutPath;
+            else if (isDist) publicRoot = distPath;
+
+            nginxConfig = `
 server {
     listen 80;
     server_name ${targetDomain} www.${targetDomain};
@@ -358,9 +443,9 @@ server {
         try_files $uri $uri/ /index.html;
     }
 }
-         `.trim();
-      } else {
-         nginxConfig = `
+            `.trim();
+         } else {
+            nginxConfig = `
 server {
     listen 80;
     server_name ${targetDomain} www.${targetDomain};
@@ -378,7 +463,8 @@ server {
         proxy_set_header X-Forwarded-Proto $scheme;
     }
 }
-         `.trim();
+            `.trim();
+         }
       }
 
       if (os.platform() !== "win32") {
@@ -386,35 +472,39 @@ server {
          await execAsync(`ln -sf /etc/nginx/sites-available/${targetDomain} /etc/nginx/sites-enabled/`);
          await execAsync(`systemctl reload nginx`);
 
-         // AUTOMATIC LET'S ENCRYPT SSL GENERATION VIA CERTBOT
-         let userEmail = "soporte@odiseacloud.com";
-         try {
-            const userRes = await db.query("SELECT email FROM users WHERE id = $1", [userId]);
-            if (userRes.rows.length > 0 && userRes.rows[0].email) {
-               userEmail = userRes.rows[0].email;
-            }
-         } catch (err) {
-            // ignorar
-         }
-
-         writeLog('info', `Issuing Let's Encrypt SSL certificate for ${targetDomain}...`);
-         try {
-            const sslCmd = `certbot --nginx -d ${targetDomain} -d www.${targetDomain} --non-interactive --agree-tos -m ${userEmail} --redirect`;
-            await execAsync(sslCmd);
-            writeLog('success', `SSL certificate successfully installed and configured for ${targetDomain} and www.${targetDomain}.`);
-         } catch (sslErr: any) {
-            writeLog('info', `Certbot failed with www subdomain: ${sslErr.message || String(sslErr)}. Retrying for root domain ${targetDomain} only...`);
+         if (!hasSslCert) {
+            // AUTOMATIC LET'S ENCRYPT SSL GENERATION VIA CERTBOT
+            let userEmail = "soporte@odiseacloud.com";
             try {
-               const sslCmdBase = `certbot --nginx -d ${targetDomain} --non-interactive --agree-tos -m ${userEmail} --redirect`;
-               await execAsync(sslCmdBase);
-               writeLog('success', `SSL certificate successfully installed and configured for root domain ${targetDomain}.`);
-            } catch (fallbackErr: any) {
-               writeLog('error', `Failed to issue root SSL certificate: ${fallbackErr.message || String(fallbackErr)}. Deployed over HTTP only.`);
+               const userRes = await db.query("SELECT email FROM users WHERE id = $1", [userId]);
+               if (userRes.rows.length > 0 && userRes.rows[0].email) {
+                  userEmail = userRes.rows[0].email;
+               }
+            } catch (err) {
+               // ignorar
             }
-         }
 
-         // Recargar Nginx de nuevo para asegurar los cambios de Certbot
-         await execAsync(`systemctl reload nginx`).catch(() => {});
+            writeLog('info', `Issuing Let's Encrypt SSL certificate for ${targetDomain}...`);
+            try {
+               const sslCmd = `certbot --nginx -d ${targetDomain} -d www.${targetDomain} --non-interactive --agree-tos -m ${userEmail} --redirect`;
+               await execAsync(sslCmd);
+               writeLog('success', `SSL certificate successfully installed and configured for ${targetDomain} and www.${targetDomain}.`);
+            } catch (sslErr: any) {
+               writeLog('info', `Certbot failed with www subdomain: ${sslErr.message || String(sslErr)}. Retrying for root domain ${targetDomain} only...`);
+               try {
+                  const sslCmdBase = `certbot --nginx -d ${targetDomain} --non-interactive --agree-tos -m ${userEmail} --redirect`;
+                  await execAsync(sslCmdBase);
+                  writeLog('success', `SSL certificate successfully installed and configured for root domain ${targetDomain}.`);
+               } catch (fallbackErr: any) {
+                  writeLog('error', `Failed to issue root SSL certificate: ${fallbackErr.message || String(fallbackErr)}. Deployed over HTTP only.`);
+               }
+            }
+
+            // Recargar Nginx de nuevo para asegurar los cambios de Certbot
+            await execAsync(`systemctl reload nginx`).catch(() => {});
+         } else {
+            writeLog('success', `SSL certificate already active. Re-used existing certificate files for ${targetDomain}.`);
+         }
       }
       writeLog('success', 'Nginx configuration and routing applied successfully.');
 
@@ -638,6 +728,20 @@ export const getDeploymentLogs = async (userId: string, deployId: string) => {
    } catch (err) {
       return ["Iniciando compilación...", `Estado actual: ${deploy.status}`];
    }
+};
+
+/**
+ * Elimina un registro de despliegue/compilación del historial.
+ */
+export const deleteDeployment = async (userId: string, deployId: string): Promise<void> => {
+   await ensureDockerAppsTable();
+   
+   // Borrar si la aplicación asociada pertenece al usuario
+   await db.query(
+      `DELETE FROM docker_app_deployments 
+       WHERE id = $1 AND app_id IN (SELECT id FROM docker_apps WHERE user_id = $2)`,
+      [deployId, userId]
+   );
 };
 
 

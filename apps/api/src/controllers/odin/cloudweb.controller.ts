@@ -176,4 +176,17 @@ export const getDeploymentLogsHandler = async (req: Request, res: Response): Pro
    }
 };
 
+export const deleteDeploymentHandler = async (req: Request, res: Response): Promise<Response> => {
+   try {
+      const userId = await getUserId(req);
+      await cloudwebService.deleteDeployment(userId, req.params.deployId as string);
+      return res.status(200).json({ success: true, message: "Registro de despliegue eliminado correctamente." });
+   } catch (error) {
+      return res.status(500).json({ 
+         success: false, 
+         error: { message: getErrorMessage(error, "Error al eliminar el registro de despliegue.") } 
+      });
+   }
+};
+
 

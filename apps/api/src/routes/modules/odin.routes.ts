@@ -78,7 +78,8 @@ import {
   issueAppSslHandler as issueCloudWebAppSslHandler,
   listDeploymentsHandler as listCloudWebDeploymentsHandler,
   redeployAppHandler as redeployCloudWebAppHandler,
-  getDeploymentLogsHandler as getCloudWebDeploymentLogsHandler
+  getDeploymentLogsHandler as getCloudWebDeploymentLogsHandler,
+  deleteDeploymentHandler as deleteCloudWebDeploymentHandler
 } from "../../controllers/odin/cloudweb.controller.js";
 import {
   createMailAccountHandler,
@@ -301,6 +302,7 @@ odinRouter.post("/cloud-web/:id/ssl", heavyOpLimiter, issueCloudWebAppSslHandler
 odinRouter.get("/cloud-web/:id/deployments", listCloudWebDeploymentsHandler);
 odinRouter.post("/cloud-web/:id/deploy", heavyOpLimiter, redeployCloudWebAppHandler);
 odinRouter.get("/cloud-web/deployments/:deployId/logs", getCloudWebDeploymentLogsHandler);
+odinRouter.delete("/cloud-web/deployments/:deployId", deleteCloudWebDeploymentHandler);
 
 
 // ── System SSL Integration ──────────────────────────────────────────────────
