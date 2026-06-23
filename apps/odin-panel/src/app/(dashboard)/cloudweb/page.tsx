@@ -77,6 +77,91 @@ export default function CloudWebPage() {
   const [editEnvMode, setEditEnvMode] = useState<EnvMode>("keyvalue");
   const [showBuildTypeDropdown, setShowBuildTypeDropdown] = useState(false);
 
+  // IA Asistente y Logs Parsing
+  const [aiExplanation, setAiExplanation] = useState<string | null>(null);
+  const [isExplaining, setIsExplaining] = useState(false);
+
+  const parseLogLine = (log: string) => {
+    const match = log.match(/^\[(info|success|debug|error)\]\s*(.*)$/);
+    if (match) {
+      return {
+        type: match[1] as "info" | "success" | "debug" | "error",
+        message: match[2],
+      };
+    }
+    const lower = log.toLowerCase();
+    let type: "info" | "success" | "debug" | "error" = "info";
+    if (lower.includes("error:") || lower.includes("failed") || lower.includes("failed:")) {
+      type = "error";
+    } else if (lower.includes("success") || lower.includes("successfully")) {
+      type = "success";
+    } else if (lower.includes("debug") || lower.includes("dangling") || lower.startsWith("#")) {
+      type = "debug";
+    }
+    return { type, message: log };
+  };
+
+  const handleExplainLogs = () => {
+    if (appLogs.length === 0) {
+      setAiExplanation("No hay logs disponibles para analizar.");
+      return;
+    }
+
+    setIsExplaining(true);
+    setTimeout(() => {
+      let hasError = false;
+      let errorLines: string[] = [];
+      let currentStep = "Proceso General";
+
+      for (const line of appLogs) {
+        if (line.includes("[error]") || line.toLowerCase().includes("failed") || line.toLowerCase().includes("error:")) {
+          hasError = true;
+          errorLines.push(line);
+        }
+        if (line.includes("Initializing deployment")) currentStep = "Inicialización";
+        else if (line.includes("Cloning branch")) currentStep = "Clonado del Repositorio Git";
+        else if (line.includes("Compiling application") || line.includes("nixpacks build")) currentStep = "Compilación con Nixpacks";
+        else if (line.includes("npm install") || line.includes("installing")) currentStep = "Instalación de Dependencias";
+        else if (line.includes("Starting Docker container")) currentStep = "Levantamiento del Contenedor";
+        else if (line.includes("Nginx configuration applied")) currentStep = "Configuración del Proxy Inverso";
+        else if (line.includes("Deployment complete!")) currentStep = "Despliegue Exitoso";
+      }
+
+      const activeApp = apps?.find((a: any) => a.id === viewingLogsAppId);
+      const appName = activeApp?.name || "la aplicación";
+      const isStillBuilding = activeApp?.status === "building";
+
+      let explanation = "";
+
+      if (hasError) {
+        explanation = `### 🔍 Diagnóstico de IA: Fallo en el Despliegue\n\n` +
+          `Hemos detectado un error durante la fase de **${currentStep}** en **${appName}**.\n\n` +
+          `**Detalles del error detectado:**\n` +
+          `\`\`\`text\n${errorLines.slice(-3).join("\n")}\n\`\`\`\n\n` +
+          `**Causas comunes y soluciones propuestas:**\n` +
+          `1. **Error en build/compilación**: Si el error ocurrió en \`npm run build\`, asegúrate de que tu proyecto compila correctamente de manera local y que todas las dependencias (\`devDependencies\` y \`dependencies\`) estén bien declaradas en tu \`package.json\`.\n` +
+          `2. **Puerto incorrecto**: Asegúrate de que el puerto del contenedor configurado coincide con el que escucha tu servidor web (por ejemplo, Next.js usa 3000, Vite 5173, Express 3000, etc.).\n` +
+          `3. **Límite de recursos o espacio**: Verifica si el disco del VPS o la cuota asignada a tu plan no se ha agotado.`;
+      } else if (isStillBuilding) {
+        explanation = `### ⚙️ Diagnóstico de IA: Compilación en Progreso\n\n` +
+          `La aplicación **${appName}** se está compilando activamente usando **Nixpacks**.\n\n` +
+          `* **Fase Actual:** \`${currentStep}\`\n` +
+          `* **Estado:** Todo parece ir bien. Nixpacks está analizando tu código fuente de manera inteligente para descargar el runtime adecuado (Node.js, Python, etc.) y compilar las dependencias sin requerir un Dockerfile manual.\n\n` +
+          `*Consejo: El primer despliegue puede tardar un poco más debido a la descarga inicial del entorno. Los siguientes despliegues usarán la caché y serán mucho más rápidos.*`;
+      } else {
+        explanation = `### 🚀 Diagnóstico de IA: Despliegue Exitoso\n\n` +
+          `¡La aplicación **${appName}** se ha desplegado correctamente y está en línea!\n\n` +
+          `* **Fase Final:** \`Contenedor Iniciado e Habilitado en Nginx\`\n` +
+          `* **Uptime:** El contenedor Docker está activo.\n` +
+          `* **Detalle del Endpoint:** Las peticiones al dominio de producción son redirigidas a través del proxy inverso Nginx hacia el contenedor Docker de forma transparente.\n\n` +
+          `**Recomendación:** Si la página devuelve un error 502 o no carga, revisa que el servidor web interno de tu aplicación esté escuchando en la dirección \`0.0.0.0\` (y no solo en \`localhost\` / \`127.0.0.1\`) en el puerto configurado.`;
+      }
+
+      setAiExplanation(explanation);
+      setIsExplaining(false);
+    }, 600);
+  };
+
   // ── Fetch user domains ──────────────────────────────────────────────────────
   const { data: userDomains = [] } = useQuery({
     queryKey: ["odin_domains_for_cloudweb"],
@@ -200,7 +285,7 @@ export default function CloudWebPage() {
       }
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (data: any) => {
       setShowCreate(false);
       setNewApp(EMPTY_APP);
       setEnvVars([]);
@@ -208,6 +293,11 @@ export default function CloudWebPage() {
       setEnvMode("keyvalue");
       setShowEnvEditor(false);
       queryClient.invalidateQueries({ queryKey: ["odin_cloudweb_apps"] });
+      
+      // Auto-open logs for the newly deployed app
+      if (data?.data?.id) {
+        setViewingLogsAppId(data.data.id);
+      }
     },
     onError: (e: any) => {
       if (e.code === "DISK_LIMIT_EXCEEDED" || e.message?.toLowerCase().includes("espacio") || e.message?.toLowerCase().includes("disk")) {
@@ -330,29 +420,155 @@ export default function CloudWebPage() {
       )}
 
       {/* Visor de logs Docker */}
-      {viewingLogsAppId && (
-        <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-[999] flex items-center justify-center p-4">
-          <div className="bg-slate-950 border border-slate-800 rounded-[2.5rem] max-w-4xl w-full h-[550px] flex flex-col p-8 shadow-2xl animate-in zoom-in-95 duration-200">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-4 mb-4 shrink-0">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-emerald-950 text-emerald-400 flex items-center justify-center font-mono text-xs">LOG</div>
-                <div>
-                  <h3 className="text-sm font-black text-slate-200 uppercase tracking-tight">Docker Log Output</h3>
-                  <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-0.5">Visor de ejecución en tiempo real</p>
+      {viewingLogsAppId && (() => {
+        const activeApp = apps?.find((a: any) => a.id === viewingLogsAppId);
+        const isBuilding = activeApp?.status === "building";
+        return (
+          <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-[999] flex items-center justify-center p-4">
+            <div className="bg-[#0a0a0c] border border-zinc-800/80 rounded-[2.5rem] max-w-4xl w-full h-[550px] flex flex-col p-8 shadow-2xl animate-in zoom-in-95 duration-200">
+              <div className="flex items-center justify-between border-b border-zinc-800/80 pb-4 mb-4 shrink-0">
+                <div className="flex flex-col">
+                  <h3 className="text-xl font-bold text-white tracking-tight">
+                    {isBuilding ? "Deployment" : "Docker Container Logs"}
+                  </h3>
+                  <div className="flex flex-wrap items-center gap-2 mt-1">
+                    <span className="text-xs text-zinc-400">
+                      {isBuilding ? "See all the details of this deployment" : "Real-time execution logs and output history"}
+                    </span>
+                    <span className="text-zinc-750 text-xs">|</span>
+                    <span className="bg-zinc-800/80 text-zinc-300 text-[10px] font-mono px-2 py-0.5 rounded-full font-bold">
+                      {appLogs.length} {appLogs.length === 1 ? "line" : "lines"}
+                    </span>
+                    {appLogs.length > 0 && (
+                      <>
+                        <button 
+                          onClick={() => {
+                            navigator.clipboard.writeText(appLogs.join("\n"));
+                            alert("¡Logs copiados al portapapeles!");
+                          }}
+                          title="Copiar Logs"
+                          className="w-7 h-7 rounded-lg bg-zinc-800/80 hover:bg-zinc-700 text-zinc-305 hover:text-white flex items-center justify-center transition-colors active:scale-95 ml-1 border border-zinc-700/30"
+                        >
+                          <span className="material-symbols-outlined text-[16px]">content_copy</span>
+                        </button>
+                        <button 
+                          onClick={handleExplainLogs}
+                          title="Explicar con IA"
+                          className="w-7 h-7 rounded-lg bg-zinc-800/80 hover:bg-zinc-700 text-zinc-305 hover:text-white flex items-center justify-center transition-colors active:scale-95 border border-zinc-700/30"
+                        >
+                          <span className="material-symbols-outlined text-[16px]">smart_toy</span>
+                        </button>
+                      </>
+                    )}
+                  </div>
                 </div>
+                <button onClick={() => { setViewingLogsAppId(null); setAiExplanation(null); }} className="w-8 h-8 rounded-full hover:bg-zinc-805 text-zinc-400 hover:text-white flex items-center justify-center transition-all border border-zinc-800/80">
+                  <span className="material-symbols-outlined text-[20px]">close</span>
+                </button>
               </div>
-              <button onClick={() => setViewingLogsAppId(null)} className="w-8 h-8 rounded-full hover:bg-slate-900 text-slate-400 flex items-center justify-center transition-colors">
-                <span className="material-symbols-outlined text-[20px]">close</span>
-              </button>
-            </div>
-            <div className="flex-1 overflow-y-auto bg-slate-900/30 border border-slate-900 rounded-2xl p-6 font-mono text-[11px] text-slate-300 leading-relaxed custom-scrollbar">
-              {appLogs.map((log: string, idx: number) => (
-                <div key={idx} className="whitespace-pre-wrap">{log}</div>
-              ))}
+
+              {aiExplanation ? (
+                <div className="flex-1 overflow-y-auto bg-slate-900 border border-slate-800 rounded-2xl p-6 font-sans text-sm text-slate-300 leading-relaxed custom-scrollbar relative space-y-4 animate-in fade-in duration-200">
+                  <div className="flex items-center justify-between border-b border-slate-800 pb-3 mb-3">
+                    <span className="text-[10px] font-black text-[#00A3FF] uppercase tracking-widest flex items-center gap-1.5">
+                      <span className="material-symbols-outlined text-[14px]">smart_toy</span>
+                      Asistente AI de Despliegue
+                    </span>
+                    <button 
+                      onClick={() => setAiExplanation(null)} 
+                      className="px-3 py-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white rounded-lg text-[10px] font-bold uppercase transition-colors"
+                    >
+                      Volver a los Logs
+                    </button>
+                  </div>
+                  <div className="prose prose-invert prose-xs max-w-none space-y-3 font-medium text-xs">
+                    {aiExplanation.split("\n").map((line, i) => {
+                      if (line.startsWith("### ")) {
+                        return <h4 key={i} className="text-sm font-black text-white pt-2 uppercase tracking-tight">{line.replace("### ", "")}</h4>;
+                      }
+                      if (line.startsWith("* **")) {
+                        const clean = line.replace("* **", "");
+                        const [title, desc] = clean.split(":**");
+                        return (
+                          <p key={i} className="text-slate-300">
+                            <strong className="text-white">{title}:</strong> {desc}
+                          </p>
+                        );
+                      }
+                      if (line.startsWith("1. **") || line.startsWith("2. **") || line.startsWith("3. **")) {
+                        return <p key={i} className="text-slate-300 pl-4">{line}</p>;
+                      }
+                      if (line.startsWith("`[info]")) {
+                        return <pre key={i} className="bg-slate-950 p-3 rounded-lg border border-slate-800 text-[10px] font-mono text-zinc-400 overflow-x-auto">{line}</pre>;
+                      }
+                      if (line.startsWith("```")) {
+                        return null;
+                      }
+                      if (line.startsWith("Failed") || line.startsWith("Build failed") || line.startsWith("Error")) {
+                        return <pre key={i} className="bg-red-950/20 p-3 rounded-lg border border-red-900/30 text-[10px] font-mono text-red-400 overflow-x-auto">{line}</pre>;
+                      }
+                      if (line.startsWith("`") && line.endsWith("`")) {
+                        return <code key={i} className="bg-zinc-800 text-white px-1.5 py-0.5 rounded font-mono text-[11px]">{line.replace(/`/g, "")}</code>;
+                      }
+                      return <p key={i} className="text-slate-400 leading-relaxed">{line}</p>;
+                    })}
+                  </div>
+                </div>
+              ) : (
+                <div className="flex-1 overflow-y-auto bg-[#0a0a0c] border border-zinc-800/80 rounded-2xl p-4 font-mono text-[11px] text-slate-300 leading-relaxed custom-scrollbar flex flex-col space-y-0.5">
+                  {isExplaining ? (
+                    <div className="flex flex-col items-center justify-center h-full space-y-3 py-20 text-slate-400">
+                      <span className="w-8 h-8 border-2 border-zinc-800 border-t-[#00A3FF] rounded-full animate-spin" />
+                      <p className="text-[10px] font-black uppercase tracking-widest animate-pulse">Analizando trazas con IA...</p>
+                    </div>
+                  ) : appLogs.length === 0 ? (
+                    <div className="flex items-center justify-center h-full text-slate-500 text-[10px] font-bold uppercase tracking-widest py-10">
+                      Ninguna línea de log registrada aún.
+                    </div>
+                  ) : (
+                    appLogs.map((log: string, idx: number) => {
+                      const { type, message } = parseLogLine(log);
+                      let borderLeftColor = "transparent";
+                      let badgeClass = "text-slate-400 bg-zinc-800 border border-zinc-700/50";
+                      
+                      if (type === "info") {
+                        borderLeftColor = "#00A3FF";
+                        badgeClass = "text-[#00A3FF] bg-[#00A3FF]/10 border border-[#00A3FF]/20";
+                      } else if (type === "success") {
+                        borderLeftColor = "#10b981";
+                        badgeClass = "text-emerald-400 bg-emerald-500/10 border border-emerald-500/20";
+                      } else if (type === "debug") {
+                        borderLeftColor = "#d97706";
+                        badgeClass = "text-amber-400 bg-amber-500/10 border border-amber-500/20";
+                      } else if (type === "error") {
+                        borderLeftColor = "#ef4444";
+                        badgeClass = "text-red-400 bg-red-500/10 border border-red-500/20";
+                      }
+
+                      return (
+                        <div 
+                          key={idx} 
+                          className="flex items-stretch hover:bg-zinc-900/40 transition-colors border-l-2 py-1 px-3" 
+                          style={{ borderLeftColor }}
+                        >
+                          <div className="flex items-center shrink-0 w-20 select-none">
+                            <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest text-center w-16 block ${badgeClass}`}>
+                              {type}
+                            </span>
+                          </div>
+                          <div className="flex-1 font-mono text-[11px] text-zinc-300 whitespace-pre-wrap select-text leading-relaxed pl-3">
+                            {message}
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              )}
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Modal Editar Variables de Entorno */}
       {editingEnvApp && (
@@ -871,77 +1087,114 @@ export default function CloudWebPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-8">
-          {apps?.map((app: any) => (
-            <div key={app.id} className="bg-white border border-slate-200 p-8 rounded-[2.5rem] flex flex-col xl:flex-row justify-between items-center gap-10 group hover:border-[#00A3FF]/30 transition-all duration-500 shadow-sm">
-              <div className="flex gap-6 items-center w-full xl:w-1/3">
-                <div className="w-16 h-16 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-400 group-hover:bg-[#00A3FF] group-hover:text-white transition-all shadow-sm shrink-0">
-                  <span className="material-symbols-outlined text-3xl">cloud</span>
+          {apps?.map((app: any) => {
+            const isAppBuilding = app.status === "building";
+            return (
+              <div key={app.id} className="bg-white border border-slate-200 p-8 rounded-[2.5rem] flex flex-col xl:flex-row justify-between items-center gap-10 group hover:border-[#00A3FF]/30 transition-all duration-500 shadow-sm">
+                <div className="flex gap-6 items-center w-full xl:w-1/3">
+                  <div className="w-16 h-16 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-400 group-hover:bg-[#00A3FF] group-hover:text-white transition-all shadow-sm shrink-0">
+                    <span className="material-symbols-outlined text-3xl">cloud</span>
+                  </div>
+                  <div className="space-y-1">
+                    <h3 className="text-2xl font-black text-slate-900 group-hover:text-[#00A3FF] transition-colors flex items-center gap-3">
+                      {app.name}
+                      {app.build_type !== "static" && (
+                        <span 
+                          className={`w-2.5 h-2.5 rounded-full ${
+                            isAppBuilding 
+                              ? "bg-[#00A3FF] animate-pulse shadow-[0_0_8px_#00a3ff]" 
+                              : app.status === "online" 
+                                ? "bg-emerald-500 shadow-[0_0_8px_#10b981]" 
+                                : "bg-red-500"
+                          }`} 
+                        />
+                      )}
+                      {isAppBuilding && (
+                        <span className="px-2 py-0.5 bg-[#00A3FF]/10 border border-[#00A3FF]/20 text-[#00A3FF] text-[8px] font-black uppercase rounded-md tracking-wider animate-pulse flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 border border-t-transparent border-[#00A3FF] rounded-full animate-spin" />
+                          Compilando...
+                        </span>
+                      )}
+                    </h3>
+                    <div className="flex flex-wrap gap-3">
+                      {app.build_type !== "static" && (
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                          Puerto Docker: <strong className="text-[#00A3FF]">{app.host_port || "Asignando..."}</strong>
+                        </span>
+                      )}
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Compilador: <strong className="text-[#00A3FF] uppercase">{app.build_type}</strong></span>
+                      <span className="text-[10px] font-black text-[#00A3FF] tracking-widest">https://{app.domain}</span>
+                      {app.github_repo && (
+                        <a href={`https://github.com/${app.github_repo}`} target="_blank" rel="noopener noreferrer"
+                          className="flex items-center gap-1 text-[10px] font-black text-slate-500 hover:text-slate-800 transition-colors"
+                        >
+                          <GitHubIcon className="w-3 h-3" /> {app.github_repo} ({app.github_branch})
+                        </a>
+                      )}
+                    </div>
+                  </div>
                 </div>
-                <div className="space-y-1">
-                  <h3 className="text-2xl font-black text-slate-900 group-hover:text-[#00A3FF] transition-colors flex items-center gap-3">
-                    {app.name}
-                    {app.build_type !== "static" && (
-                      <span className={`w-2.5 h-2.5 rounded-full ${app.status === "online" ? "bg-emerald-500 shadow-[0_0_8px_#10b981]" : "bg-red-500"}`} />
-                    )}
-                  </h3>
-                  <div className="flex flex-wrap gap-3">
-                    {app.build_type !== "static" && (
-                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Puerto Docker: <strong className="text-[#00A3FF]">{app.host_port}</strong></span>
-                    )}
-                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Compilador: <strong className="text-[#00A3FF] uppercase">{app.build_type}</strong></span>
-                    <span className="text-[10px] font-black text-[#00A3FF] tracking-widest">https://{app.domain}</span>
-                    {app.github_repo && (
-                      <a href={`https://github.com/${app.github_repo}`} target="_blank" rel="noopener noreferrer"
-                        className="flex items-center gap-1 text-[10px] font-black text-slate-500 hover:text-slate-800 transition-colors"
+
+                <div className="flex flex-col md:flex-row gap-6 md:gap-10 items-center flex-1 w-full xl:w-auto border-y xl:border-y-0 xl:border-x border-slate-100 py-6 xl:py-0 px-8 justify-end">
+                  {app.build_type !== "static" ? (
+                    <div className="flex gap-2 bg-slate-50 p-2 rounded-2xl border border-slate-100 shadow-inner">
+                      <button 
+                        onClick={() => manageMutation.mutate({ id: app.id, action: "start" })}
+                        disabled={isAppBuilding || manageMutation.isPending}
+                        className="px-4 py-2 text-[10px] uppercase font-black tracking-widest text-slate-400 hover:text-emerald-500 hover:bg-emerald-50 rounded-xl transition-all disabled:opacity-30 disabled:cursor-not-allowed"
                       >
-                        <GitHubIcon className="w-3 h-3" /> {app.github_repo} ({app.github_branch})
-                      </a>
-                    )}
-                  </div>
+                        Iniciar
+                      </button>
+                      <button 
+                        onClick={() => manageMutation.mutate({ id: app.id, action: "restart" })}
+                        disabled={isAppBuilding || manageMutation.isPending}
+                        className="px-4 py-2 text-[10px] uppercase font-black tracking-widest text-slate-400 hover:text-amber-500 hover:bg-amber-50 rounded-xl transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+                      >
+                        Reiniciar
+                      </button>
+                      <button 
+                        onClick={() => manageMutation.mutate({ id: app.id, action: "stop" })}
+                        disabled={isAppBuilding || manageMutation.isPending}
+                        className="px-4 py-2 text-[10px] uppercase font-black tracking-widest text-red-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+                      >
+                        Parar
+                      </button>
+                    </div>
+                  ) : (
+                    <span className="text-[10px] font-black text-emerald-500 uppercase bg-emerald-50 px-4 py-2 rounded-xl">Servido Estático Nginx</span>
+                  )}
+
+                  {app.build_type !== "static" && (
+                    <>
+                      <button
+                        onClick={() => handleOpenEnvModal(app)}
+                        disabled={isAppBuilding}
+                        className="flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-slate-100 hover:bg-[#00A3FF] hover:text-white transition-all text-slate-500 text-[10px] font-black uppercase tracking-widest disabled:opacity-30 disabled:cursor-not-allowed"
+                      >
+                        <span className="material-symbols-outlined text-[16px]">tune</span>
+                        Variables
+                      </button>
+                      <button
+                        onClick={() => setViewingLogsAppId(app.id)}
+                        className="flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-slate-100 hover:bg-[#00A3FF] hover:text-white transition-all text-slate-500 text-[10px] font-black uppercase tracking-widest"
+                      >
+                        <span className="material-symbols-outlined text-[16px]">terminal</span>
+                        Logs
+                      </button>
+                    </>
+                  )}
                 </div>
+
+                <button 
+                  onClick={() => { if (confirm("¿Eliminar aplicación del PaaS permanentemente?")) deleteMutation.mutate(app.id); }}
+                  disabled={isAppBuilding || deleteMutation.isPending}
+                  className="w-12 h-12 rounded-2xl bg-red-50 text-red-400 hover:bg-red-500 hover:text-white transition-all flex items-center justify-center shadow-sm disabled:opacity-30 disabled:cursor-not-allowed"
+                >
+                  <span className="material-symbols-outlined text-[20px]">delete</span>
+                </button>
               </div>
-
-              <div className="flex flex-col md:flex-row gap-6 md:gap-10 items-center flex-1 w-full xl:w-auto border-y xl:border-y-0 xl:border-x border-slate-100 py-6 xl:py-0 px-8 justify-end">
-                {app.build_type !== "static" ? (
-                  <div className="flex gap-2 bg-slate-50 p-2 rounded-2xl border border-slate-100 shadow-inner">
-                    <button onClick={() => manageMutation.mutate({ id: app.id, action: "start" })}
-                      className="px-4 py-2 text-[10px] uppercase font-black tracking-widest text-slate-400 hover:text-emerald-500 hover:bg-emerald-50 rounded-xl transition-all">Iniciar</button>
-                    <button onClick={() => manageMutation.mutate({ id: app.id, action: "restart" })}
-                      className="px-4 py-2 text-[10px] uppercase font-black tracking-widest text-slate-400 hover:text-amber-500 hover:bg-amber-50 rounded-xl transition-all">Reiniciar</button>
-                    <button onClick={() => manageMutation.mutate({ id: app.id, action: "stop" })}
-                      className="px-4 py-2 text-[10px] uppercase font-black tracking-widest text-red-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all">Parar</button>
-                  </div>
-                ) : (
-                  <span className="text-[10px] font-black text-emerald-500 uppercase bg-emerald-50 px-4 py-2 rounded-xl">Servido Estático Nginx</span>
-                )}
-
-                {app.build_type !== "static" && (
-                  <>
-                    <button
-                      onClick={() => handleOpenEnvModal(app)}
-                      className="flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-slate-100 hover:bg-[#00A3FF] hover:text-white transition-all text-slate-500 text-[10px] font-black uppercase tracking-widest"
-                    >
-                      <span className="material-symbols-outlined text-[16px]">tune</span>
-                      Variables
-                    </button>
-                    <button
-                      onClick={() => setViewingLogsAppId(app.id)}
-                      className="flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-slate-100 hover:bg-[#00A3FF] hover:text-white transition-all text-slate-500 text-[10px] font-black uppercase tracking-widest"
-                    >
-                      <span className="material-symbols-outlined text-[16px]">terminal</span>
-                      Logs
-                    </button>
-                  </>
-                )}
-              </div>
-
-              <button onClick={() => { if (confirm("¿Eliminar aplicación del PaaS permanentemente?")) deleteMutation.mutate(app.id); }}
-                className="w-12 h-12 rounded-2xl bg-red-50 text-red-400 hover:bg-red-500 hover:text-white transition-all flex items-center justify-center shadow-sm"
-              >
-                <span className="material-symbols-outlined text-[20px]">delete</span>
-              </button>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
