@@ -440,163 +440,84 @@ export default function CloudWebPage() {
                       {appLogs.length} {appLogs.length === 1 ? "line" : "lines"}
                     </span>
                     {appLogs.length > 0 && (
-                      <>
-                        <button 
-                          onClick={() => {
-                            navigator.clipboard.writeText(appLogs.join("\n"));
-                            alert("¡Logs copiados al portapapeles!");
-                          }}
-                          title="Copiar Logs"
-                          className="w-7 h-7 rounded-lg bg-[#111B2F] hover:bg-[#00A3FF]/15 text-[#00A3FF] hover:text-[#00E5FF] flex items-center justify-center transition-colors active:scale-95 ml-1 border border-[#00A3FF]/20"
-                        >
-                          <span className="material-symbols-outlined text-[16px]">content_copy</span>
-                        </button>
-                        <button 
-                          onClick={handleExplainLogs}
-                          title="Explicar con IA"
-                          className="w-7 h-7 rounded-lg bg-[#111B2F] hover:bg-[#00A3FF]/15 text-[#00A3FF] hover:text-[#00E5FF] flex items-center justify-center transition-colors active:scale-95 border border-[#00A3FF]/20"
-                        >
-                          <span className="material-symbols-outlined text-[16px]">smart_toy</span>
-                        </button>
-                      </>
+                      <button 
+                        onClick={() => {
+                          navigator.clipboard.writeText(appLogs.join("\n"));
+                          alert("¡Logs copiados al portapapeles!");
+                        }}
+                        title="Copiar Logs"
+                        className="w-7 h-7 rounded-lg bg-[#111B2F] hover:bg-[#00A3FF]/15 text-[#00A3FF] hover:text-[#00E5FF] flex items-center justify-center transition-colors active:scale-95 ml-1 border border-[#00A3FF]/20"
+                      >
+                        <span className="material-symbols-outlined text-[16px]">content_copy</span>
+                      </button>
                     )}
                   </div>
                 </div>
-                <button onClick={() => { setViewingLogsAppId(null); setAiExplanation(null); }} className="w-8 h-8 rounded-full hover:bg-red-500/10 text-slate-400 hover:text-red-400 flex items-center justify-center transition-all border border-[#00A3FF]/15 hover:border-red-500/20">
+                <button onClick={() => setViewingLogsAppId(null)} className="w-8 h-8 rounded-full hover:bg-red-500/10 text-slate-400 hover:text-red-400 flex items-center justify-center transition-all border border-[#00A3FF]/15 hover:border-red-500/20">
                   <span className="material-symbols-outlined text-[20px]">close</span>
                 </button>
               </div>
 
-              {aiExplanation ? (
-                <div className="flex-1 overflow-y-auto bg-[#0A1221] border border-[#00A3FF]/15 rounded-2xl p-6 font-sans text-sm text-slate-300 leading-relaxed logs-terminal relative space-y-4 animate-in fade-in duration-200">
-                  <style>{`
-                    .logs-terminal::-webkit-scrollbar {
-                      width: 6px;
-                      height: 6px;
-                    }
-                    .logs-terminal::-webkit-scrollbar-track {
-                      background: #0A1221;
-                    }
-                    .logs-terminal::-webkit-scrollbar-thumb {
-                      background: rgba(0, 163, 255, 0.2);
-                      border-radius: 9999px;
-                    }
-                    .logs-terminal::-webkit-scrollbar-thumb:hover {
-                      background: rgba(0, 163, 255, 0.4);
-                    }
-                  `}</style>
-                  <div className="flex items-center justify-between border-b border-[#00A3FF]/20 pb-3 mb-3">
-                    <span className="text-[10px] font-black text-[#00A3FF] uppercase tracking-widest flex items-center gap-1.5">
-                      <span className="material-symbols-outlined text-[14px]">smart_toy</span>
-                      Asistente AI de Despliegue
-                    </span>
-                    <button 
-                      onClick={() => setAiExplanation(null)} 
-                      className="px-3 py-1 bg-[#111B2F] hover:bg-[#00A3FF]/15 text-[#00A3FF] hover:text-[#00E5FF] rounded-lg text-[10px] font-bold uppercase transition-colors border border-[#00A3FF]/20"
-                    >
-                      Volver a los Logs
-                    </button>
+              <div className="flex-1 overflow-y-auto bg-[#0A1221] border border-[#00A3FF]/15 rounded-2xl py-3 px-0 font-mono text-[11px] text-slate-300 leading-relaxed logs-terminal flex flex-col">
+                <style>{`
+                  .logs-terminal::-webkit-scrollbar {
+                    width: 6px;
+                    height: 6px;
+                  }
+                  .logs-terminal::-webkit-scrollbar-track {
+                    background: #0A1221;
+                  }
+                  .logs-terminal::-webkit-scrollbar-thumb {
+                    background: rgba(0, 163, 255, 0.2);
+                    border-radius: 9999px;
+                  }
+                  .logs-terminal::-webkit-scrollbar-thumb:hover {
+                    background: rgba(0, 163, 255, 0.4);
+                  }
+                `}</style>
+                {appLogs.length === 0 ? (
+                  <div className="flex items-center justify-center h-full text-slate-500 text-[10px] font-bold uppercase tracking-widest py-10">
+                    Ninguna línea de log registrada aún.
                   </div>
-                  <div className="prose prose-invert prose-xs max-w-none space-y-3 font-medium text-xs">
-                    {aiExplanation.split("\n").map((line, i) => {
-                      if (line.startsWith("### ")) {
-                        return <h4 key={i} className="text-sm font-black text-white pt-2 uppercase tracking-tight">{line.replace("### ", "")}</h4>;
-                      }
-                      if (line.startsWith("* **")) {
-                        const clean = line.replace("* **", "");
-                        const [title, desc] = clean.split(":**");
-                        return (
-                          <p key={i} className="text-slate-300">
-                            <strong className="text-white">{title}:</strong> {desc}
-                          </p>
-                        );
-                      }
-                      if (line.startsWith("1. **") || line.startsWith("2. **") || line.startsWith("3. **")) {
-                        return <p key={i} className="text-slate-300 pl-4">{line}</p>;
-                      }
-                      if (line.startsWith("`[info]")) {
-                        return <pre key={i} className="bg-slate-950 p-3 rounded-lg border border-[#00A3FF]/25 text-[10px] font-mono text-zinc-400 overflow-x-auto">{line}</pre>;
-                      }
-                      if (line.startsWith("```")) {
-                        return null;
-                      }
-                      if (line.startsWith("Failed") || line.startsWith("Build failed") || line.startsWith("Error")) {
-                        return <pre key={i} className="bg-red-950/20 p-3 rounded-lg border border-red-900/30 text-[10px] font-mono text-red-400 overflow-x-auto">{line}</pre>;
-                      }
-                      if (line.startsWith("`") && line.endsWith("`")) {
-                        return <code key={i} className="bg-[#111B2F] text-[#00A3FF] px-1.5 py-0.5 rounded font-mono text-[11px] border border-[#00A3FF]/10">{line.replace(/`/g, "")}</code>;
-                      }
-                      return <p key={i} className="text-slate-400 leading-relaxed">{line}</p>;
-                    })}
-                  </div>
-                </div>
-              ) : (
-                <div className="flex-1 overflow-y-auto bg-[#0A1221] border border-[#00A3FF]/15 rounded-2xl py-3 px-0 font-mono text-[11px] text-slate-300 leading-relaxed logs-terminal flex flex-col">
-                  <style>{`
-                    .logs-terminal::-webkit-scrollbar {
-                      width: 6px;
-                      height: 6px;
+                ) : (
+                  appLogs.map((log: string, idx: number) => {
+                    const { type, message } = parseLogLine(log);
+                    let borderLeftColor = "transparent";
+                    let badgeClass = "text-slate-400 bg-slate-800 border border-slate-700/50";
+                    
+                    if (type === "info") {
+                      borderLeftColor = "#00A3FF";
+                      badgeClass = "text-[#00A3FF] bg-[#00A3FF]/10 border border-[#00A3FF]/20";
+                    } else if (type === "success") {
+                      borderLeftColor = "#00E5FF";
+                      badgeClass = "text-[#00E5FF] bg-[#00E5FF]/10 border border-[#00E5FF]/20";
+                    } else if (type === "debug") {
+                      borderLeftColor = "#1e293b";
+                      badgeClass = "text-slate-400 bg-[#111B2F]/40 border border-slate-700/30";
+                    } else if (type === "error") {
+                      borderLeftColor = "#ef4444";
+                      badgeClass = "text-red-400 bg-red-500/10 border border-red-500/20";
                     }
-                    .logs-terminal::-webkit-scrollbar-track {
-                      background: #0A1221;
-                    }
-                    .logs-terminal::-webkit-scrollbar-thumb {
-                      background: rgba(0, 163, 255, 0.2);
-                      border-radius: 9999px;
-                    }
-                    .logs-terminal::-webkit-scrollbar-thumb:hover {
-                      background: rgba(0, 163, 255, 0.4);
-                    }
-                  `}</style>
-                  {isExplaining ? (
-                    <div className="flex flex-col items-center justify-center h-full space-y-3 py-20 text-slate-400">
-                      <span className="w-8 h-8 border-2 border-[#0A1221] border-t-[#00A3FF] rounded-full animate-spin" />
-                      <p className="text-[10px] font-black uppercase tracking-widest animate-pulse">Analizando trazas con IA...</p>
-                    </div>
-                  ) : appLogs.length === 0 ? (
-                    <div className="flex items-center justify-center h-full text-slate-500 text-[10px] font-bold uppercase tracking-widest py-10">
-                      Ninguna línea de log registrada aún.
-                    </div>
-                  ) : (
-                    appLogs.map((log: string, idx: number) => {
-                      const { type, message } = parseLogLine(log);
-                      let borderLeftColor = "transparent";
-                      let badgeClass = "text-slate-400 bg-slate-800 border border-slate-700/50";
-                      
-                      if (type === "info") {
-                        borderLeftColor = "#00A3FF";
-                        badgeClass = "text-[#00A3FF] bg-[#00A3FF]/10 border border-[#00A3FF]/20";
-                      } else if (type === "success") {
-                        borderLeftColor = "#00E5FF";
-                        badgeClass = "text-[#00E5FF] bg-[#00E5FF]/10 border border-[#00E5FF]/20";
-                      } else if (type === "debug") {
-                        borderLeftColor = "#1e293b";
-                        badgeClass = "text-slate-400 bg-[#111B2F]/40 border border-slate-700/30";
-                      } else if (type === "error") {
-                        borderLeftColor = "#ef4444";
-                        badgeClass = "text-red-400 bg-red-500/10 border border-red-500/20";
-                      }
 
-                      return (
-                        <div 
-                          key={idx} 
-                          className="flex items-stretch hover:bg-[#111B2F]/40 transition-colors border-l-4 py-0.5 pl-4 pr-3" 
-                          style={{ borderLeftColor }}
-                        >
-                          <div className="flex items-center shrink-0 w-20 select-none">
-                            <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest text-center w-16 block ${badgeClass}`}>
-                              {type}
-                            </span>
-                          </div>
-                          <div className="flex-1 font-mono text-[11px] text-slate-300 whitespace-pre-wrap select-text leading-relaxed pl-3">
-                            {message}
-                          </div>
+                    return (
+                      <div 
+                        key={idx} 
+                        className="flex items-stretch hover:bg-[#111B2F]/40 transition-colors border-l-4 py-0.5 pl-4 pr-3" 
+                        style={{ borderLeftColor }}
+                      >
+                        <div className="flex items-center shrink-0 w-20 select-none">
+                          <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest text-center w-16 block ${badgeClass}`}>
+                            {type}
+                          </span>
                         </div>
-                      );
-                    })
-                  )}
-                </div>
-              )}
+                        <div className="flex-1 font-mono text-[11px] text-slate-300 whitespace-pre-wrap select-text leading-relaxed pl-3">
+                          {message}
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
             </div>
           </div>
         );
