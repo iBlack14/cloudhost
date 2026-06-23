@@ -103,83 +103,88 @@ export default function TrashPage() {
 
         <div className="flex-1 flex overflow-hidden">
           {/* Message List */}
-          <section className={`
-            flex flex-col border-r border-slate-100 transition-all duration-500 bg-white
-            ${selectedId ? "w-[450px] 2xl:w-[550px]" : "w-full"}
-          `}>
+          <section className="flex flex-col w-full bg-white">
              <div className="flex-1 overflow-y-auto custom-scrollbar">
-                {loading ? (
-                  <div className="p-24 flex flex-col items-center gap-4 opacity-30">
-                    <div className="w-8 h-8 border-4 border-slate-100 border-t-[#00A3FF] rounded-full animate-spin"></div>
-                    <span className="text-[11px] font-black uppercase tracking-widest text-slate-400">Recuperando Papelera...</span>
-                  </div>
-                ) : messages.length === 0 ? (
-                  <div className="p-32 text-center flex flex-col items-center opacity-40">
-                     <div className="w-20 h-20 rounded-full bg-slate-50 flex items-center justify-center mb-6 border border-slate-100">
-                        <span className="material-symbols-outlined text-4xl text-slate-300">delete</span>
+                 {loading ? (
+                   <div className="p-24 flex flex-col items-center gap-4 opacity-30">
+                     <div className="w-8 h-8 border-4 border-slate-100 border-t-[#00A3FF] rounded-full animate-spin"></div>
+                     <span className="text-[11px] font-black uppercase tracking-widest text-slate-400">Recuperando Papelera...</span>
+                   </div>
+                 ) : messages.length === 0 ? (
+                   <div className="p-32 text-center flex flex-col items-center opacity-40">
+                      <div className="w-20 h-20 rounded-full bg-slate-50 flex items-center justify-center mb-6 border border-slate-100">
+                         <span className="material-symbols-outlined text-4xl text-slate-300">delete</span>
+                      </div>
+                      <div className="text-slate-500 text-sm font-medium">No hay conversaciones en la Papelera.</div>
+                   </div>
+                 ) : (
+                   messages.map((message) => (
+                     <div
+                       key={message.id}
+                       onClick={() => setSelectedId(message.id)}
+                       className={`
+                         group flex items-center px-4 py-3 border-b border-slate-50 cursor-pointer transition-all relative
+                         ${selectedId === message.id ? "bg-slate-100 z-10" : "hover:bg-slate-50 hover:shadow-sm hover:z-10"}
+                         bg-white
+                       `}
+                     >
+                       <div className="flex items-center gap-3 shrink-0 mr-4">
+                         <span className="material-symbols-outlined text-slate-300 text-[20px]">check_box_outline_blank</span>
+                         <span 
+                           onClick={(e) => { e.stopPropagation(); toggleStar(message); }}
+                           className={`material-symbols-outlined text-[20px] transition-colors ${message.starred ? "text-amber-400 font-variation-fill" : "text-slate-300 hover:text-slate-500"}`}
+                         >
+                           {message.starred ? "star" : "star_outline"}
+                         </span>
+                       </div>
+
+                       <div className="w-48 shrink-0 text-sm truncate mr-4 text-slate-500 font-medium italic opacity-70">
+                          {message.from}
+                       </div>
+
+                       <div className="flex-1 min-w-0 flex items-baseline gap-2">
+                          <span className="text-sm truncate font-bold text-slate-600 line-through decoration-slate-300">
+                            {message.subject}
+                          </span>
+                          <span className="text-sm text-slate-400 truncate font-medium">
+                            - {message.preview}
+                          </span>
+                       </div>
+
+                       <div className="shrink-0 ml-4 text-[11px] font-bold uppercase tracking-tight text-slate-400">
+                          {message.receivedAt}
+                       </div>
+
+                       {/* Hover Actions */}
+                       <div className="absolute right-4 inset-y-0 flex items-center gap-1 bg-inherit px-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <ToolbarIcon icon="restore_from_trash" onClick={(e) => { e.stopPropagation(); restoreMessage(message); }} />
+                          <ToolbarIcon icon="delete_forever" />
+                       </div>
                      </div>
-                     <div className="text-slate-500 text-sm font-medium">No hay conversaciones en la Papelera.</div>
-                  </div>
-                ) : (
-                  messages.map((message) => (
-                    <div
-                      key={message.id}
-                      onClick={() => setSelectedId(message.id)}
-                      className={`
-                        group flex items-center px-4 py-3 border-b border-slate-50 cursor-pointer transition-all relative
-                        ${selectedId === message.id ? "bg-slate-100 z-10" : "hover:bg-slate-50 hover:shadow-sm hover:z-10"}
-                        bg-white
-                      `}
-                    >
-                      <div className="flex items-center gap-3 shrink-0 mr-4">
-                        <span className="material-symbols-outlined text-slate-300 text-[20px]">check_box_outline_blank</span>
-                        <span 
-                          onClick={(e) => { e.stopPropagation(); toggleStar(message); }}
-                          className={`material-symbols-outlined text-[20px] transition-colors ${message.starred ? "text-amber-400 font-variation-fill" : "text-slate-300 hover:text-slate-500"}`}
-                        >
-                          {message.starred ? "star" : "star_outline"}
-                        </span>
-                      </div>
-
-                      <div className="w-48 shrink-0 text-sm truncate mr-4 text-slate-500 font-medium italic opacity-70">
-                         {message.from}
-                      </div>
-
-                      <div className="flex-1 min-w-0 flex items-baseline gap-2">
-                         <span className="text-sm truncate font-bold text-slate-600 line-through decoration-slate-300">
-                           {message.subject}
-                         </span>
-                         <span className="text-sm text-slate-400 truncate font-medium">
-                           - {message.preview}
-                         </span>
-                      </div>
-
-                      <div className="shrink-0 ml-4 text-[11px] font-bold uppercase tracking-tight text-slate-400">
-                         {message.receivedAt}
-                      </div>
-
-                      {/* Hover Actions */}
-                      <div className="absolute right-4 inset-y-0 flex items-center gap-1 bg-inherit px-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                         <ToolbarIcon icon="restore_from_trash" onClick={(e) => { e.stopPropagation(); restoreMessage(message); }} />
-                         <ToolbarIcon icon="delete_forever" />
-                      </div>
-                    </div>
-                  ))
-                )}
-             </div>
+                   ))
+                 )}
+              </div>
           </section>
 
-          {/* Integrated Reading Pane */}
-          {selectedId && (
-            <section className="flex-1 bg-white flex flex-col min-w-0 overflow-hidden">
-               <MessagePane
-                 key={selectedMessage?.id}
-                 me={me}
-                 summary={selectedMessage!}
-                 onClose={() => setSelectedId(null)}
-                 onRestore={() => selectedMessage && restoreMessage(selectedMessage)}
-               />
-            </section>
+          {/* Message Details Modal Window */}
+          {selectedId && selectedMessage && (
+            <div 
+              onClick={() => setSelectedId(null)}
+              className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 md:p-6 animate-in fade-in duration-200"
+            >
+              <div 
+                onClick={(e) => e.stopPropagation()}
+                className="bg-white w-full max-w-5xl h-[85vh] rounded-[2rem] shadow-[0_32px_128px_rgba(0,163,255,0.15)] border border-slate-200/50 flex flex-col overflow-hidden animate-in zoom-in-95 duration-200"
+              >
+                <MessagePane
+                  key={selectedMessage.id}
+                  me={me}
+                  summary={selectedMessage}
+                  onClose={() => setSelectedId(null)}
+                  onRestore={() => restoreMessage(selectedMessage)}
+                />
+              </div>
+            </div>
           )}
         </div>
       </div>
@@ -223,6 +228,9 @@ function MessagePane({
           <div className="h-6 w-px bg-slate-100 mx-2"></div>
           <ToolbarIcon icon="report" />
           <ToolbarIcon icon="more_vert" />
+          <div className="ml-auto">
+             <ToolbarIcon icon="close" onClick={onClose} />
+          </div>
        </div>
 
        <div className="flex-1 overflow-y-auto p-12 lg:p-20 custom-scrollbar">
