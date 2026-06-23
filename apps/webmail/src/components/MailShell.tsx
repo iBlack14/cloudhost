@@ -147,12 +147,12 @@ function FloatingCompose({ onClose }: { onClose: () => void }) {
 
   return (
     <div className={`
-      fixed bottom-0 right-10 w-[520px] bg-white shadow-[0_32px_128px_rgba(0,163,255,0.15)] rounded-t-2xl border border-slate-200 z-50 flex flex-col transition-all duration-500 transform
-      ${minimized ? "h-12 translate-y-0" : "h-[640px] translate-y-0"}
+      fixed bottom-0 right-10 w-[420px] bg-white shadow-[0_16px_64px_rgba(0,163,255,0.12)] rounded-t-xl border border-slate-200 z-50 flex flex-col transition-all duration-500 transform
+      ${minimized ? "h-11 translate-y-0" : "h-[460px] translate-y-0"}
       animate-in slide-in-from-bottom-20
     `}>
        {/* Window Header */}
-       <div className="h-12 bg-[#1A1F2D] text-white flex items-center justify-between px-6 rounded-t-2xl shrink-0 cursor-pointer group" onClick={() => setMinimized(!minimized)}>
+       <div className="h-11 bg-[#1A1F2D] text-white flex items-center justify-between px-5 rounded-t-xl shrink-0 cursor-pointer group" onClick={() => setMinimized(!minimized)}>
           <div className="flex items-center gap-3">
              <div className="w-1.5 h-1.5 rounded-full bg-[#00A3FF] animate-pulse"></div>
              <span className="text-xs font-semibold tracking-wide opacity-90 group-hover:opacity-100 transition-opacity">Mensaje nuevo</span>
@@ -166,7 +166,7 @@ function FloatingCompose({ onClose }: { onClose: () => void }) {
 
        {!minimized && (
          <>
-           <div className="flex-1 flex flex-col p-8 space-y-px overflow-hidden">
+           <div className="flex-1 flex flex-col px-5 py-3 space-y-px overflow-hidden">
               <div className="flex items-center border-b border-slate-100 py-3">
                  <span className="text-xs font-semibold text-slate-400 w-12">Para</span>
                  <input 
@@ -193,25 +193,25 @@ function FloatingCompose({ onClose }: { onClose: () => void }) {
                 placeholder="Escribe tu mensaje..." 
                 value={body}
                 onChange={(e) => setBody(e.target.value)}
-                className="flex-1 w-full outline-none py-6 text-sm font-medium text-slate-700 resize-none custom-scrollbar leading-relaxed" 
+                className="flex-1 w-full outline-none py-3 text-sm font-medium text-slate-700 resize-none custom-scrollbar leading-relaxed" 
               />
            </div>
 
            {/* Functional Toolbar Footer */}
-           <div className="h-20 border-t border-slate-100 flex items-center justify-between px-8 shrink-0 bg-white rounded-b-2xl">
+           <div className="h-14 border-t border-slate-100 flex items-center justify-between px-5 shrink-0 bg-white">
               <div className="flex items-center gap-6">
                  {/* Unified Send Pill */}
-                 <div className="flex items-center bg-[#00A3FF] rounded-full overflow-hidden shadow-2xl shadow-[#00A3FF]/30 group active:scale-95 transition-all">
+                 <div className="flex items-center bg-[#00A3FF] rounded-full overflow-hidden shadow-lg shadow-[#00A3FF]/20 group active:scale-95 transition-all">
                     <button 
                       onClick={handleSend}
                       disabled={loading || !to || !subject || !body}
-                      className="px-8 py-3.5 text-xs font-semibold tracking-wide text-white hover:bg-[#008EE0] transition-colors disabled:opacity-50"
+                      className="px-6 py-2.5 text-xs font-semibold text-white hover:bg-[#008EE0] transition-colors disabled:opacity-50"
                     >
-                       {loading ? "Sincronizando..." : "Enviar"}
+                       {loading ? "Enviando..." : "Enviar"}
                     </button>
-                    <div className="w-[1px] h-10 bg-white/10"></div>
-                    <button className="px-3 py-3.5 text-white hover:bg-[#008EE0] transition-colors">
-                       <span className="material-symbols-outlined text-[20px]">arrow_drop_down</span>
+                    <div className="w-[1px] h-7 bg-white/10"></div>
+                    <button className="px-2 py-2.5 text-white hover:bg-[#008EE0] transition-colors">
+                       <span className="material-symbols-outlined text-[18px]">arrow_drop_down</span>
                     </button>
                  </div>
 
