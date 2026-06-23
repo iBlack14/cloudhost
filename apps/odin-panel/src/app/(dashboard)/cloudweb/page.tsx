@@ -71,6 +71,10 @@ export default function CloudWebPage() {
   // Modales
   const [diskQuotaAlert, setDiskQuotaAlert] = useState(false);
   const [viewingLogsAppId, setViewingLogsAppId] = useState<string | null>(null);
+  const [editingEnvApp, setEditingEnvApp] = useState<any | null>(null);
+  const [editEnvVars, setEditEnvVars] = useState<EnvVar[]>([]);
+  const [editBulkEnvText, setEditBulkEnvText] = useState("");
+  const [editEnvMode, setEditEnvMode] = useState<EnvMode>("keyvalue");
 
   // ── Fetch user domains ──────────────────────────────────────────────────────
   const { data: userDomains = [] } = useQuery({
@@ -233,6 +237,46 @@ export default function CloudWebPage() {
     onError: (e: Error) => alert(e.message),
   });
 
+  const updateEnvMutation = useMutation({
+    mutationFn: async ({ id, envs }: { id: string; envs: Record<string, string> }) => {
+      const res = await fetch(`${API_BASE}/odin-panel/cloud-web/${id}/env`, {
+        method: "PUT",
+        headers: authHeaders(),
+        body: JSON.stringify({ envs }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(data?.error?.message ?? "Error al actualizar las variables");
+      return data;
+    },
+    onSuccess: () => {
+      setEditingEnvApp(null);
+      queryClient.invalidateQueries({ queryKey: ["odin_cloudweb_apps"] });
+    },
+    onError: (e: Error) => alert(e.message),
+  });
+
+  const handleOpenEnvModal = (app: any) => {
+    setEditingEnvApp(app);
+    const vars = Object.entries(app.env_vars || {}).map(([key, value]) => ({ key, value: String(value) }));
+    setEditEnvVars(vars);
+    const bulk = Object.entries(app.env_vars || {})
+      .map(([key, value]) => `${key}=${value}`)
+      .join("\n");
+    setEditBulkEnvText(bulk);
+    setEditEnvMode("keyvalue");
+  };
+
+  const handleSaveEnv = () => {
+    if (!editingEnvApp) return;
+    let envs: Record<string, string> = {};
+    if (editEnvMode === "bulk") {
+      envs = parseBulkEnv(editBulkEnvText);
+    } else {
+      envs = Object.fromEntries(editEnvVars.filter((v) => v.key.trim()).map((v) => [v.key.trim(), v.value]));
+    }
+    updateEnvMutation.mutate({ id: editingEnvApp.id, envs });
+  };
+
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center p-24 bg-white border border-slate-200 rounded-[3rem] animate-pulse">
@@ -304,6 +348,160 @@ export default function CloudWebPage() {
               {appLogs.map((log: string, idx: number) => (
                 <div key={idx} className="whitespace-pre-wrap">{log}</div>
               ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Editar Variables de Entorno */}
+      {editingEnvApp && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[999] flex items-center justify-center p-4">
+          <div className="bg-white border border-slate-200 rounded-[2.5rem] max-w-2xl w-full max-h-[90vh] flex flex-col p-8 shadow-2xl animate-in zoom-in-95 duration-200 overflow-hidden">
+            <div className="flex items-center justify-between border-b border-slate-200 pb-4 mb-6 shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg bg-[#00A3FF]/10 text-[#00A3FF] flex items-center justify-center">
+                  <span className="material-symbols-outlined text-[18px]">tune</span>
+                </div>
+                <div>
+                  <h3 className="text-sm font-black text-slate-900 uppercase tracking-tight">Variables de Entorno</h3>
+                  <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-0.5">
+                    Modificar configuraciones de {editingEnvApp.name}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setEditingEnvApp(null)}
+                className="w-8 h-8 rounded-full hover:bg-slate-100 text-slate-400 flex items-center justify-center transition-colors"
+              >
+                <span className="material-symbols-outlined text-[20px]">close</span>
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto pr-2 space-y-6 custom-scrollbar">
+              {/* Selector de modo Clave-Valor o Bulk */}
+              <div className="flex gap-2 p-1 bg-slate-100 rounded-xl max-w-xs">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const parsed = parseBulkEnv(editBulkEnvText);
+                    const vars = Object.entries(parsed).map(([key, value]) => ({ key, value }));
+                    setEditEnvVars(vars);
+                    setEditEnvMode("keyvalue");
+                  }}
+                  className={`flex-1 py-2 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all ${editEnvMode === "keyvalue" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-900"}`}
+                >
+                  Clave-Valor
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const bulk = editEnvVars
+                      .filter((v) => v.key.trim())
+                      .map((v) => `${v.key.trim()}=${v.value}`)
+                      .join("\n");
+                    setEditBulkEnvText(bulk);
+                    setEditEnvMode("bulk");
+                  }}
+                  className={`flex-1 py-2 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all ${editEnvMode === "bulk" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-900"}`}
+                >
+                  Pegar .env (Masivo)
+                </button>
+              </div>
+
+              {editEnvMode === "keyvalue" ? (
+                <div className="space-y-4">
+                  {editEnvVars.length === 0 ? (
+                    <p className="text-center text-[11px] font-bold text-slate-400 py-6">Ninguna variable añadida.</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {editEnvVars.map((v, i) => (
+                        <div key={i} className="flex items-center gap-3">
+                          <input
+                            type="text"
+                            value={v.key}
+                            onChange={(e) => {
+                              const updated = [...editEnvVars];
+                              updated[i].key = e.target.value;
+                              setEditEnvVars(updated);
+                            }}
+                            placeholder="NOMBRE_VARIABLE"
+                            className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-slate-900 font-bold text-sm font-mono outline-none focus:border-[#00A3FF] focus:bg-white transition-all"
+                          />
+                          <span className="text-slate-300 font-black text-lg select-none">=</span>
+                          <input
+                            type="text"
+                            value={v.value}
+                            onChange={(e) => {
+                              const updated = [...editEnvVars];
+                              updated[i].value = e.target.value;
+                              setEditEnvVars(updated);
+                            }}
+                            placeholder="valor"
+                            className="flex-[2] bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-slate-900 font-bold text-sm font-mono outline-none focus:border-[#00A3FF] focus:bg-white transition-all"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditEnvVars(editEnvVars.filter((_, idx) => idx !== i));
+                            }}
+                            className="w-9 h-9 rounded-xl bg-red-50 text-red-400 hover:bg-red-500 hover:text-white transition-all flex items-center justify-center shrink-0"
+                          >
+                            <span className="material-symbols-outlined text-[16px]">close</span>
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setEditEnvVars([...editEnvVars, { key: "", value: "" }])}
+                    className="flex items-center gap-2 px-5 py-3 bg-white border-2 border-dashed border-slate-200 hover:border-[#00A3FF] hover:text-[#00A3FF] rounded-xl text-slate-400 font-black text-[11px] uppercase tracking-wide transition-all"
+                  >
+                    <span className="material-symbols-outlined text-[16px]">add</span>
+                    Agregar Variable
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                    Pega tus variables aquí (ej. PORT=3000)
+                  </label>
+                  <textarea
+                    value={editBulkEnvText}
+                    onChange={(e) => setEditBulkEnvText(e.target.value)}
+                    placeholder={`PORT=3000\nDATABASE_URL=postgres://...\nNEXT_PUBLIC_API_URL=https://...`}
+                    className="w-full h-64 bg-slate-50 border border-slate-200 rounded-2xl p-5 text-slate-900 font-mono font-bold text-xs outline-none focus:border-[#00A3FF] focus:bg-white transition-all custom-scrollbar"
+                  />
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-end gap-3 pt-6 border-t border-slate-100 shrink-0">
+              <button
+                type="button"
+                onClick={() => setEditingEnvApp(null)}
+                className="px-6 py-4 rounded-xl border border-slate-200 text-slate-400 hover:text-slate-800 hover:bg-slate-50 text-[10px] font-black uppercase tracking-widest transition-all"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                disabled={updateEnvMutation.isPending}
+                onClick={handleSaveEnv}
+                className="bg-[#00A3FF] px-8 py-4 rounded-xl text-white font-black uppercase text-[10px] tracking-widest shadow-lg shadow-[#00A3FF]/15 hover:bg-[#008EE0] active:scale-[0.98] transition-all disabled:opacity-40 flex items-center gap-2"
+              >
+                {updateEnvMutation.isPending ? (
+                  <>
+                    <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    Guardando y Reiniciando...
+                  </>
+                ) : (
+                  <>
+                    <span className="material-symbols-outlined text-[16px]">save</span>
+                    Guardar Variables
+                  </>
+                )}
+              </button>
             </div>
           </div>
         </div>
@@ -657,13 +855,22 @@ export default function CloudWebPage() {
                 )}
 
                 {app.build_type !== "static" && (
-                  <button
-                    onClick={() => setViewingLogsAppId(app.id)}
-                    className="flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-slate-100 hover:bg-[#00A3FF] hover:text-white transition-all text-slate-500 text-[10px] font-black uppercase tracking-widest"
-                  >
-                    <span className="material-symbols-outlined text-[16px]">terminal</span>
-                    Logs
-                  </button>
+                  <>
+                    <button
+                      onClick={() => handleOpenEnvModal(app)}
+                      className="flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-slate-100 hover:bg-[#00A3FF] hover:text-white transition-all text-slate-500 text-[10px] font-black uppercase tracking-widest"
+                    >
+                      <span className="material-symbols-outlined text-[16px]">tune</span>
+                      Variables
+                    </button>
+                    <button
+                      onClick={() => setViewingLogsAppId(app.id)}
+                      className="flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-slate-100 hover:bg-[#00A3FF] hover:text-white transition-all text-slate-500 text-[10px] font-black uppercase tracking-widest"
+                    >
+                      <span className="material-symbols-outlined text-[16px]">terminal</span>
+                      Logs
+                    </button>
+                  </>
                 )}
               </div>
 
