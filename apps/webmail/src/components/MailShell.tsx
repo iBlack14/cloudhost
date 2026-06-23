@@ -71,14 +71,14 @@ export function MailShell({
         
         {/* 2. Sidebar */}
         <aside className={`
-          shrink-0 bg-white p-4 flex flex-col transition-all duration-300 overflow-hidden
-          ${isSidebarOpen ? "w-64" : "w-20"}
+          shrink-0 bg-white flex flex-col transition-all duration-300
+          ${isSidebarOpen ? "w-64 p-4" : "w-[68px] py-4 px-2 items-center"}
         `}>
            <button 
              onClick={() => setIsComposeOpen(true)}
              className={`
-               flex items-center gap-4 bg-white border border-slate-200 hover:shadow-xl hover:bg-slate-50 text-slate-900 px-6 py-4 rounded-[1.5rem] transition-all shadow-md active:scale-95 group mb-6
-               ${!isSidebarOpen && "px-4"}
+               flex items-center justify-center bg-white border border-slate-200 hover:shadow-xl hover:bg-slate-50 text-slate-900 transition-all shadow-md active:scale-95 group mb-6
+               ${isSidebarOpen ? "gap-4 px-6 py-3.5 rounded-2xl" : "w-12 h-12 rounded-full"}
              `}
            >
               <span className="material-symbols-outlined text-[#00A3FF] group-hover:scale-110 transition-transform">edit</span>
@@ -121,18 +121,61 @@ export function MailShell({
 }
 
 function FloatingCompose({ onClose }: { onClose: () => void }) {
-  const [to, setTo] = useState("");
+  const [recipients, setRecipients] = useState<string[]>([]);
+  const [toInput, setToInput] = useState("");
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
   const [loading, setLoading] = useState(false);
   const [minimized, setMinimized] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const toInputRef = useRef<HTMLInputElement>(null);
+
+  const addRecipient = (email: string) => {
+    const trimmed = email.trim().toLowerCase();
+    if (trimmed && trimmed.includes("@") && !recipients.includes(trimmed)) {
+      setRecipients((prev) => [...prev, trimmed]);
+    }
+    setToInput("");
+  };
+
+  const removeRecipient = (email: string) => {
+    setRecipients((prev) => prev.filter((r) => r !== email));
+  };
+
+  const handleToKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter" || e.key === "," || e.key === "Tab") {
+      e.preventDefault();
+      if (toInput.trim()) {
+        addRecipient(toInput);
+      }
+    }
+    if (e.key === "Backspace" && toInput === "" && recipients.length > 0) {
+      removeRecipient(recipients[recipients.length - 1]);
+    }
+  };
+
+  const handleToPaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+    const pasted = e.clipboardData.getData("text");
+    const emails = pasted.split(/[,;\s\n]+/).filter((s) => s.includes("@"));
+    if (emails.length > 0) {
+      e.preventDefault();
+      const newRecipients = [...recipients];
+      emails.forEach((email) => {
+        const trimmed = email.trim().toLowerCase();
+        if (trimmed && !newRecipients.includes(trimmed)) {
+          newRecipients.push(trimmed);
+        }
+      });
+      setRecipients(newRecipients);
+      setToInput("");
+    }
+  };
 
   const handleSend = async () => {
-    if (!to || !subject || !body) return;
+    if (recipients.length === 0 || !subject || !body) return;
     setLoading(true);
     try {
-      await sendMailMessage({ to: [to], subject, body });
+      await sendMailMessage({ to: recipients, subject, body });
       onClose();
     } catch (e) {
       alert("Error enviando mensaje: " + (e instanceof Error ? e.message : "Error desconocido"));
@@ -167,20 +210,42 @@ function FloatingCompose({ onClose }: { onClose: () => void }) {
        {!minimized && (
          <>
            <div className="flex-1 flex flex-col px-5 py-3 space-y-px overflow-hidden">
-              <div className="flex items-center border-b border-slate-100 py-3">
-                 <span className="text-xs font-semibold text-slate-400 w-12">Para</span>
-                 <input 
-                   type="text" 
-                   value={to} 
-                   onChange={(e) => setTo(e.target.value)} 
-                   className="flex-1 outline-none text-sm font-medium text-slate-800" 
-                 />
-                 <div className="flex gap-4 text-xs font-medium text-slate-300">
+              {/* To field with chips */}
+              <div className="flex items-start border-b border-slate-100 py-2 gap-2">
+                 <span className="text-xs font-semibold text-slate-400 w-10 pt-1.5 shrink-0">Para</span>
+                 <div className="flex-1 flex flex-wrap items-center gap-1.5 min-h-[32px]" onClick={() => toInputRef.current?.focus()}>
+                    {recipients.map((email) => (
+                      <span
+                        key={email}
+                        className="inline-flex items-center gap-1 bg-[#E8F4FD] text-[#00A3FF] px-2.5 py-1 rounded-full text-xs font-medium group/chip hover:bg-[#d0ecfb] transition-colors animate-in fade-in zoom-in-95 duration-150"
+                      >
+                        {email}
+                        <button
+                          onClick={(e) => { e.stopPropagation(); removeRecipient(email); }}
+                          className="w-4 h-4 rounded-full flex items-center justify-center hover:bg-[#00A3FF]/20 transition-colors"
+                        >
+                          <span className="material-symbols-outlined text-[14px]">close</span>
+                        </button>
+                      </span>
+                    ))}
+                    <input
+                      ref={toInputRef}
+                      type="text"
+                      value={toInput}
+                      onChange={(e) => setToInput(e.target.value)}
+                      onKeyDown={handleToKeyDown}
+                      onPaste={handleToPaste} 
+                      onBlur={() => { if (toInput.trim()) addRecipient(toInput); }}
+                      placeholder={recipients.length === 0 ? "correo@ejemplo.com" : ""}
+                      className="flex-1 min-w-[100px] outline-none text-sm font-medium text-slate-800 bg-transparent py-0.5 placeholder:text-slate-300"
+                    />
+                 </div>
+                 <div className="flex gap-3 text-xs font-medium text-slate-300 pt-1.5 shrink-0">
                     <button className="hover:text-[#00A3FF]">Cc</button>
                     <button className="hover:text-[#00A3FF]">Cco</button>
                  </div>
               </div>
-              <div className="flex items-center border-b border-slate-100 py-3">
+              <div className="flex items-center border-b border-slate-100 py-2">
                  <input 
                    type="text" 
                    placeholder="Asunto" 
@@ -199,12 +264,12 @@ function FloatingCompose({ onClose }: { onClose: () => void }) {
 
            {/* Functional Toolbar Footer */}
            <div className="h-14 border-t border-slate-100 flex items-center justify-between px-5 shrink-0 bg-white">
-              <div className="flex items-center gap-6">
+              <div className="flex items-center gap-4">
                  {/* Unified Send Pill */}
                  <div className="flex items-center bg-[#00A3FF] rounded-full overflow-hidden shadow-lg shadow-[#00A3FF]/20 group active:scale-95 transition-all">
                     <button 
                       onClick={handleSend}
-                      disabled={loading || !to || !subject || !body}
+                      disabled={loading || recipients.length === 0 || !subject || !body}
                       className="px-6 py-2.5 text-xs font-semibold text-white hover:bg-[#008EE0] transition-colors disabled:opacity-50"
                     >
                        {loading ? "Enviando..." : "Enviar"}
@@ -215,8 +280,8 @@ function FloatingCompose({ onClose }: { onClose: () => void }) {
                     </button>
                  </div>
 
-                 {/* Utility Icons (NOW FUNCTIONAL) */}
-                 <div className="flex items-center gap-1.5">
+                 {/* Utility Icons */}
+                 <div className="flex items-center gap-0.5">
                     <input type="file" ref={fileInputRef} className="hidden" onChange={(e) => console.log('File selected:', e.target.files?.[0])} />
                     <ToolbarIcon icon="text_format" onClick={() => alert('Opciones de formato activadas')} />
                     <ToolbarIcon icon="attach_file" onClick={handleFileClick} />
@@ -228,9 +293,9 @@ function FloatingCompose({ onClose }: { onClose: () => void }) {
               
               <button 
                 onClick={onClose} 
-                className="w-11 h-11 rounded-full flex items-center justify-center text-slate-300 hover:text-red-500 hover:bg-red-50 transition-all active:scale-90"
+                className="w-9 h-9 rounded-full flex items-center justify-center text-slate-300 hover:text-red-500 hover:bg-red-50 transition-all active:scale-90"
               >
-                 <span className="material-symbols-outlined text-[22px]">delete</span>
+                 <span className="material-symbols-outlined text-[20px]">delete</span>
               </button>
            </div>
          </>
@@ -270,17 +335,20 @@ function MailNavItem({
   return (
     <Link
       href={href}
+      title={!sidebarOpen ? label : undefined}
       className={`
-        flex items-center justify-between rounded-r-full px-6 py-3 transition-all duration-200 group
+        flex items-center transition-all duration-200 group
+        ${sidebarOpen 
+          ? "justify-between rounded-r-full px-6 py-3" 
+          : "justify-center rounded-xl py-3 mx-auto w-12"}
         ${active 
           ? "bg-[#00A3FF]/10 text-[#00A3FF]" 
           : variant === "danger"
             ? "text-slate-400 hover:text-red-500 hover:bg-red-50"
             : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"}
-        ${!sidebarOpen && "px-4 rounded-full mx-2"}
       `}
     >
-      <div className="flex items-center gap-4">
+      <div className={`flex items-center ${sidebarOpen ? "gap-4" : "justify-center"}`}>
         <span className={`material-symbols-outlined text-[22px] ${active ? "text-[#00A3FF]" : "text-slate-400 group-hover:text-slate-600"}`}>
           {icon}
         </span>
