@@ -75,6 +75,7 @@ export default function CloudWebPage() {
   const [editEnvVars, setEditEnvVars] = useState<EnvVar[]>([]);
   const [editBulkEnvText, setEditBulkEnvText] = useState("");
   const [editEnvMode, setEditEnvMode] = useState<EnvMode>("keyvalue");
+  const [showBuildTypeDropdown, setShowBuildTypeDropdown] = useState(false);
 
   // ── Fetch user domains ──────────────────────────────────────────────────────
   const { data: userDomains = [] } = useQuery({
@@ -589,35 +590,69 @@ export default function CloudWebPage() {
               </div>
             </div>
 
-            {/* Build Type (Radio Buttons de la Captura) */}
-            <div className="space-y-3">
+            {/* Build Type Dropdown */}
+            <div className="space-y-2 relative">
               <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">Tipo de Compilación (Build Type)</label>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {BUILD_TYPES.map((bt) => (
-                  <button
-                    key={bt.type}
-                    type="button"
-                    onClick={() => setNewApp({ ...newApp, buildType: bt.type })}
-                    className={`flex items-start gap-4 p-5 rounded-2xl border-2 text-left transition-all ${newApp.buildType === bt.type ? "border-[#00A3FF] bg-[#00A3FF]/5 shadow-lg shadow-[#00A3FF]/5" : "border-slate-200 bg-slate-50 hover:bg-white"}`}
-                  >
-                    <div className="flex items-center justify-center shrink-0 pt-0.5">
-                      <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${newApp.buildType === bt.type ? "border-[#00A3FF]" : "border-slate-300"}`}>
-                        {newApp.buildType === bt.type && (
-                          <div className="w-2.5 h-2.5 rounded-full bg-[#00A3FF] animate-in zoom-in-50" />
-                        )}
-                      </div>
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setShowBuildTypeDropdown(!showBuildTypeDropdown)}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-6 py-4 flex items-center justify-between hover:bg-white focus:border-[#00A3FF] transition-all text-left shadow-inner group"
+                >
+                  <div>
+                    <span className="text-sm font-black text-slate-900 flex items-center gap-2">
+                      {BUILD_TYPES.find(b => b.type === newApp.buildType)?.label}
+                      {BUILD_TYPES.find(b => b.type === newApp.buildType)?.isNew && (
+                        <span className="px-1.5 py-0.5 bg-indigo-500 text-white text-[8px] font-bold rounded-md uppercase tracking-wider">New</span>
+                      )}
+                    </span>
+                    <p className="text-[11px] text-slate-400 mt-0.5 font-medium leading-relaxed">
+                      {BUILD_TYPES.find(b => b.type === newApp.buildType)?.desc}
+                    </p>
+                  </div>
+                  <span className={`material-symbols-outlined text-slate-400 transition-transform duration-200 ${showBuildTypeDropdown ? "rotate-180" : ""}`}>
+                    expand_more
+                  </span>
+                </button>
+
+                {showBuildTypeDropdown && (
+                  <>
+                    <div 
+                      className="fixed inset-0 z-40" 
+                      onClick={() => setShowBuildTypeDropdown(false)}
+                    />
+                    <div className="absolute top-[105%] left-0 w-full bg-white border border-slate-200 rounded-2xl shadow-xl z-50 p-2 space-y-1 animate-in slide-in-from-top-2 duration-150 max-h-80 overflow-y-auto custom-scrollbar">
+                      {BUILD_TYPES.map((bt) => (
+                        <button
+                          key={bt.type}
+                          type="button"
+                          onClick={() => {
+                            setNewApp({ ...newApp, buildType: bt.type });
+                            setShowBuildTypeDropdown(false);
+                          }}
+                          className={`w-full flex items-start gap-4 p-4 rounded-xl text-left transition-all ${newApp.buildType === bt.type ? "bg-[#00A3FF]/5 text-[#00A3FF]" : "hover:bg-slate-50 text-slate-700"}`}
+                        >
+                          <div className="flex items-center justify-center shrink-0 pt-0.5">
+                            <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-all ${newApp.buildType === bt.type ? "border-[#00A3FF]" : "border-slate-300"}`}>
+                              {newApp.buildType === bt.type && (
+                                <div className="w-2 h-2 rounded-full bg-[#00A3FF]" />
+                              )}
+                            </div>
+                          </div>
+                          <div>
+                            <p className="text-xs font-black flex items-center gap-2">
+                              {bt.label}
+                              {bt.isNew && (
+                                <span className="px-1.5 py-0.5 bg-indigo-500 text-white text-[8px] font-bold rounded-md uppercase tracking-wider">New</span>
+                              )}
+                            </p>
+                            <p className="text-[10px] text-slate-400 mt-0.5 leading-relaxed">{bt.desc}</p>
+                          </div>
+                        </button>
+                      ))}
                     </div>
-                    <div>
-                      <p className="text-sm font-black text-slate-900 flex items-center gap-2">
-                        {bt.label}
-                        {bt.isNew && (
-                          <span className="px-1.5 py-0.5 bg-indigo-500 text-white text-[8px] font-bold rounded-md uppercase tracking-wider">New</span>
-                        )}
-                      </p>
-                      <p className="text-[11px] text-slate-400 mt-1 leading-relaxed">{bt.desc}</p>
-                    </div>
-                  </button>
-                ))}
+                  </>
+                )}
               </div>
             </div>
 
@@ -781,6 +816,20 @@ export default function CloudWebPage() {
                       />
                     </div>
                   )}
+
+                  <div className="flex justify-end pt-4 border-t border-slate-200/50">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const record = buildEnvVarsRecord();
+                        setShowEnvEditor(false);
+                      }}
+                      className="flex items-center gap-2 px-6 py-3 bg-[#00A3FF] hover:bg-[#008EE0] text-white rounded-xl font-black text-[10px] uppercase tracking-widest transition-all shadow-md active:scale-95"
+                    >
+                      <span className="material-symbols-outlined text-[16px]">save</span>
+                      Guardar Variables
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
