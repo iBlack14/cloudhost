@@ -73,7 +73,8 @@ import {
   deployAppHandler as deployCloudWebAppHandler,
   deleteAppHandler as deleteCloudWebAppHandler,
   manageAppHandler as manageCloudWebAppHandler,
-  getAppLogsHandler as getCloudWebAppLogsHandler
+  getAppLogsHandler as getCloudWebAppLogsHandler,
+  updateAppEnvHandler as updateCloudWebAppEnvHandler
 } from "../../controllers/odin/cloudweb.controller.js";
 import {
   createMailAccountHandler,
@@ -288,3 +289,4 @@ odinRouter.post("/cloud-web/deploy", heavyOpLimiter, deployCloudWebAppHandler);
 odinRouter.delete("/cloud-web/:id", deleteCloudWebAppHandler);
 odinRouter.post("/cloud-web/:id/:action(start|stop|restart)", manageCloudWebAppHandler);
 odinRouter.get("/cloud-web/:id/logs", getCloudWebAppLogsHandler);
+odinRouter.put("/cloud-web/:id/env", updateCloudWebAppEnvHandler);
