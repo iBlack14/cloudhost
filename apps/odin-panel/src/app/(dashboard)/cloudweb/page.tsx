@@ -483,6 +483,19 @@ export default function CloudWebPage() {
                 rel="noopener noreferrer"
                 className="w-full py-4 rounded-xl bg-[#00A3FF] text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-[#00A3FF]/15 hover:bg-[#008EE0] transition-all"
               >
+                Comunicarse con Soporte
+              </a>
+              <button
+                onClick={() => setDiskQuotaAlert(false)}
+                className="w-full py-3.5 rounded-xl border border-slate-200 text-slate-400 hover:text-slate-800 hover:bg-slate-50 text-[10px] font-black uppercase tracking-widest transition-all"
+              >
+                Cerrar Ventana
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Visor de logs Docker y Despliegues */}
       {viewingLogsAppId && (() => {
         const activeApp = apps?.find((a: any) => a.id === viewingLogsAppId);
