@@ -295,6 +295,17 @@ export const runBackgroundBuild = async (
          await checkDiskQuotaOrThrow(userId, sizeMb);
       }
 
+      // 1.5 Crear archivo .env si existen variables de entorno
+      if (input.envVars && Object.keys(input.envVars).length > 0) {
+         writeLog('info', 'Injecting environment variables into .env file for build-time compilation...');
+         const envContent = Object.entries(input.envVars)
+            .map(([key, val]) => `${key}=${val}`)
+            .join('\n');
+         const envFilePath = path.join(buildPath, '.env');
+         await fs.writeFile(envFilePath, envContent, 'utf-8');
+         writeLog('success', '.env file generated successfully.');
+      }
+
       // 2. Compilación e Imagen
       writeLog('info', `Compiling application using Build Type: ${buildType}...`);
       if (buildType === "dockerfile") {
