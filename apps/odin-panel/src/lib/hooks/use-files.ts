@@ -37,7 +37,7 @@ export const useUploadFiles = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ path, files }: { path: string; files: FileList }) => uploadFiles(path, files),
+    mutationFn: ({ path, files, onProgress }: { path: string; files: FileList; onProgress?: (p: number) => void }) => uploadFiles(path, files, onProgress),
     onSuccess: (_, { path }) => {
       queryClient.invalidateQueries({ queryKey: ["files", path] });
     },

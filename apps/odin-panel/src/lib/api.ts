@@ -589,20 +589,46 @@ export const deleteFile = async (path: string): Promise<void> => {
   await parsePayload(response);
 };
 
-export const uploadFiles = async (path: string, files: FileList): Promise<void> => {
-  const formData = new FormData();
-  formData.append("path", path);
-  for (let i = 0; i < files.length; i++) {
-    formData.append("files", files[i]);
-  }
+export const uploadFiles = (path: string, files: FileList, onProgress?: (percentCompleted: number) => void): Promise<void> => {
+  return new Promise((resolve, reject) => {
+    const formData = new FormData();
+    formData.append("path", path);
+    for (let i = 0; i < files.length; i++) {
+      formData.append("files", files[i]);
+    }
 
-  const response = await fetch(`${API_BASE}/odin-panel/files/upload`, {
-    method: "POST",
-    headers: withOdinAuth(), // Do not set Content-Type, browser will set it with boundary
-    body: formData
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", `${API_BASE}/odin-panel/files/upload`);
+    
+    const headers = withOdinAuth();
+    for (const key in headers) {
+      if (Object.prototype.hasOwnProperty.call(headers, key)) {
+        xhr.setRequestHeader(key, headers[key]);
+      }
+    }
+    
+    xhr.upload.onprogress = (event) => {
+      if (event.lengthComputable && onProgress) {
+        const percentCompleted = Math.round((event.loaded * 100) / event.total);
+        onProgress(percentCompleted);
+      }
+    };
+
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try {
+           const payload = JSON.parse(xhr.responseText);
+           if (!payload.success) reject(new Error(payload?.error?.message ?? "Error al subir archivos"));
+           else resolve();
+        } catch(e) { resolve(); }
+      } else {
+         reject(new Error("Fallo en la subida"));
+      }
+    };
+    
+    xhr.onerror = () => reject(new Error("Error de red durante la subida"));
+    xhr.send(formData);
   });
-  
-  await parsePayload(response);
 };
 
 export const readFileContent = async (filePath: string): Promise<string> => {

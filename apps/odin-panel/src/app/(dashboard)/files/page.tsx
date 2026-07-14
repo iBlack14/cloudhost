@@ -110,6 +110,7 @@ export default function FileManagerPage() {
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dropZoneRef = useRef<HTMLDivElement>(null);
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
 
   const openEditor = async (filePath: string, fileName: string) => {
     setEditorFile({ path: filePath, name: fileName });
@@ -197,7 +198,14 @@ export default function FileManagerPage() {
 
   const handleUploadFiles = (fileList: FileList | null) => {
     if (!fileList || fileList.length === 0) return;
-    uploadMutation.mutate({ path: currentPath, files: fileList });
+    setUploadProgress(0);
+    uploadMutation.mutate({ 
+      path: currentPath, 
+      files: fileList,
+      onProgress: (p) => setUploadProgress(p)
+    }, {
+      onSettled: () => setUploadProgress(null)
+    });
   };
 
   const handleDrop = useCallback((e: React.DragEvent) => {
@@ -258,10 +266,20 @@ export default function FileManagerPage() {
           <button
             onClick={() => fileInputRef.current?.click()}
             disabled={uploadMutation.isPending}
-            className="bg-[#00A3FF] px-4 py-2 rounded-lg text-white font-bold uppercase text-xs shadow-md shadow-[#00A3FF]/10 hover:bg-[#008EE0] transition-all disabled:opacity-40 flex items-center gap-1.5"
+            className="bg-[#00A3FF] px-4 py-2 rounded-lg text-white font-bold uppercase text-xs shadow-md shadow-[#00A3FF]/10 hover:bg-[#008EE0] transition-all disabled:opacity-40 flex items-center gap-1.5 relative overflow-hidden"
           >
-            <span className="material-symbols-outlined text-[16px]">upload</span>
-            {uploadMutation.isPending ? "Subiendo..." : "Subir"}
+            {uploadMutation.isPending && uploadProgress !== null && (
+              <div 
+                className="absolute inset-y-0 left-0 bg-black/10 transition-all duration-300 pointer-events-none"
+                style={{ width: `${uploadProgress}%` }}
+              />
+            )}
+            <span className="material-symbols-outlined text-[16px] relative z-10">upload</span>
+            <span className="relative z-10">
+              {uploadMutation.isPending 
+                ? (uploadProgress !== null ? `Subiendo ${uploadProgress}%` : "Subiendo...") 
+                : "Subir"}
+            </span>
           </button>
         </div>
       </header>
