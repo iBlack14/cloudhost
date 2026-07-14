@@ -4,7 +4,8 @@ import React, { useState } from "react";
 import { useFtpAccounts, useCreateFtpAccount, useDeleteFtpAccount, useUpdateFtpPassword } from "../../../lib/hooks/use-ftp";
 
 export default function FtpPage() {
-  const { data: accounts, isLoading } = useFtpAccounts();
+  const { data: accounts, isLoading, isError, error } = useFtpAccounts();
+
   const createMutation = useCreateFtpAccount();
   const deleteMutation = useDeleteFtpAccount();
   const updatePasswordMutation = useUpdateFtpPassword();
@@ -102,6 +103,12 @@ export default function FtpPage() {
           <div className="p-12 text-center">
             <div className="w-10 h-10 border-4 border-slate-100 border-t-[#00A3FF] rounded-full animate-spin mx-auto mb-4"></div>
             <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Cargando Cuentas FTP...</p>
+          </div>
+        ) : isError ? (
+          <div className="p-12 text-center">
+            <span className="material-symbols-outlined text-4xl text-red-400 mb-2 block">error</span>
+            <p className="text-sm font-bold text-red-500 mb-1">Error al cargar cuentas</p>
+            <p className="text-xs text-slate-500">{error instanceof Error ? error.message : "Error de red"}</p>
           </div>
         ) : !accounts || accounts.length === 0 ? (
           <div className="p-16 text-center">
