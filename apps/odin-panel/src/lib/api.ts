@@ -665,3 +665,46 @@ export const extractArchive = async (zipPath: string, destPath: string): Promise
   });
   await parsePayload(response);
 };
+
+// --- FTP API ---
+
+export interface FtpAccount {
+  id: string;
+  username: string;
+  path: string;
+  created_at: string;
+}
+
+export const fetchFtpAccounts = async (): Promise<FtpAccount[]> => {
+  const response = await fetch(`${API_BASE}/odin-panel/ftp`, {
+    cache: "no-store",
+    headers: withOdinAuth()
+  });
+  return parsePayload<FtpAccount[]>(response);
+};
+
+export const createFtpAccount = async (input: { username: string; password: string; path: string }): Promise<FtpAccount> => {
+  const response = await fetch(`${API_BASE}/odin-panel/ftp`, {
+    method: "POST",
+    headers: withOdinAuth({ "Content-Type": "application/json" }),
+    body: JSON.stringify(input)
+  });
+  return parsePayload<FtpAccount>(response);
+};
+
+export const deleteFtpAccount = async (id: string): Promise<void> => {
+  const response = await fetch(`${API_BASE}/odin-panel/ftp/${id}`, {
+    method: "DELETE",
+    headers: withOdinAuth()
+  });
+  await parsePayload(response);
+};
+
+export const updateFtpPassword = async (id: string, password: string): Promise<void> => {
+  const response = await fetch(`${API_BASE}/odin-panel/ftp/${id}/password`, {
+    method: "PUT",
+    headers: withOdinAuth({ "Content-Type": "application/json" }),
+    body: JSON.stringify({ password })
+  });
+  await parsePayload(response);
+};

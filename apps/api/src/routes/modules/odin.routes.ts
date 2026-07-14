@@ -89,7 +89,7 @@ import {
   changeMailPasswordHandler
 } from "../../controllers/odin/mail.controller.js";
 import { issueSystemSsl } from "../../services/odin/ssl.service.js";
-
+import { ftpRouter } from "./ftp.routes.js";
 
 import rateLimit from "express-rate-limit";
 import { getSysStats } from "../../services/sys-stats.service.js";
@@ -251,6 +251,8 @@ odinRouter.patch("/files/chmod", chmodHandler);               // chmod
 odinRouter.get("/files/download", downloadFileHandler);
 odinRouter.post("/files/upload", upload.array("files"), uploadFileHandler);
 
+// ── FTP Manager routes ───────────────────────────────────────────────────────
+odinRouter.use("/ftp", ftpRouter);
 // ── Backup routes ──────────────────────────────────────────────────
 odinRouter.get   ("/backups",         listBackupsHandler);
 odinRouter.post  ("/backups",         heavyOpLimiter, createBackupHandler); // tar is heavy

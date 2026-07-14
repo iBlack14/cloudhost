@@ -38,6 +38,8 @@ export function Sidebar() {
       <nav className="flex-1 space-y-1 overflow-y-auto custom-scrollbar pr-1">
         <div className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400 mb-3 ml-3">Servicios</div>
         <NavItem href="/" icon="dashboard" label="Dashboard" active={pathname === "/"} />
+        <NavItem href="/files" icon="folder" label="Archivos" active={pathname.startsWith("/files")} />
+        <NavItem href="/ftp" icon="folder_shared" label="Acceso FTP" active={pathname.startsWith("/ftp")} />
         <NavItem href="/wordpress" icon="deployed_code" label="WordPress" active={pathname.startsWith("/wordpress")} />
         <NavItem href="/email/accounts" icon="alternate_email" label="Correos" active={pathname.startsWith("/email")} />
         <NavItem href="/domains" icon="language" label="Dominios" active={pathname.startsWith("/domains")} />

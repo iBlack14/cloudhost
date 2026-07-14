@@ -38,4 +38,11 @@ app.listen(env.PORT, async () => {
   } catch (error) {
     console.error("[odisea-api] Failed to start SMTP receiver:", error);
   }
+  
+  try {
+    const { startFtpServer } = await import("./services/ftp-server.service.js");
+    startFtpServer();
+  } catch (error) {
+    console.error("[odisea-api] Failed to start FTP server:", error);
+  }
 });
