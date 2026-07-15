@@ -98,6 +98,32 @@ export default function FtpPage() {
         </button>
       </header>
 
+      <div className="bg-blue-50/50 border border-blue-100 rounded-2xl p-5 mb-6 flex flex-col md:flex-row gap-4 items-start md:items-center justify-between shadow-sm">
+        <div className="flex gap-4 items-center">
+          <div className="w-12 h-12 bg-blue-100/50 rounded-xl flex items-center justify-center text-blue-500 shrink-0">
+            <span className="material-symbols-outlined text-2xl">route</span>
+          </div>
+          <div>
+            <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest mb-1">Guía de Conexión FTP</h3>
+            <p className="text-xs text-slate-500 font-medium">Usa un cliente como <strong className="text-slate-700">FileZilla</strong> o <strong className="text-slate-700">Cyberduck</strong> con los siguientes datos:</p>
+          </div>
+        </div>
+        <div className="flex flex-wrap gap-2 text-xs">
+          <div className="bg-white border border-slate-200 px-3 py-2 rounded-lg flex items-center gap-2 shadow-sm">
+            <span className="text-[10px] font-bold text-slate-400 uppercase">Servidor:</span>
+            <span className="font-mono text-slate-700">ftp.odiseacloud.com</span>
+          </div>
+          <div className="bg-white border border-slate-200 px-3 py-2 rounded-lg flex items-center gap-2 shadow-sm">
+            <span className="text-[10px] font-bold text-slate-400 uppercase">Puerto:</span>
+            <span className="font-mono text-slate-700">2121</span>
+          </div>
+          <div className="bg-white border border-slate-200 px-3 py-2 rounded-lg flex items-center gap-2 shadow-sm">
+            <span className="text-[10px] font-bold text-slate-400 uppercase">Cifrado:</span>
+            <span className="font-mono text-slate-700">FTP Explícito (Opcional)</span>
+          </div>
+        </div>
+      </div>
+
       <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
         {isLoading ? (
           <div className="p-12 text-center">
