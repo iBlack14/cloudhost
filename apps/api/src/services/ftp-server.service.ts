@@ -73,6 +73,16 @@ export const startFtpServer = async () => {
         return reject(new Error("Ruta de acceso inválida"));
       }
 
+      // Ensure the physical directory actually exists on disk before jailing the user
+      try {
+        const fs = require("node:fs");
+        if (!fs.existsSync(targetPath)) {
+          fs.mkdirSync(targetPath, { recursive: true });
+        }
+      } catch (e) {
+        console.error("[FTP] Failed to create user directory:", e);
+      }
+
       return resolve({ root: targetPath });
     } catch (err) {
       console.error("[FTP Server] Login error:", err);
