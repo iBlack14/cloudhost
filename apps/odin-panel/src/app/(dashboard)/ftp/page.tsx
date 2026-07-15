@@ -111,7 +111,7 @@ export default function FtpPage() {
         <div className="flex flex-wrap gap-2 text-xs">
           <div className="bg-white border border-slate-200 px-3 py-2 rounded-lg flex items-center gap-2 shadow-sm">
             <span className="text-[10px] font-bold text-slate-400 uppercase">Servidor:</span>
-            <span className="font-mono text-slate-700">ftp.odiseacloud.com</span>
+            <span className="font-mono text-slate-700">api.odiseacloud.com</span>
           </div>
           <div className="bg-white border border-slate-200 px-3 py-2 rounded-lg flex items-center gap-2 shadow-sm">
             <span className="text-[10px] font-bold text-slate-400 uppercase">Puerto:</span>

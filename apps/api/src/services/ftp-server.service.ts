@@ -14,13 +14,26 @@ const getBaseUserPath = async (userId: string): Promise<string> => {
   return path.join("/home", username);
 };
 
-export const startFtpServer = () => {
+export const startFtpServer = async () => {
   // Use port 2121 to avoid requiring root, or 21 if running as root
   const port = process.env.FTP_PORT || 2121;
+  
+  let pasvUrl = process.env.FTP_PASV_URL;
+  if (!pasvUrl) {
+    try {
+      const res = await fetch("https://api.ipify.org?format=json");
+      const data = await res.json();
+      pasvUrl = data.ip;
+      console.log(`[odisea-ftp] Detected public IP for PASV: ${pasvUrl}`);
+    } catch (e) {
+      pasvUrl = "127.0.0.1";
+    }
+  }
+
   const ftpServer = new FtpSrv({
     url: `ftp://0.0.0.0:${port}`,
     anonymous: false,
-    pasv_url: process.env.FTP_PASV_URL || "127.0.0.1",
+    pasv_url: pasvUrl,
     pasv_min: 10000,
     pasv_max: 10010
   });
