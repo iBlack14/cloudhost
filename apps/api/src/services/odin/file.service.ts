@@ -205,7 +205,7 @@ export const saveUploadedFile = async (
   basePath: string,
   destUserDir: string,
   originalName: string,
-  buffer: Buffer,
+  tmpFilePath: string,
   autoExtract: boolean = false
 ): Promise<{ savedPath: string; extracted: boolean }> => {
   const destDir = resolveSafePath(basePath, destUserDir);
@@ -214,7 +214,9 @@ export const saveUploadedFile = async (
   const sanitizedName = path.basename(originalName).replace(/[^\w.\-]/g, "_");
   const destFilePath = path.join(destDir, sanitizedName);
 
-  await fs.writeFile(destFilePath, buffer);
+  // Use fs.copyFile instead of loading into RAM.
+  // This supports 5GB+ files effortlessly.
+  await fs.copyFile(tmpFilePath, destFilePath);
 
   const relativeSaved = path.join(destUserDir, sanitizedName).replace(/\\/g, "/");
   const relativeDir = destUserDir;

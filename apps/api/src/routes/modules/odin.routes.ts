@@ -227,14 +227,14 @@ odinRouter.get("/databases", listDatabasesHandler);
 odinRouter.post("/databases", createDatabaseHandler);
 odinRouter.post("/databases/:dbName/sso", issueDatabaseSsoHandler);
 
-// ── File upload: disk storage with 500 MB limit ────────────────────────────
+// ── File upload: disk storage with 5 GB limit ────────────────────────────
 const upload = multer({
   storage: multer.diskStorage({
     destination: (_req, _file, cb) => cb(null, os.tmpdir()),
     filename: (_req, file, cb) =>
       cb(null, `${Date.now()}-${file.originalname.replace(/[^\w.\-]/g, "_")}`),
   }),
-  limits: { fileSize: 500 * 1024 * 1024 }, // 500 MB per file
+  limits: { fileSize: 5000 * 1024 * 1024 }, // 5 GB per file
 });
 
 // ── File Manager routes ──────────────────────────────────────────────────────

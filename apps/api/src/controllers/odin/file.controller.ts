@@ -212,13 +212,13 @@ export const uploadFileHandler = async (req: Request, res: Response): Promise<Re
     const results: { name: string; extracted: boolean }[] = [];
 
     for (const file of files) {
-      // multer diskStorage writes to a tmp path — read it as buffer, then hand off to service
-      const buffer = await fs.readFile(file.path);
+      // multer diskStorage writes to a tmp path.
+      // Pass the path directly to the service so it can use streaming/copying instead of loading into RAM.
       const result = await fileService.saveUploadedFile(
         basePath,
         destUserDir,
         file.originalname,
-        buffer,
+        file.path,
         autoExtract
       );
       // Clean up tmp file
