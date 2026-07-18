@@ -24,6 +24,32 @@ export const listFtpAccounts = async (userId: string) => {
   return result.rows;
 };
 
+/**
+ * Normalize virtual FTP path stored in DB.
+ * Always relative to user home, e.g. "/" or "/public_html".
+ * Rejects absolute OS paths and ".." traversal.
+ */
+const normalizeFtpVirtualPath = (input: string): string => {
+  const raw = (input ?? "/").toString().trim().replace(/\\/g, "/") || "/";
+  if (raw === "/" || raw === "." || raw === "./") return "/";
+
+  // Disallow Windows drive letters / unix absolute homes stored by mistake
+  if (/^[a-zA-Z]:/.test(raw) || raw.startsWith("/home/") || raw.startsWith("/var/") || raw.startsWith("/etc/")) {
+    throw new Error("La ruta FTP debe ser relativa al home del usuario (ej. / o /public_html)");
+  }
+
+  const segments = raw.replace(/^\/+/, "").split("/").filter((s) => s && s !== ".");
+  const safe: string[] = [];
+  for (const seg of segments) {
+    if (seg === "..") {
+      if (safe.length > 0) safe.pop();
+    } else {
+      safe.push(seg);
+    }
+  }
+  return safe.length === 0 ? "/" : "/" + safe.join("/");
+};
+
 export const createFtpAccount = async (userId: string, username: string, passwordRaw: string, path: string) => {
   await ensureFtpAccountsTable();
 
@@ -37,13 +63,14 @@ export const createFtpAccount = async (userId: string, username: string, passwor
   const cleanUsername = username.replace(/[^a-z0-9_]/gi, "").substring(0, 20);
   const finalUsername = cleanUsername.startsWith(`${sysUser}_`) ? cleanUsername : `${sysUser}_${cleanUsername}`;
 
+  const virtualPath = normalizeFtpVirtualPath(path);
   const ciphertext = encryptSecret(passwordRaw);
 
   const result = await db.query(
     `INSERT INTO ftp_accounts (user_id, username, password_ciphertext, path)
      VALUES ($1, $2, $3, $4)
      RETURNING id, username, path, created_at`,
-    [userId, finalUsername, ciphertext, path]
+    [userId, finalUsername, ciphertext, virtualPath]
   );
 
   return result.rows[0];

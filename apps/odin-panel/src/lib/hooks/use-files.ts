@@ -1,5 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { fetchFiles, createFolder, deleteFile, uploadFiles, type FileItem } from "../api";
+import { fetchFiles, createFolder, deleteFile, uploadFiles, moveFile, copyFile, type FileItem } from "../api";
+
+export { type FileItem };
 
 export const useFiles = (path: string) => {
   return useQuery<FileItem[]>({
@@ -40,6 +42,32 @@ export const useUploadFiles = () => {
     mutationFn: ({ path, files, onProgress }: { path: string; files: FileList; onProgress?: (p: number) => void }) => uploadFiles(path, files, onProgress),
     onSuccess: (_, { path }) => {
       queryClient.invalidateQueries({ queryKey: ["files", path] });
+    },
+  });
+};
+
+export const useMoveFile = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ oldPath, newPath }: { oldPath: string; newPath: string }) => moveFile(oldPath, newPath),
+    onSuccess: (_, { oldPath, newPath }) => {
+      const srcDir = oldPath.substring(0, oldPath.lastIndexOf("/")) || "/";
+      const dstDir = newPath.substring(0, newPath.lastIndexOf("/")) || "/";
+      queryClient.invalidateQueries({ queryKey: ["files", srcDir] });
+      if (srcDir !== dstDir) queryClient.invalidateQueries({ queryKey: ["files", dstDir] });
+    },
+  });
+};
+
+export const useCopyFile = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ sourcePath, destPath }: { sourcePath: string; destPath: string }) => copyFile(sourcePath, destPath),
+    onSuccess: (_, { destPath }) => {
+      const dstDir = destPath.substring(0, destPath.lastIndexOf("/")) || "/";
+      queryClient.invalidateQueries({ queryKey: ["files", dstDir] });
     },
   });
 };

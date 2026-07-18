@@ -666,6 +666,26 @@ export const extractArchive = async (zipPath: string, destPath: string): Promise
   await parsePayload(response);
 };
 
+/** Mover archivo o carpeta: usa el endpoint rename con una nueva ruta padre */
+export const moveFile = async (oldPath: string, newPath: string): Promise<void> => {
+  const response = await fetch(`${API_BASE}/odin-panel/files/rename`, {
+    method: "PUT",
+    headers: withOdinAuth({ "Content-Type": "application/json" }),
+    body: JSON.stringify({ oldPath, newPath })
+  });
+  await parsePayload(response);
+};
+
+/** Copiar archivo o carpeta al destino especificado */
+export const copyFile = async (sourcePath: string, destPath: string): Promise<void> => {
+  const response = await fetch(`${API_BASE}/odin-panel/files/copy`, {
+    method: "POST",
+    headers: withOdinAuth({ "Content-Type": "application/json" }),
+    body: JSON.stringify({ sourcePath, destPath })
+  });
+  await parsePayload(response);
+};
+
 // --- FTP API ---
 
 export interface FtpAccount {
