@@ -49,10 +49,10 @@ export const listFiles = async (basePath: string, userDir: string): Promise<File
       result.push({
         name: file.name,
         path: path.join(userDir, file.name).replace(/\\/g, "/"),
-        isDirectory: file.isDirectory(),
+        isDirectory: stats.isDirectory(),
         size: stats.size,
         lastModified: stats.mtime,
-        mimeType: file.isDirectory()
+        mimeType: stats.isDirectory()
           ? "directory"
           : (mime.lookup(fullPath) || "application/octet-stream"),
         permissions: getPermissionsString(stats.mode),
