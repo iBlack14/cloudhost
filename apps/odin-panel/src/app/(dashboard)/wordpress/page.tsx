@@ -559,10 +559,10 @@ export default function WordPressManagerPage() {
                    </Link>
                    <button 
                      onClick={() => ssoMutation.mutate(site.id)}
-                     disabled={ssoMutation.isPending}
+                     disabled={ssoMutation.isPending && ssoMutation.variables === site.id}
                      className="flex-1 xl:flex-none flex items-center justify-center gap-3 px-8 py-3.5 rounded-2xl bg-[#00A3FF] text-white font-black text-[11px] uppercase tracking-widest hover:bg-[#008EE0] active:scale-[0.98] transition-all disabled:opacity-40 shadow-xl shadow-[#00A3FF]/20"
                    >
-                      <span>{ssoMutation.isPending ? "Accediendo..." : "Panel WP"}</span>
+                      <span>{ssoMutation.isPending && ssoMutation.variables === site.id ? "Accediendo..." : "Panel WP"}</span>
                       <span className="material-symbols-outlined text-[18px]">rocket_launch</span>
                    </button>
                 </div>
