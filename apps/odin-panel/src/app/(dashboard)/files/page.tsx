@@ -1,9 +1,13 @@
 "use client";
 
-import { useState, useRef, useCallback, useEffect, type FormEvent } from "react";
-import { useFiles, useDeleteFile, useCreateFolder, useUploadFiles } from "../../../lib/hooks/use-files";
+import { useState, useRef, useCallback, useEffect, useMemo, type FormEvent } from "react";
+import {
+  useFiles, useDeleteFile, useCreateFolder, useUploadFiles,
+  useMoveFile, useCopyFile, type FileItem,
+} from "../../../lib/hooks/use-files";
 import { getOdinAccessToken } from "../../../lib/api";
 
+// ─── API Base ─────────────────────────────────────────────────────────────────
 const API_BASE = (() => {
   if (typeof window === "undefined") {
     const envUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001/api/v1";
@@ -23,31 +27,35 @@ const API_BASE = (() => {
   const parts = host.split(".");
   return `${proto}//api.${parts.length >= 2 ? parts.slice(-2).join(".") : host}/api/v1`;
 })();
+
 const authHeaders = (extra: Record<string, string> = {}) => {
   const t = getOdinAccessToken();
   return t ? { ...extra, Authorization: `Bearer ${t}` } : extra;
 };
 
+// ─── Constants ────────────────────────────────────────────────────────────────
 const TEXT_EXTENSIONS = [
-  ".php", ".html", ".htm", ".css", ".js", ".ts", ".json", ".xml",
-  ".txt", ".md", ".conf", ".ini", ".env", ".sh", ".yaml", ".yml",
-  ".htaccess", ".htpasswd", ".log", ".sql"
+  ".php", ".html", ".htm", ".css", ".js", ".ts", ".jsx", ".tsx",
+  ".json", ".xml", ".txt", ".md", ".conf", ".ini", ".env", ".sh",
+  ".yaml", ".yml", ".htaccess", ".htpasswd", ".log", ".sql",
 ];
-
 const ARCHIVE_EXTENSIONS = [".zip", ".tar", ".tar.gz", ".tgz", ".tar.bz2"];
 
-const isTextFile = (name: string) =>
-  TEXT_EXTENSIONS.some(ext => name.toLowerCase().endsWith(ext));
-
-const isArchive = (name: string) =>
-  ARCHIVE_EXTENSIONS.some(ext => name.toLowerCase().endsWith(ext));
+const isTextFile = (name: string) => TEXT_EXTENSIONS.some((e) => name.toLowerCase().endsWith(e));
+const isArchive  = (name: string) => ARCHIVE_EXTENSIONS.some((e) => name.toLowerCase().endsWith(e));
 
 const formatSize = (bytes: number) => {
   if (bytes === 0) return "0 B";
-  const k = 1024;
-  const sizes = ["B", "KB", "MB", "GB"];
+  const k = 1024, sizes = ["B","KB","MB","GB"];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
   return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + " " + sizes[i];
+};
+
+const formatDate = (str: string) => {
+  if (!str) return "—";
+  return new Date(str).toLocaleString("es-ES", {
+    day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit",
+  });
 };
 
 const getFileIcon = (name: string, isDir: boolean) => {
@@ -55,324 +63,594 @@ const getFileIcon = (name: string, isDir: boolean) => {
   if (name.endsWith(".php")) return "code";
   if (name.endsWith(".html") || name.endsWith(".htm")) return "html";
   if (name.endsWith(".css")) return "css";
-  if (name.endsWith(".js") || name.endsWith(".ts")) return "javascript";
+  if ([".js",".ts",".jsx",".tsx"].some(e => name.endsWith(e))) return "javascript";
   if (name.endsWith(".json")) return "data_object";
   if (isArchive(name)) return "archive";
-  if ([".jpg", ".jpeg", ".png", ".gif", ".svg", ".webp"].some(e => name.endsWith(e))) return "image";
-  if ([".pdf"].some(e => name.endsWith(e))) return "picture_as_pdf";
+  if ([".jpg",".jpeg",".png",".gif",".svg",".webp"].some(e => name.toLowerCase().endsWith(e))) return "image";
+  if (name.endsWith(".pdf")) return "picture_as_pdf";
   return "draft";
 };
 
-export default function FileManagerPage() {
-  const [currentPath, setCurrentPath] = useState("/");
-  const [viewMode, setViewMode] = useState<"list" | "grid">("grid");
-  const [pathInput, setPathInput] = useState(currentPath);
+const getFileIconColor = (name: string, isDir: boolean) => {
+  if (isDir) return "text-amber-400";
+  if (name.endsWith(".php")) return "text-violet-400";
+  if (name.endsWith(".html") || name.endsWith(".htm")) return "text-orange-400";
+  if (name.endsWith(".css")) return "text-blue-400";
+  if ([".js",".ts",".jsx",".tsx"].some(e => name.endsWith(e))) return "text-yellow-400";
+  if (name.endsWith(".json")) return "text-emerald-400";
+  if (isArchive(name)) return "text-rose-400";
+  if ([".jpg",".jpeg",".png",".gif",".svg",".webp"].some(e => name.toLowerCase().endsWith(e))) return "text-pink-400";
+  return "text-slate-400";
+};
 
+const getFileBadge = (name: string) => {
+  if (name.endsWith(".php"))  return { label:"PHP",  color:"bg-violet-100 text-violet-600" };
+  if (name.endsWith(".html") || name.endsWith(".htm")) return { label:"HTML", color:"bg-orange-100 text-orange-600" };
+  if (name.endsWith(".css"))  return { label:"CSS",  color:"bg-blue-100 text-blue-600" };
+  if (name.endsWith(".js"))   return { label:"JS",   color:"bg-yellow-100 text-yellow-700" };
+  if (name.endsWith(".ts"))   return { label:"TS",   color:"bg-sky-100 text-sky-700" };
+  if (name.endsWith(".json")) return { label:"JSON", color:"bg-emerald-100 text-emerald-700" };
+  if (name.endsWith(".sh"))   return { label:"SH",   color:"bg-slate-800 text-slate-100" };
+  if (isArchive(name))        return { label:"ZIP",  color:"bg-rose-100 text-rose-600" };
+  return null;
+};
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+interface Toast { id: string; message: string; type: "success"|"error"|"info"|"warning"; }
+interface ContextMenuState { x: number; y: number; file: FileItem; }
+interface ConfirmState { title: string; message: string; danger?: boolean; onConfirm: () => void; }
+
+// ─── Toast Component ──────────────────────────────────────────────────────────
+function ToastContainer({ toasts, onDismiss }: { toasts: Toast[]; onDismiss: (id: string) => void }) {
+  const icons: Record<string,string> = { success:"check_circle", error:"error", info:"info", warning:"warning" };
+  const colors: Record<string,string> = { success:"bg-emerald-500", error:"bg-red-500", info:"bg-[#00A3FF]", warning:"bg-amber-500" };
+  return (
+    <div className="fixed bottom-6 right-6 z-[600] flex flex-col gap-2 pointer-events-none min-w-[280px] max-w-sm">
+      {toasts.map((t) => (
+        <div key={t.id} className={`pointer-events-auto flex items-center gap-3 px-4 py-3 rounded-xl shadow-2xl text-white text-xs font-bold animate-in slide-in-from-bottom-4 duration-300 ${colors[t.type]}`}>
+          <span className="material-symbols-outlined text-[18px] flex-shrink-0">{icons[t.type]}</span>
+          <span className="flex-1 leading-snug">{t.message}</span>
+          <button onClick={() => onDismiss(t.id)} className="opacity-70 hover:opacity-100 transition-opacity">
+            <span className="material-symbols-outlined text-[14px]">close</span>
+          </button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ─── Confirm Dialog ───────────────────────────────────────────────────────────
+function ConfirmDialog({ title, message, danger=true, onConfirm, onCancel }: ConfirmState & { onCancel: () => void }) {
+  return (
+    <div className="fixed inset-0 z-[500] flex items-center justify-center p-4 animate-in fade-in duration-200">
+      <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm" onClick={onCancel} />
+      <div className="relative z-10 bg-white rounded-2xl shadow-2xl p-6 max-w-sm w-full animate-in zoom-in-95 duration-200">
+        <div className="flex items-start gap-4 mb-5">
+          <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${danger ? "bg-red-50" : "bg-[#00A3FF]/10"}`}>
+            <span className={`material-symbols-outlined text-xl ${danger ? "text-red-500" : "text-[#00A3FF]"}`}>{danger ? "warning" : "help"}</span>
+          </div>
+          <div>
+            <h3 className="text-sm font-black text-slate-900">{title}</h3>
+            <p className="text-xs text-slate-500 mt-1.5 font-medium leading-relaxed">{message}</p>
+          </div>
+        </div>
+        <div className="flex gap-2 justify-end">
+          <button onClick={onCancel} className="px-4 py-2 rounded-xl bg-slate-100 text-slate-600 text-xs font-bold hover:bg-slate-200 transition-all">Cancelar</button>
+          <button onClick={onConfirm} className={`px-4 py-2 rounded-xl text-white text-xs font-bold transition-all active:scale-95 ${danger ? "bg-red-500 hover:bg-red-600" : "bg-[#00A3FF] hover:bg-[#008EE0]"}`}>
+            {danger ? "Eliminar" : "Confirmar"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Folder Picker Modal ──────────────────────────────────────────────────────
+function FolderPickerModal({ title, subtitle, confirmLabel, onConfirm, onCancel }: {
+  title: string; subtitle: string; confirmLabel: string;
+  onConfirm: (destPath: string) => void; onCancel: () => void;
+}) {
+  const [navPath, setNavPath]     = useState("/");
+  const [navFolders, setNavFolders] = useState<FileItem[]>([]);
+  const [loading, setLoading]     = useState(false);
+
+  const loadFolder = async (path: string) => {
+    setLoading(true);
+    try {
+      const res  = await fetch(`${API_BASE}/odin-panel/files?path=${encodeURIComponent(path)}`, { headers: authHeaders() });
+      const data = await res.json();
+      if (data.success) setNavFolders((data.data ?? []).filter((f: FileItem) => f.isDirectory));
+    } finally { setLoading(false); }
+  };
+
+  useEffect(() => { loadFolder(navPath); }, [navPath]);
+
+  const navUp      = () => { const p = navPath.split("/").filter(Boolean); p.pop(); setNavPath("/" + p.join("/")); };
+  const breadcrumbs = navPath.split("/").filter(Boolean);
+
+  return (
+    <div className="fixed inset-0 z-[400] flex items-center justify-center p-4 animate-in fade-in duration-200">
+      <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm" onClick={onCancel} />
+      <div className="relative z-10 bg-white rounded-2xl shadow-2xl w-full max-w-md animate-in zoom-in-95 duration-200 overflow-hidden flex flex-col">
+        {/* Header */}
+        <div className="px-5 py-4 border-b border-slate-100 flex items-center gap-3 bg-slate-50/50">
+          <div className="w-9 h-9 rounded-xl bg-[#00A3FF]/10 flex items-center justify-center">
+            <span className="material-symbols-outlined text-[#00A3FF] text-lg">drive_file_move</span>
+          </div>
+          <div>
+            <h3 className="text-sm font-black text-slate-900">{title}</h3>
+            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">{subtitle}</p>
+          </div>
+        </div>
+        {/* Nav breadcrumb */}
+        <div className="px-3 py-2 bg-slate-50 border-b border-slate-100 flex items-center gap-1.5">
+          <button onClick={navUp} disabled={navPath==="/"} className="w-6 h-6 rounded-md flex items-center justify-center text-slate-400 hover:bg-slate-200 disabled:opacity-30 transition-all">
+            <span className="material-symbols-outlined text-[14px]">arrow_upward</span>
+          </button>
+          <div className="flex items-center gap-1 text-xs overflow-x-auto flex-1 min-w-0">
+            <button onClick={() => setNavPath("/")} className="text-slate-500 hover:text-[#00A3FF] transition-colors font-mono flex-shrink-0">/</button>
+            {breadcrumbs.map((crumb, i) => (
+              <span key={i} className="flex items-center gap-1 flex-shrink-0">
+                <span className="text-slate-300">/</span>
+                <button onClick={() => setNavPath("/"+breadcrumbs.slice(0,i+1).join("/"))} className="hover:text-[#00A3FF] transition-colors font-medium text-slate-600 font-mono">{crumb}</button>
+              </span>
+            ))}
+          </div>
+        </div>
+        {/* Folder list */}
+        <div className="p-2 h-52 overflow-y-auto custom-scrollbar">
+          {loading && <div className="flex justify-center items-center h-full"><div className="w-5 h-5 border-2 border-[#00A3FF]/20 border-t-[#00A3FF] rounded-full animate-spin"/></div>}
+          {!loading && navFolders.length===0 && (
+            <div className="flex flex-col items-center justify-center h-full opacity-40">
+              <span className="material-symbols-outlined text-3xl text-slate-400">folder_off</span>
+              <p className="text-xs font-bold text-slate-500 mt-1.5">No hay subcarpetas</p>
+            </div>
+          )}
+          {!loading && navFolders.map((f) => (
+            <button key={f.path} onClick={() => setNavPath(f.path)} className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-[#00A3FF]/5 hover:text-[#00A3FF] transition-all text-left text-xs font-semibold text-slate-700 group">
+              <span className="material-symbols-outlined text-[18px] text-amber-400">folder</span>
+              <span className="flex-1 truncate">{f.name}</span>
+              <span className="material-symbols-outlined text-[14px] text-slate-300 group-hover:text-[#00A3FF]">chevron_right</span>
+            </button>
+          ))}
+        </div>
+        {/* Destination */}
+        <div className="px-4 py-2.5 bg-[#00A3FF]/5 border-t border-[#00A3FF]/10">
+          <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Carpeta de destino</p>
+          <p className="text-xs font-mono text-slate-700 font-bold mt-0.5 truncate">{navPath||"/"}</p>
+        </div>
+        {/* Actions */}
+        <div className="px-4 py-3 border-t border-slate-100 flex gap-2 justify-end bg-slate-50/50">
+          <button onClick={onCancel} className="px-4 py-2 rounded-xl bg-slate-100 text-slate-600 text-xs font-bold hover:bg-slate-200 transition-all">Cancelar</button>
+          <button onClick={() => onConfirm(navPath)} className="px-4 py-2 rounded-xl bg-[#00A3FF] text-white text-xs font-bold hover:bg-[#008EE0] transition-all flex items-center gap-1.5 shadow-md shadow-[#00A3FF]/20 active:scale-95">
+            <span className="material-symbols-outlined text-[14px]">done</span>{confirmLabel}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── New File Modal ───────────────────────────────────────────────────────────
+function NewFileModal({ currentPath, onConfirm, onCancel, loading }: {
+  currentPath: string; onConfirm: (name: string) => void; onCancel: () => void; loading: boolean;
+}) {
+  const [name, setName] = useState("");
+  return (
+    <div className="fixed inset-0 z-[400] flex items-center justify-center p-4 animate-in fade-in duration-200">
+      <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm" onClick={onCancel} />
+      <div className="relative z-10 bg-white rounded-2xl shadow-2xl p-6 max-w-sm w-full animate-in zoom-in-95 duration-200">
+        <div className="flex items-center gap-3 mb-5">
+          <div className="w-9 h-9 rounded-xl bg-[#00A3FF]/10 flex items-center justify-center">
+            <span className="material-symbols-outlined text-[#00A3FF] text-lg">note_add</span>
+          </div>
+          <div>
+            <h3 className="text-sm font-black text-slate-900">Crear Archivo Nuevo</h3>
+            <p className="text-[10px] text-slate-400 font-bold mt-0.5">en {currentPath}</p>
+          </div>
+        </div>
+        <input autoFocus type="text" value={name} onChange={(e) => setName(e.target.value)}
+          onKeyDown={(e) => { if (e.key==="Enter"&&name.trim()) onConfirm(name.trim()); if (e.key==="Escape") onCancel(); }}
+          placeholder="nombre-archivo.txt"
+          className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm text-slate-900 font-mono focus:outline-none focus:border-[#00A3FF] focus:ring-2 focus:ring-[#00A3FF]/10 transition-all bg-slate-50"
+        />
+        <div className="flex gap-2 justify-end mt-4">
+          <button onClick={onCancel} className="px-4 py-2 rounded-xl bg-slate-100 text-slate-600 text-xs font-bold hover:bg-slate-200 transition-all">Cancelar</button>
+          <button onClick={() => name.trim()&&onConfirm(name.trim())} disabled={!name.trim()||loading}
+            className="px-4 py-2 rounded-xl bg-[#00A3FF] text-white text-xs font-bold hover:bg-[#008EE0] transition-all disabled:opacity-40 flex items-center gap-1.5 active:scale-95">
+            {loading ? <span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin"/> : <span className="material-symbols-outlined text-[14px]">add</span>}
+            Crear
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Context Menu ─────────────────────────────────────────────────────────────
+function ContextMenu({ menu, onClose, onEdit, onRename, onMove, onCopy, onDownload, onExtract, onDelete, extracting }: {
+  menu: ContextMenuState; onClose: () => void;
+  onEdit?: () => void; onRename: () => void; onMove: () => void; onCopy: () => void;
+  onDownload?: () => void; onExtract?: () => void; onDelete: () => void; extracting: boolean;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    setPathInput(currentPath);
-  }, [currentPath]);
+    if (ref.current) {
+      const r = ref.current.getBoundingClientRect();
+      if (r.right  > window.innerWidth)  ref.current.style.left = `${menu.x - r.width}px`;
+      if (r.bottom > window.innerHeight) ref.current.style.top  = `${menu.y - r.height}px`;
+    }
+  }, [menu]);
 
-  const handlePathSubmit = (e: FormEvent) => {
-    e.preventDefault();
-    let target = pathInput.trim();
-    if (!target) target = "/";
-    if (!target.startsWith("/")) target = "/" + target;
-    setCurrentPath(target);
-  };
+  const item = (icon: string, label: string, action: () => void, color="text-slate-600", disabled=false) => (
+    <button onClick={() => { if (!disabled) { action(); onClose(); } }} disabled={disabled}
+      className={`w-full flex items-center gap-2.5 px-3 py-1.5 text-xs font-semibold rounded-lg hover:bg-slate-50 transition-colors text-left disabled:opacity-40 ${color}`}>
+      <span className={`material-symbols-outlined text-[16px] ${color}`}>{icon}</span>{label}
+    </button>
+  );
 
-  const navigateUp = () => {
-    const parts = currentPath.split("/").filter(Boolean);
-    parts.pop();
-    setCurrentPath("/" + parts.join("/"));
-  };
+  return (
+    <div ref={ref} style={{ top: menu.y, left: menu.x }} onClick={(e) => e.stopPropagation()}
+      className="fixed z-[550] bg-white rounded-xl shadow-2xl border border-slate-100 p-1.5 min-w-[185px] animate-in zoom-in-95 fade-in duration-150">
+      <p className="px-3 py-1 text-[9px] font-black text-slate-400 uppercase tracking-wider truncate max-w-[165px]">{menu.file.name}</p>
+      <div className="border-t border-slate-100 my-1"/>
+      {onEdit    && item("edit",                    "Editar",      onEdit,    "text-[#00A3FF]")}
+      {            item("drive_file_rename_outline","Renombrar",   onRename)}
+      {            item("drive_file_move",          "Mover a\u2026",  onMove)}
+      {            item("content_copy",             "Copiar a\u2026", onCopy)}
+      {onDownload && item("download",               "Descargar",   onDownload)}
+      {onExtract  && item("folder_zip", extracting ? "Extrayendo\u2026" : "Extraer", onExtract, "text-emerald-600", extracting)}
+      <div className="border-t border-slate-100 my-1"/>
+      {            item("delete",                   "Eliminar",    onDelete,  "text-red-500")}
+    </div>
+  );
+}
 
-  const { data: files, isLoading, refetch } = useFiles(currentPath);
-  const deleteMutation = useDeleteFile();
-  const createFolderMutation = useCreateFolder();
-  const uploadMutation = useUploadFiles();
-
-  // Editor state
-  const [editorOpen, setEditorOpen] = useState(false);
-  const [editorFile, setEditorFile] = useState<{ path: string; name: string } | null>(null);
+// ─── Main Page ────────────────────────────────────────────────────────────────
+export default function FileManagerPage() {
+  // Navigation
+  const [currentPath, setCurrentPath] = useState("/");
+  const [viewMode, setViewMode]       = useState<"list"|"grid">("grid");
+  const [pathInput, setPathInput]     = useState("/");
+  // Selection
+  const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
+  // Search & Sort
+  const [searchQuery, setSearchQuery] = useState("");
+  const [sortKey, setSortKey]   = useState<"name"|"size"|"date">("name");
+  const [sortDir, setSortDir]   = useState<"asc"|"desc">("asc");
+  // Editor
+  const [editorOpen,    setEditorOpen]    = useState(false);
+  const [editorFile,    setEditorFile]    = useState<{path:string;name:string}|null>(null);
   const [editorContent, setEditorContent] = useState("");
   const [editorLoading, setEditorLoading] = useState(false);
-  const [editorSaving, setEditorSaving] = useState(false);
-  const [editorError, setEditorError] = useState<string | null>(null);
-
-  // Rename state
-  const [renameTarget, setRenameTarget] = useState<string | null>(null);
-  const [renameValue, setRenameValue] = useState("");
-
-  // Extract state
-  const [extracting, setExtracting] = useState<string | null>(null);
-
-  // Drag and drop
-  const [isDragging, setIsDragging] = useState(false);
+  const [editorSaving,  setEditorSaving]  = useState(false);
+  const [editorError,   setEditorError]   = useState<string|null>(null);
+  const [editorLine,    setEditorLine]    = useState(1);
+  // Rename
+  const [renameTarget, setRenameTarget] = useState<string|null>(null);
+  const [renameValue,  setRenameValue]  = useState("");
+  // Extract
+  const [extracting, setExtracting] = useState<string|null>(null);
+  // Modals
+  const [folderPicker,   setFolderPicker]   = useState<{title:string;subtitle:string;confirmLabel:string;files:FileItem[];type:"move"|"copy"}|null>(null);
+  const [confirmDialog,  setConfirmDialog]  = useState<ConfirmState|null>(null);
+  const [newFileOpen,    setNewFileOpen]    = useState(false);
+  const [creatingFile,   setCreatingFile]   = useState(false);
+  const [contextMenu,    setContextMenu]    = useState<ContextMenuState|null>(null);
+  // Toasts
+  const [toasts, setToasts] = useState<Toast[]>([]);
+  // Upload
+  const [isDragging,      setIsDragging]      = useState(false);
+  const [uploadProgress,  setUploadProgress]  = useState<number|null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const dropZoneRef = useRef<HTMLDivElement>(null);
-  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
+  const dropZoneRef  = useRef<HTMLDivElement>(null);
 
-  const openEditor = async (filePath: string, fileName: string) => {
-    setEditorFile({ path: filePath, name: fileName });
-    setEditorContent("");
-    setEditorError(null);
-    setEditorLoading(true);
-    setEditorOpen(true);
-    try {
-      const res = await fetch(`${API_BASE}/odin-panel/files/content?path=${encodeURIComponent(filePath)}`, {
-        headers: authHeaders()
-      });
-      const data = await res.json();
-      if (!res.ok || !data.success) throw new Error(data?.error?.message ?? "Error al leer archivo");
-      setEditorContent(data.data ?? "");
-    } catch (err: any) {
-      setEditorError(err.message ?? "No se pudo cargar el archivo");
-    } finally {
-      setEditorLoading(false);
-    }
+  // Hooks
+  const { data: files, isLoading, refetch } = useFiles(currentPath);
+  const deleteMutation       = useDeleteFile();
+  const createFolderMutation = useCreateFolder();
+  const uploadMutation       = useUploadFiles();
+  const moveMutation         = useMoveFile();
+  const copyMutation         = useCopyFile();
+
+  // Toast helpers
+  const addToast = useCallback((message: string, type: Toast["type"] = "info") => {
+    const id = Math.random().toString(36).slice(2);
+    setToasts((p) => [...p, { id, message, type }]);
+    setTimeout(() => setToasts((p) => p.filter((t) => t.id !== id)), 4500);
+  }, []);
+  const dismissToast = (id: string) => setToasts((p) => p.filter((t) => t.id !== id));
+  const showConfirm  = (s: ConfirmState) => setConfirmDialog(s);
+  const clearSel     = () => setSelectedFiles(new Set());
+
+  const selectedItems = useMemo(() => (files ?? []).filter((f) => selectedFiles.has(f.path)), [files, selectedFiles]);
+
+  // Reset on path change
+  useEffect(() => { setPathInput(currentPath); setSelectedFiles(new Set()); setSearchQuery(""); }, [currentPath]);
+
+  // Close context menu on click/scroll
+  useEffect(() => {
+    const close = () => setContextMenu(null);
+    window.addEventListener("click", close);
+    window.addEventListener("contextmenu", close);
+    window.addEventListener("scroll", close, true);
+    return () => { window.removeEventListener("click", close); window.removeEventListener("contextmenu", close); window.removeEventListener("scroll", close, true); };
+  }, []);
+
+  // Navigation
+  const navigateUp = () => { const p = currentPath.split("/").filter(Boolean); p.pop(); setCurrentPath("/"+p.join("/")); };
+  const navigateTo = (name: string) => {
+    if (name === "..") { navigateUp(); return; }
+    setCurrentPath(currentPath === "/" ? `/${name}` : `${currentPath}/${name}`);
+  };
+  const handlePathSubmit = (e: FormEvent) => {
+    e.preventDefault();
+    let t = pathInput.trim() || "/";
+    if (!t.startsWith("/")) t = "/"+t;
+    setCurrentPath(t);
   };
 
+  // Sort
+  const handleSort = (k: string) => {
+    const key = k as typeof sortKey;
+    if (sortKey === key) setSortDir((d) => d==="asc"?"desc":"asc");
+    else { setSortKey(key); setSortDir("asc"); }
+  };
+
+  // Filtered + sorted files
+  const displayFiles = useMemo(() => {
+    if (!files) return [];
+    let r = [...files];
+    if (searchQuery) r = r.filter((f) => f.name.toLowerCase().includes(searchQuery.toLowerCase()));
+    r.sort((a, b) => {
+      if (a.isDirectory !== b.isDirectory) return a.isDirectory ? -1 : 1;
+      let cmp = 0;
+      if (sortKey==="name") cmp = a.name.localeCompare(b.name);
+      else if (sortKey==="size") cmp = a.size - b.size;
+      else cmp = new Date(a.lastModified).getTime() - new Date(b.lastModified).getTime();
+      return sortDir==="asc" ? cmp : -cmp;
+    });
+    return r;
+  }, [files, searchQuery, sortKey, sortDir]);
+
+  // Selection
+  const toggleSelect = (path: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSelectedFiles((p) => { const n=new Set(p); if (n.has(path)) n.delete(path); else n.add(path); return n; });
+  };
+
+  // Context menu opener
+  const openCtx = (e: React.MouseEvent, file: FileItem) => { e.preventDefault(); e.stopPropagation(); setContextMenu({ x:e.clientX, y:e.clientY, file }); };
+
+  // Editor
+  const openEditor = async (filePath: string, fileName: string) => {
+    setEditorFile({path:filePath,name:fileName}); setEditorContent(""); setEditorError(null); setEditorLoading(true); setEditorOpen(true); setContextMenu(null);
+    try {
+      const res  = await fetch(`${API_BASE}/odin-panel/files/content?path=${encodeURIComponent(filePath)}`, { headers:authHeaders() });
+      const data = await res.json();
+      if (!res.ok||!data.success) throw new Error(data?.error?.message??"Error al leer archivo");
+      setEditorContent(data.data??"");
+    } catch (err:any) { setEditorError(err.message??"No se pudo cargar"); }
+    finally { setEditorLoading(false); }
+  };
   const saveEditor = async () => {
     if (!editorFile) return;
-    setEditorSaving(true);
-    setEditorError(null);
+    setEditorSaving(true); setEditorError(null);
     try {
-      const res = await fetch(`${API_BASE}/odin-panel/files/content`, {
-        method: "PUT",
-        headers: authHeaders({ "Content-Type": "application/json" }),
-        body: JSON.stringify({ path: editorFile.path, content: editorContent })
-      });
+      const res  = await fetch(`${API_BASE}/odin-panel/files/content`, { method:"PUT", headers:authHeaders({"Content-Type":"application/json"}), body:JSON.stringify({path:editorFile.path,content:editorContent}) });
       const data = await res.json();
-      if (!res.ok || !data.success) throw new Error(data?.error?.message ?? "Error al guardar");
-      setEditorOpen(false);
-      refetch();
-    } catch (err: any) {
-      setEditorError(err.message ?? "No se pudo guardar el archivo");
-    } finally {
-      setEditorSaving(false);
+      if (!res.ok||!data.success) throw new Error(data?.error?.message??"Error al guardar");
+      addToast(`"${editorFile.name}" guardado`, "success"); setEditorOpen(false); refetch();
+    } catch (err:any) { setEditorError(err.message??"No se pudo guardar"); }
+    finally { setEditorSaving(false); }
+  };
+  const handleEditorKey = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if ((e.ctrlKey||e.metaKey)&&e.key==="s") { e.preventDefault(); saveEditor(); }
+    if (e.key==="Tab") {
+      e.preventDefault();
+      const ta=e.currentTarget, s=ta.selectionStart, en=ta.selectionEnd;
+      const v=editorContent.substring(0,s)+"  "+editorContent.substring(en);
+      setEditorContent(v);
+      requestAnimationFrame(()=>{ ta.selectionStart=ta.selectionEnd=s+2; });
     }
   };
 
-  const startRename = (file: any) => {
-    setRenameTarget(file.path);
-    setRenameValue(file.name);
-  };
-
+  // Rename
+  const startRename = (file: FileItem) => { setRenameTarget(file.path); setRenameValue(file.name); setContextMenu(null); };
   const confirmRename = async () => {
-    if (!renameTarget || !renameValue.trim()) return;
-    const dir = renameTarget.substring(0, renameTarget.lastIndexOf("/") + 1);
-    const newPath = dir + renameValue.trim();
+    if (!renameTarget||!renameValue.trim()) return;
+    const dir=renameTarget.substring(0,renameTarget.lastIndexOf("/")+1);
+    const newPath=dir+renameValue.trim();
+    if (newPath===renameTarget) { setRenameTarget(null); return; }
     try {
-      const res = await fetch(`${API_BASE}/odin-panel/files/rename`, {
-        method: "PUT",
-        headers: authHeaders({ "Content-Type": "application/json" }),
-        body: JSON.stringify({ oldPath: renameTarget, newPath })
-      });
-      const data = await res.json();
-      if (!res.ok || !data.success) throw new Error(data?.error?.message ?? "Error al renombrar");
-      setRenameTarget(null);
-      refetch();
-    } catch (err: any) {
-      alert("Error al renombrar: " + err.message);
-    }
+      const res=await fetch(`${API_BASE}/odin-panel/files/rename`,{method:"PUT",headers:authHeaders({"Content-Type":"application/json"}),body:JSON.stringify({oldPath:renameTarget,newPath})});
+      const data=await res.json();
+      if (!res.ok||!data.success) throw new Error(data?.error?.message??"Error");
+      setRenameTarget(null); addToast("Renombrado correctamente","success"); refetch();
+    } catch (err:any) { addToast("Error al renombrar: "+err.message,"error"); }
   };
 
-  const extractArchive = async (filePath: string) => {
-    const dir = filePath.substring(0, filePath.lastIndexOf("/") + 1) || "/";
-    setExtracting(filePath);
-    try {
-      const res = await fetch(`${API_BASE}/odin-panel/files/extract`, {
-        method: "POST",
-        headers: authHeaders({ "Content-Type": "application/json" }),
-        body: JSON.stringify({ zipPath: filePath, destPath: dir })
-      });
-      const data = await res.json();
-      if (!res.ok || !data.success) throw new Error(data?.error?.message ?? "Error al extraer");
-      refetch();
-    } catch (err: any) {
-      alert("Error al extraer: " + err.message);
-    } finally {
-      setExtracting(null);
+  // Move
+  const openMove = (targets: FileItem[]) => { setContextMenu(null); setFolderPicker({title:targets.length===1?`Mover "${targets[0].name}"`:  `Mover ${targets.length} elementos`,subtitle:"Selecciona el directorio de destino",confirmLabel:"Mover aquí",files:targets,type:"move"}); };
+  const handleMove = async (targets: FileItem[], dest: string) => {
+    setFolderPicker(null); let errors=0;
+    for (const file of targets) {
+      const newPath=dest==="/"?`/${file.name}`:`${dest}/${file.name}`;
+      try { await new Promise<void>((res,rej)=>moveMutation.mutate({oldPath:file.path,newPath},{onSuccess:()=>res(),onError:()=>rej()})); }
+      catch { errors++; }
     }
+    clearSel();
+    if (errors===0) addToast(`${targets.length>1?targets.length+" elementos":'"'+targets[0].name+'"'} movido(s) a ${dest}`,"success");
+    else addToast(`${errors} elemento(s) no se pudieron mover`,"error");
+    refetch();
   };
 
-  const handleUploadFiles = (fileList: FileList | null) => {
-    if (!fileList || fileList.length === 0) return;
-    setUploadProgress(0);
-    uploadMutation.mutate({ 
-      path: currentPath, 
-      files: fileList,
-      onProgress: (p) => setUploadProgress(p)
-    }, {
-      onSettled: () => setUploadProgress(null)
+  // Copy
+  const openCopy = (targets: FileItem[]) => { setContextMenu(null); setFolderPicker({title:targets.length===1?`Copiar "${targets[0].name}"`:  `Copiar ${targets.length} elementos`,subtitle:"Selecciona el directorio de destino",confirmLabel:"Copiar aquí",files:targets,type:"copy"}); };
+  const handleCopy = async (targets: FileItem[], dest: string) => {
+    setFolderPicker(null); let errors=0;
+    for (const file of targets) {
+      const newPath=dest==="/"?`/${file.name}`:`${dest}/${file.name}`;
+      try { await new Promise<void>((res,rej)=>copyMutation.mutate({sourcePath:file.path,destPath:newPath},{onSuccess:()=>res(),onError:()=>rej()})); }
+      catch { errors++; }
+    }
+    clearSel();
+    if (errors===0) addToast(`${targets.length>1?targets.length+" elementos":'"'+targets[0].name+'"'} copiado(s) a ${dest}`,"success");
+    else addToast("No se pudo copiar (endpoint puede no estar disponible)","error");
+    refetch();
+  };
+
+  // Delete
+  const handleDelete = (targets: FileItem[]) => {
+    setContextMenu(null);
+    const names=targets.length===1?`"${targets[0].name}"`:  `${targets.length} elementos`;
+    showConfirm({ title:"Confirmar eliminación", message:`¿Estás seguro de eliminar ${names}? Esta acción es irreversible.`, danger:true,
+      onConfirm: async () => {
+        setConfirmDialog(null); let ok=0, err=0;
+        for (const f of targets) {
+          try { await new Promise<void>((res,rej)=>deleteMutation.mutate(f.path,{onSuccess:()=>res(),onError:()=>rej()})); ok++; }
+          catch { err++; }
+        }
+        clearSel();
+        if (err===0) addToast(`${ok>1?ok+" elementos":names} eliminado(s)`,"success");
+        else addToast(`${err} elemento(s) no pudieron eliminarse`,"error");
+        refetch();
+      }
     });
   };
 
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(false);
-    handleUploadFiles(e.dataTransfer.files);
-  }, [currentPath]);
-
-  const navigateTo = (folderName: string) => {
-    if (folderName === "..") {
-      const parts = currentPath.split("/").filter(Boolean);
-      parts.pop();
-      setCurrentPath("/" + parts.join("/"));
-      return;
-    }
-    const target = currentPath === "/" ? `/${folderName}` : `${currentPath}/${folderName}`;
-    setCurrentPath(target);
+  // Extract
+  const handleExtract = async (filePath: string) => {
+    const dir=filePath.substring(0,filePath.lastIndexOf("/")+1)||"/";
+    setExtracting(filePath); setContextMenu(null);
+    try {
+      const res=await fetch(`${API_BASE}/odin-panel/files/extract`,{method:"POST",headers:authHeaders({"Content-Type":"application/json"}),body:JSON.stringify({zipPath:filePath,destPath:dir})});
+      const data=await res.json();
+      if (!res.ok||!data.success) throw new Error(data?.error?.message??"Error al extraer");
+      addToast("Archivo extraído correctamente","success"); refetch();
+    } catch (err:any) { addToast("Error al extraer: "+err.message,"error"); }
+    finally { setExtracting(null); }
   };
 
+  // Upload
+  const handleUpload = (fileList: FileList|null) => {
+    if (!fileList||fileList.length===0) return;
+    setUploadProgress(0);
+    uploadMutation.mutate({path:currentPath,files:fileList,onProgress:(p)=>setUploadProgress(p)},{
+      onSuccess:()=>addToast("Archivos subidos correctamente","success"),
+      onError:()=>addToast("Error al subir archivos","error"),
+      onSettled:()=>setUploadProgress(null),
+    });
+  };
+  const handleDrop = useCallback((e:React.DragEvent)=>{ e.preventDefault(); setIsDragging(false); handleUpload(e.dataTransfer.files); },[currentPath]);
+
+  // Create folder
   const handleCreateFolder = () => {
-    const name = window.prompt("Nombre de la nueva carpeta:");
-    if (!name) return;
-    const target = currentPath === "/" ? `/${name}` : `${currentPath}/${name}`;
-    createFolderMutation.mutate(target);
+    const name=window.prompt("Nombre de la nueva carpeta:");
+    if (!name?.trim()) return;
+    const t=currentPath==="/"?`/${name.trim()}`:`${currentPath}/${name.trim()}`;
+    createFolderMutation.mutate(t,{onSuccess:()=>addToast(`Carpeta "${name.trim()}" creada`,"success"),onError:()=>addToast("Error al crear carpeta","error")});
   };
 
-  const handleDelete = (path: string, isDir: boolean) => {
-    if (window.confirm(`¿Eliminar ${isDir ? "carpeta" : "archivo"} "${path}"? Esta acción es irreversible.`)) {
-      deleteMutation.mutate(path);
-    }
+  // Create file
+  const handleCreateFile = async (fileName: string) => {
+    const fp=currentPath==="/"?`/${fileName}`:`${currentPath}/${fileName}`;
+    setCreatingFile(true);
+    try {
+      const res=await fetch(`${API_BASE}/odin-panel/files/content`,{method:"PUT",headers:authHeaders({"Content-Type":"application/json"}),body:JSON.stringify({path:fp,content:""})});
+      const data=await res.json();
+      if (!res.ok||!data.success) throw new Error(data?.error?.message??"Error al crear");
+      addToast(`"${fileName}" creado`,"success"); setNewFileOpen(false); refetch();
+      if (isTextFile(fileName)) setTimeout(()=>openEditor(fp,fileName),300);
+    } catch (err:any) { addToast("Error al crear: "+err.message,"error"); }
+    finally { setCreatingFile(false); }
   };
 
   const breadcrumbs = currentPath.split("/").filter(Boolean);
 
+  // Sort button
+  const SortBtn = ({ label, k }: { label:string; k:"name"|"size"|"date" }) => (
+    <button onClick={()=>handleSort(k)} className={`px-2 py-1 rounded-lg font-black text-[9px] uppercase tracking-widest transition-all flex items-center gap-0.5 ${sortKey===k?"bg-[#00A3FF]/10 text-[#00A3FF]":"text-slate-400 hover:text-slate-600"}`}>
+      {label}{sortKey===k&&<span className="material-symbols-outlined text-[10px]">{sortDir==="asc"?"arrow_upward":"arrow_downward"}</span>}
+    </button>
+  );
+
+  // Badge renderer
+  const Badge = ({ name }: { name: string }) => {
+    const b = getFileBadge(name);
+    return b ? <span className={`px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wider ${b.color}`}>{b.label}</span> : null;
+  };
+
   return (
-    <div className="flex flex-col h-[calc(100vh-10rem)] space-y-6 animate-in fade-in duration-700">
+    <div className="flex flex-col h-[calc(100vh-10rem)] space-y-4 animate-in fade-in duration-700">
+
+      {/* ── Header ─────────────────────────────────────────────────────────────── */}
       <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 border-b border-slate-200 pb-4">
         <div className="space-y-1.5">
-          <div className="flex items-center gap-2 mb-0.5">
-             <span className="px-2 py-0.5 bg-[#00A3FF]/10 text-[#00A3FF] text-[9px] font-bold uppercase rounded-full tracking-wider">
-                Almacenamiento Cloud
-             </span>
-          </div>
-          <h1 className="text-2xl font-black text-slate-900 uppercase">
-            Gestor de <span className="text-[#00A3FF]">Archivos</span>
-          </h1>
-          <p className="text-slate-500 text-xs font-medium">
-            Administra los ficheros de tu servidor de forma segura y profesional.
-          </p>
+          <span className="px-2 py-0.5 bg-[#00A3FF]/10 text-[#00A3FF] text-[9px] font-bold uppercase rounded-full tracking-wider">Almacenamiento Cloud</span>
+          <h1 className="text-2xl font-black text-slate-900 uppercase mt-1.5">Gestor de <span className="text-[#00A3FF]">Archivos</span></h1>
+          <p className="text-slate-500 text-xs font-medium">Administra los ficheros de tu servidor — mover, copiar, editar y más.</p>
         </div>
-        
-        <div className="flex gap-2">
-          <button onClick={handleCreateFolder} className="px-4 py-2 bg-white border border-slate-200 rounded-lg text-slate-500 font-bold text-xs uppercase hover:border-[#00A3FF]/30 hover:text-[#00A3FF] transition-all shadow-sm flex items-center gap-1.5">
-            <span className="material-symbols-outlined text-[16px]">create_new_folder</span>
-            Carpeta
+        <div className="flex gap-2 flex-wrap">
+          <button onClick={()=>setNewFileOpen(true)} className="px-4 py-2 bg-white border border-slate-200 rounded-xl text-slate-500 font-bold text-xs uppercase hover:border-[#00A3FF]/30 hover:text-[#00A3FF] transition-all shadow-sm flex items-center gap-1.5">
+            <span className="material-symbols-outlined text-[16px]">note_add</span>Nuevo Archivo
           </button>
-          <input type="file" ref={fileInputRef} onChange={e => handleUploadFiles(e.target.files)} className="hidden" multiple />
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            disabled={uploadMutation.isPending}
-            className="bg-[#00A3FF] px-4 py-2 rounded-lg text-white font-bold uppercase text-xs shadow-md shadow-[#00A3FF]/10 hover:bg-[#008EE0] transition-all disabled:opacity-40 flex items-center gap-1.5 relative overflow-hidden"
-          >
-            {uploadMutation.isPending && uploadProgress !== null && (
-              <div 
-                className="absolute inset-y-0 left-0 bg-black/10 transition-all duration-300 pointer-events-none"
-                style={{ width: `${uploadProgress}%` }}
-              />
-            )}
+          <button onClick={handleCreateFolder} className="px-4 py-2 bg-white border border-slate-200 rounded-xl text-slate-500 font-bold text-xs uppercase hover:border-[#00A3FF]/30 hover:text-[#00A3FF] transition-all shadow-sm flex items-center gap-1.5">
+            <span className="material-symbols-outlined text-[16px]">create_new_folder</span>Carpeta
+          </button>
+          <input type="file" ref={fileInputRef} onChange={(e)=>handleUpload(e.target.files)} className="hidden" multiple/>
+          <button onClick={()=>fileInputRef.current?.click()} disabled={uploadMutation.isPending}
+            className="bg-[#00A3FF] px-4 py-2 rounded-xl text-white font-bold uppercase text-xs shadow-md shadow-[#00A3FF]/20 hover:bg-[#008EE0] transition-all disabled:opacity-40 flex items-center gap-1.5 relative overflow-hidden">
+            {uploadMutation.isPending&&uploadProgress!==null&&<div className="absolute inset-y-0 left-0 bg-black/10 transition-all pointer-events-none" style={{width:`${uploadProgress}%`}}/>}
             <span className="material-symbols-outlined text-[16px] relative z-10">upload</span>
-            <span className="relative z-10">
-              {uploadMutation.isPending 
-                ? (uploadProgress !== null ? `Subiendo ${uploadProgress}%` : "Subiendo...") 
-                : "Subir"}
-            </span>
+            <span className="relative z-10">{uploadMutation.isPending?(uploadProgress!==null?`Subiendo ${uploadProgress}%`:"Subiendo..."):"Subir"}</span>
           </button>
         </div>
       </header>
 
-      {/* Main Two Pane Layout */}
-      <div className="flex-1 flex gap-6 min-h-0 overflow-hidden">
-        
-        {/* Navigation Sidebar Pane */}
-        <aside className="hidden md:flex w-60 flex-col bg-white border border-slate-200 rounded-xl shadow-sm p-4 overflow-y-auto custom-scrollbar space-y-4 flex-shrink-0">
-           <div>
-              <span className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400 block px-1 mb-2">Acceso Rápido</span>
-              <div className="space-y-0.5">
-                 <button 
-                   onClick={() => setCurrentPath("/")}
-                   className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left text-xs font-semibold transition-all ${currentPath === "/" ? 'bg-[#00A3FF]/10 text-[#00A3FF]' : 'text-slate-600 hover:bg-slate-50'}`}
-                 >
-                    <span className="material-symbols-outlined text-[16px] text-slate-400">home</span>
-                    Raíz (/)
-                 </button>
-                 <button 
-                   onClick={() => setCurrentPath("/logs")}
-                   className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left text-xs font-semibold transition-all ${currentPath === "/logs" ? 'bg-[#00A3FF]/10 text-[#00A3FF]' : 'text-slate-600 hover:bg-slate-50'}`}
-                 >
-                    <span className="material-symbols-outlined text-[16px] text-slate-400">folder</span>
-                    logs
-                 </button>
-                 <button 
-                   onClick={() => setCurrentPath("/public_html")}
-                   className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left text-xs font-semibold transition-all ${currentPath === "/public_html" ? 'bg-[#00A3FF]/10 text-[#00A3FF]' : 'text-slate-600 hover:bg-slate-50'}`}
-                 >
-                    <span className="material-symbols-outlined text-[16px] text-slate-400">folder</span>
-                    public_html
-                 </button>
+      {/* ── Two-pane layout ─────────────────────────────────────────────────────── */}
+      <div className="flex-1 flex gap-4 min-h-0 overflow-hidden">
+
+        {/* Sidebar */}
+        <aside className="hidden md:flex w-56 flex-col bg-white border border-slate-200 rounded-2xl shadow-sm p-3 overflow-y-auto custom-scrollbar space-y-3 flex-shrink-0">
+          <div>
+            <span className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400 block px-1 mb-1.5">Acceso Rápido</span>
+            <div className="space-y-0.5">
+              {[{label:"Raíz (/)",path:"/",icon:"home"},{label:"public_html",path:"/public_html",icon:"folder"},{label:"logs",path:"/logs",icon:"folder"},{label:"tmp",path:"/tmp",icon:"folder"}].map((item)=>(
+                <button key={item.path} onClick={()=>setCurrentPath(item.path)}
+                  className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-left text-xs font-semibold transition-all ${currentPath===item.path?"bg-[#00A3FF]/10 text-[#00A3FF]":"text-slate-600 hover:bg-slate-50"}`}>
+                  <span className={`material-symbols-outlined text-[16px] ${currentPath===item.path?"text-[#00A3FF]":"text-slate-400"}`}>{item.icon}</span>{item.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="pt-2 border-t border-slate-100">
+            <span className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400 block px-1 mb-1.5">Ruta Actual</span>
+            <div className="space-y-0.5 pl-1">
+              <div onClick={()=>setCurrentPath("/")} className={`flex items-center gap-1.5 py-1 px-2 cursor-pointer hover:text-[#00A3FF] transition-colors text-xs font-medium rounded-lg hover:bg-slate-50 ${currentPath==="/"?"text-[#00A3FF] font-bold":"text-slate-600"}`}>
+                <span className="material-symbols-outlined text-[14px] text-slate-400">dns</span><span>/</span>
               </div>
-           </div>
-           
-           <div className="pt-2 border-t border-slate-100">
-              <span className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400 block px-1 mb-2">Este Equipo</span>
-              <div className="space-y-0.5 pl-1">
-                 <div className="text-xs font-medium text-slate-700">
-                    <div 
-                      onClick={() => setCurrentPath("/")}
-                      className={`flex items-center gap-1.5 py-1 cursor-pointer hover:text-[#00A3FF] transition-colors ${currentPath === "/" ? 'text-[#00A3FF] font-bold' : ''}`}
-                    >
-                       <span className="material-symbols-outlined text-[16px] text-slate-400">dns</span>
-                       <span>/</span>
-                    </div>
-                    
-                    {breadcrumbs.map((crumb, idx) => {
-                       const crumbPath = "/" + breadcrumbs.slice(0, idx + 1).join("/");
-                       const indent = (idx + 1) * 8;
-                       return (
-                          <div 
-                            key={idx}
-                            onClick={() => setCurrentPath(crumbPath)}
-                            className="flex items-center gap-1.5 py-1 cursor-pointer hover:text-[#00A3FF] transition-colors"
-                            style={{ paddingLeft: `${indent}px` }}
-                          >
-                             <span className="material-symbols-outlined text-[16px] text-amber-500">folder_open</span>
-                             <span className={currentPath === crumbPath ? 'text-[#00A3FF] font-bold' : 'text-slate-600'}>{crumb}</span>
-                          </div>
-                       );
-                    })}
-                    
-                    {files && files.filter(f => f.isDirectory).map((folder) => {
-                       const indent = (breadcrumbs.length + 1) * 8;
-                       return (
-                          <div 
-                            key={folder.path}
-                            onClick={() => navigateTo(folder.name)}
-                            className="flex items-center gap-1.5 py-1 cursor-pointer text-slate-500 hover:text-[#00A3FF] transition-colors"
-                            style={{ paddingLeft: `${indent}px` }}
-                          >
-                             <span className="material-symbols-outlined text-[16px] text-amber-400">folder</span>
-                             <span className="truncate">{folder.name}</span>
-                          </div>
-                       );
-                    })}
-                 </div>
-              </div>
-           </div>
+              {breadcrumbs.map((crumb,idx)=>{
+                const cp="/"+breadcrumbs.slice(0,idx+1).join("/");
+                return <div key={idx} onClick={()=>setCurrentPath(cp)} className="flex items-center gap-1.5 py-1 cursor-pointer hover:text-[#00A3FF] transition-colors text-xs rounded-lg hover:bg-slate-50" style={{paddingLeft:`${(idx+1)*12+8}px`}}>
+                  <span className="material-symbols-outlined text-[14px] text-amber-500">folder_open</span>
+                  <span className={currentPath===cp?"text-[#00A3FF] font-bold":"text-slate-500 font-medium"}>{crumb}</span>
+                </div>;
+              })}
+              {files&&files.filter(f=>f.isDirectory).slice(0,8).map(folder=>(
+                <div key={folder.path} onClick={()=>navigateTo(folder.name)} className="flex items-center gap-1.5 py-1 cursor-pointer text-slate-500 hover:text-[#00A3FF] transition-colors text-xs rounded-lg hover:bg-slate-50" style={{paddingLeft:`${(breadcrumbs.length+1)*12+8}px`}}>
+                  <span className="material-symbols-outlined text-[14px] text-amber-400">folder</span><span className="truncate">{folder.name}</span>
+                </div>
+              ))}
+            </div>
+          </div>
         </aside>
 
-        {/* Workspace Display Card */}
-        <div
-          ref={dropZoneRef}
-          className={`flex-1 bg-white border rounded-xl shadow-sm transition-all overflow-hidden flex flex-col relative ${isDragging ? "border-[#00A3FF] bg-[#00A3FF]/5 scale-[0.99]" : "border-slate-200"}`}
-          onDragOver={e => { e.preventDefault(); setIsDragging(true); }}
-          onDragLeave={() => setIsDragging(false)}
-          onDrop={handleDrop}
-        >
-          {isDragging && (
-            <div className="absolute inset-0 z-50 flex items-center justify-center bg-white/60 backdrop-blur-sm rounded-xl pointer-events-none">
+        {/* Workspace */}
+        <div ref={dropZoneRef} className={`flex-1 bg-white border rounded-2xl shadow-sm transition-all overflow-hidden flex flex-col relative ${isDragging?"border-[#00A3FF] bg-[#00A3FF]/5 scale-[0.99]":"border-slate-200"}`}
+          onDragOver={(e)=>{e.preventDefault();setIsDragging(true);}} onDragLeave={()=>setIsDragging(false)} onDrop={handleDrop}>
+          {isDragging&&(
+            <div className="absolute inset-0 z-50 flex items-center justify-center bg-white/80 backdrop-blur-sm rounded-2xl pointer-events-none">
               <div className="text-center animate-bounce">
                 <span className="material-symbols-outlined text-[#00A3FF] text-7xl">cloud_upload</span>
                 <p className="text-[#00A3FF] font-black text-base uppercase tracking-widest mt-4">Soltar para subir</p>
@@ -380,346 +658,281 @@ export default function FileManagerPage() {
             </div>
           )}
 
-          {/* Windows-like address bar & view toggle */}
-          <div className="px-4 py-2 border-b border-slate-100 flex items-center gap-3 bg-slate-50/50 justify-between">
-            <div className="flex items-center gap-2">
-              <button 
-                onClick={navigateUp}
-                disabled={currentPath === "/"}
-                className="w-7 h-7 rounded-lg bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 transition-all flex items-center justify-center disabled:opacity-30 shadow-sm"
-                title="Subir un nivel"
-              >
-                <span className="material-symbols-outlined text-[16px]">arrow_upward</span>
-              </button>
-              <button 
-                onClick={() => refetch()}
-                className="w-7 h-7 rounded-lg bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 transition-all flex items-center justify-center shadow-sm"
-                title="Actualizar"
-              >
-                <span className="material-symbols-outlined text-[16px]">refresh</span>
-              </button>
-            </div>
-
-            <form onSubmit={handlePathSubmit} className="flex-1 flex items-center bg-white border border-slate-200 rounded-lg px-3 py-1 shadow-inner gap-2">
-              <span className="material-symbols-outlined text-[16px] text-slate-400">folder_open</span>
-              <input 
-                type="text" 
-                value={pathInput}
-                onChange={e => setPathInput(e.target.value)}
-                className="bg-transparent border-none outline-none text-slate-700 w-full text-xs font-mono"
-              />
-              <button 
-                type="button" 
-                onClick={() => {
-                  navigator.clipboard.writeText("/home/user" + currentPath);
-                  alert("Ruta copiada: /home/user" + currentPath);
-                }}
-                className="text-slate-400 hover:text-[#00A3FF] transition-colors"
-                title="Copiar ruta absoluta"
-              >
-                <span className="material-symbols-outlined text-[14px]">content_copy</span>
+          {/* Address bar */}
+          <div className="px-4 py-2 border-b border-slate-100 flex items-center gap-2 bg-slate-50/50">
+            <button onClick={navigateUp} disabled={currentPath==="/"} className="w-7 h-7 rounded-lg bg-white border border-slate-200 text-slate-500 hover:bg-slate-50 transition-all flex items-center justify-center disabled:opacity-30 shadow-sm">
+              <span className="material-symbols-outlined text-[15px]">arrow_upward</span>
+            </button>
+            <button onClick={()=>refetch()} className="w-7 h-7 rounded-lg bg-white border border-slate-200 text-slate-500 hover:bg-slate-50 transition-all flex items-center justify-center shadow-sm">
+              <span className={`material-symbols-outlined text-[15px] ${isLoading?"animate-spin":""}`}>refresh</span>
+            </button>
+            <form onSubmit={handlePathSubmit} className="flex-1 flex items-center bg-white border border-slate-200 rounded-xl px-3 py-1 shadow-inner gap-2">
+              <span className="material-symbols-outlined text-[15px] text-slate-400">folder_open</span>
+              <input type="text" value={pathInput} onChange={(e)=>setPathInput(e.target.value)} className="bg-transparent border-none outline-none text-slate-700 w-full text-xs font-mono"/>
+              <button type="button" onClick={()=>{navigator.clipboard.writeText("/home/user"+currentPath);addToast("Ruta copiada","info");}} className="text-slate-400 hover:text-[#00A3FF] transition-colors">
+                <span className="material-symbols-outlined text-[13px]">content_copy</span>
               </button>
             </form>
-
-            <div className="flex items-center border border-slate-200 rounded-lg bg-white p-0.5 shadow-sm">
-              <button 
-                type="button"
-                onClick={() => setViewMode("grid")}
-                className={`px-2 py-1 rounded-md transition-all flex items-center justify-center ${viewMode === "grid" ? "bg-[#00A3FF] text-white" : "text-slate-500 hover:bg-slate-50"}`}
-                title="Vista de Iconos"
-              >
-                <span className="material-symbols-outlined text-[16px]">grid_view</span>
+            <div className="flex items-center border border-slate-200 rounded-xl bg-white p-0.5 shadow-sm">
+              <button onClick={()=>setViewMode("grid")} className={`px-2 py-1 rounded-lg transition-all flex items-center justify-center ${viewMode==="grid"?"bg-[#00A3FF] text-white":"text-slate-400 hover:bg-slate-50"}`}>
+                <span className="material-symbols-outlined text-[15px]">grid_view</span>
               </button>
-              <button 
-                type="button"
-                onClick={() => setViewMode("list")}
-                className={`px-2 py-1 rounded-md transition-all flex items-center justify-center ${viewMode === "list" ? "bg-[#00A3FF] text-white" : "text-slate-500 hover:bg-slate-50"}`}
-                title="Vista de Detalles"
-              >
-                <span className="material-symbols-outlined text-[16px]">format_list_bulleted</span>
+              <button onClick={()=>setViewMode("list")} className={`px-2 py-1 rounded-lg transition-all flex items-center justify-center ${viewMode==="list"?"bg-[#00A3FF] text-white":"text-slate-400 hover:bg-slate-50"}`}>
+                <span className="material-symbols-outlined text-[15px]">format_list_bulleted</span>
               </button>
             </div>
           </div>
 
-          {/* Main workspace listing area */}
+          {/* Search + sort bar */}
+          <div className="px-4 py-2 border-b border-slate-100 bg-white flex items-center gap-3">
+            <div className="flex-1 relative flex items-center">
+              <span className="material-symbols-outlined text-[15px] text-slate-400 absolute left-2.5">search</span>
+              <input type="text" value={searchQuery} onChange={(e)=>setSearchQuery(e.target.value)} placeholder="Buscar en este directorio..."
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-8 pr-8 py-1.5 text-xs text-slate-700 font-medium focus:outline-none focus:border-[#00A3FF] focus:ring-2 focus:ring-[#00A3FF]/10 transition-all"/>
+              {searchQuery&&<button onClick={()=>setSearchQuery("")} className="absolute right-2.5 text-slate-400 hover:text-slate-600"><span className="material-symbols-outlined text-[13px]">close</span></button>}
+            </div>
+            <div className="flex items-center gap-1">
+              <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 hidden sm:block mr-1">Ordenar:</span>
+              <SortBtn label="Nombre" k="name"/><SortBtn label="Tamaño" k="size"/><SortBtn label="Fecha" k="date"/>
+            </div>
+          </div>
+
+          {/* Bulk bar */}
+          {selectedFiles.size>0&&(
+            <div className="px-4 py-2 bg-[#00A3FF]/5 border-b border-[#00A3FF]/10 flex items-center gap-3 animate-in slide-in-from-top-2 duration-200">
+              <span className="text-xs font-black text-[#00A3FF] uppercase tracking-wide">{selectedFiles.size} seleccionado(s)</span>
+              <div className="flex gap-1.5 ml-auto">
+                <button onClick={()=>openMove(selectedItems)} className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-white border border-slate-200 text-xs font-bold text-slate-600 hover:border-[#00A3FF]/30 hover:text-[#00A3FF] transition-all shadow-sm">
+                  <span className="material-symbols-outlined text-[13px]">drive_file_move</span>Mover
+                </button>
+                <button onClick={()=>openCopy(selectedItems)} className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-white border border-slate-200 text-xs font-bold text-slate-600 hover:border-[#00A3FF]/30 hover:text-[#00A3FF] transition-all shadow-sm">
+                  <span className="material-symbols-outlined text-[13px]">content_copy</span>Copiar
+                </button>
+                <button onClick={()=>handleDelete(selectedItems)} className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-red-50 border border-red-100 text-xs font-bold text-red-500 hover:bg-red-500 hover:text-white transition-all shadow-sm">
+                  <span className="material-symbols-outlined text-[13px]">delete</span>Eliminar
+                </button>
+                <button onClick={clearSel} className="w-7 h-7 rounded-xl bg-white border border-slate-200 text-slate-400 hover:bg-slate-50 flex items-center justify-center shadow-sm transition-all">
+                  <span className="material-symbols-outlined text-[13px]">close</span>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* File listing */}
           <div className="flex-1 overflow-auto custom-scrollbar p-4">
-            {isLoading && (
-              <div className="py-20 text-center">
-                <div className="flex flex-col items-center gap-3">
-                   <div className="w-8 h-8 border-[3px] border-[#00A3FF]/20 border-t-[#00A3FF] rounded-full animate-spin"></div>
-                   <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Escaneando archivos...</p>
-                </div>
-              </div>
+            {isLoading&&<div className="py-20 text-center"><div className="flex flex-col items-center gap-3"><div className="w-8 h-8 border-[3px] border-[#00A3FF]/20 border-t-[#00A3FF] rounded-full animate-spin"/><p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Escaneando archivos...</p></div></div>}
+            {!isLoading&&displayFiles.length===0&&(
+              <div className="py-20 text-center"><div className="flex flex-col items-center opacity-40">
+                <span className="material-symbols-outlined text-5xl text-slate-400">{searchQuery?"search_off":"folder_off"}</span>
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mt-2">{searchQuery?`Sin resultados para "${searchQuery}"`:"Directorio Vacío"}</p>
+              </div></div>
             )}
 
-            {!isLoading && files?.length === 0 && (
-              <div className="py-20 text-center">
-                 <div className="flex flex-col items-center opacity-30">
-                    <span className="material-symbols-outlined text-5xl text-slate-400">folder_off</span>
-                    <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mt-2">Directorio Vacío</p>
-                 </div>
-              </div>
-            )}
-
-            {!isLoading && files && files.length > 0 && (
-              viewMode === "grid" ? (
-                <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
-                  {currentPath !== "/" && (
-                    <div 
-                      onClick={() => navigateTo("..")}
-                      className="flex flex-col items-center justify-center p-3 rounded-lg border border-dashed border-slate-200 hover:border-[#00A3FF] hover:bg-[#00A3FF]/5 cursor-pointer group transition-all text-center aspect-square"
-                    >
-                      <span className="material-symbols-outlined text-2xl text-[#00A3FF] mb-1.5 group-hover:-translate-x-0.5 transition-transform">keyboard_backspace</span>
-                      <span className="text-[10px] font-bold text-[#00A3FF] uppercase tracking-wider">Atrás</span>
-                    </div>
-                  )}
-
-                  {files.map((file) => (
-                    <div 
-                      key={file.path}
-                      className="flex flex-col items-center justify-center p-3 bg-white border border-slate-100 hover:border-[#00A3FF]/30 hover:bg-[#00A3FF]/5 hover:shadow-sm rounded-lg cursor-pointer group transition-all text-center relative aspect-square"
-                      onClick={() => file.isDirectory && navigateTo(file.name)}
-                    >
-                      <div className={`w-12 h-12 rounded-lg flex items-center justify-center mb-1.5 shadow-sm transition-all group-hover:scale-105 ${
-                        file.isDirectory ? "bg-amber-50 text-amber-500 border border-amber-100/50" : "bg-slate-50 text-slate-400 border border-slate-100/50"
-                      }`}>
-                        <span className="material-symbols-outlined text-2xl">
-                          {getFileIcon(file.name, file.isDirectory)}
-                        </span>
+            {/* ── Grid View ── */}
+            {!isLoading&&displayFiles.length>0&&viewMode==="grid"&&(
+              <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+                {currentPath!=="/"&&(
+                  <div onClick={()=>navigateTo("..")} className="flex flex-col items-center justify-center p-3 rounded-xl border border-dashed border-slate-200 hover:border-[#00A3FF] hover:bg-[#00A3FF]/5 cursor-pointer group transition-all text-center aspect-square">
+                    <span className="material-symbols-outlined text-2xl text-[#00A3FF] mb-1.5 group-hover:-translate-x-0.5 transition-transform">keyboard_backspace</span>
+                    <span className="text-[10px] font-bold text-[#00A3FF] uppercase tracking-wider">Atrás</span>
+                  </div>
+                )}
+                {displayFiles.map((file)=>(
+                  <div key={file.path} onClick={()=>file.isDirectory&&navigateTo(file.name)} onContextMenu={(e)=>openCtx(e,file)}
+                    className={`flex flex-col items-center justify-center p-3 border hover:border-[#00A3FF]/30 hover:bg-[#00A3FF]/5 hover:shadow-sm rounded-xl cursor-pointer group transition-all text-center relative aspect-square select-none ${selectedFiles.has(file.path)?"border-[#00A3FF]/40 bg-[#00A3FF]/5":"bg-white border-slate-100"}`}>
+                    {/* Checkbox */}
+                    <div className={`absolute top-1.5 left-1.5 z-10 transition-opacity ${selectedFiles.has(file.path)?"opacity-100":"opacity-0 group-hover:opacity-100"}`} onClick={(e)=>toggleSelect(file.path,e)}>
+                      <div className={`w-4 h-4 rounded-md border-2 flex items-center justify-center transition-all ${selectedFiles.has(file.path)?"bg-[#00A3FF] border-[#00A3FF]":"border-slate-300 bg-white"}`}>
+                        {selectedFiles.has(file.path)&&<span className="material-symbols-outlined text-[10px] text-white">check</span>}
                       </div>
-
-                      {renameTarget === file.path ? (
-                        <div className="w-full px-1" onClick={e => e.stopPropagation()}>
-                          <input
-                            autoFocus
-                            value={renameValue}
-                            onChange={e => setRenameValue(e.target.value)}
-                            onKeyDown={e => { if (e.key === "Enter") confirmRename(); if (e.key === "Escape") setRenameTarget(null); }}
-                            className="w-full bg-slate-50 border border-[#00A3FF] rounded px-1.5 py-0.5 text-[10px] text-slate-900 font-bold focus:outline-none text-center shadow-inner"
-                          />
-                          <div className="flex justify-center gap-1 mt-1">
-                            <button onClick={confirmRename} className="w-5 h-5 rounded bg-[#00A3FF] text-white flex items-center justify-center shadow-sm">
-                              <span className="material-symbols-outlined text-[10px]">check</span>
-                            </button>
-                            <button onClick={() => setRenameTarget(null)} className="w-5 h-5 rounded bg-slate-100 text-slate-400 flex items-center justify-center">
-                              <span className="material-symbols-outlined text-[10px]">close</span>
-                            </button>
-                          </div>
-                        </div>
-                      ) : (
-                        <>
-                          <span className={`text-[11px] font-bold text-slate-700 truncate w-full px-1 ${file.isDirectory ? "group-hover:text-[#00A3FF]" : ""}`} title={file.name}>
-                            {file.name}
-                          </span>
-                          <span className="text-[9px] text-slate-400 font-mono mt-0.5">
-                            {file.isDirectory ? "Carpeta" : formatSize(file.size)}
-                          </span>
-                        </>
-                      )}
-
-                      {renameTarget !== file.path && (
-                        <div className="absolute top-1 right-1 flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity bg-white/95 backdrop-blur-sm p-0.5 rounded border border-slate-100 shadow-sm" onClick={e => e.stopPropagation()}>
-                          {!file.isDirectory && isTextFile(file.name) && (
-                            <button onClick={() => openEditor(file.path, file.name)} className="w-5 h-5 rounded bg-slate-50 border border-slate-200 text-slate-500 hover:text-[#00A3FF] hover:border-[#00A3FF]/30 transition-all flex items-center justify-center" title="Editar">
-                              <span className="material-symbols-outlined text-[12px]">edit</span>
-                            </button>
-                          )}
-                          {!file.isDirectory && isArchive(file.name) && (
-                            <button onClick={() => extractArchive(file.path)} disabled={extracting === file.path} className="w-5 h-5 rounded bg-emerald-50 text-emerald-600 hover:bg-emerald-600 hover:text-white transition-all flex items-center justify-center" title="Extraer">
-                              <span className={`material-symbols-outlined text-[12px] ${extracting === file.path ? "animate-spin" : ""}`}>
-                                {extracting === file.path ? "refresh" : "folder_zip"}
-                              </span>
-                            </button>
-                          )}
-                          <button onClick={() => startRename(file)} className="w-5 h-5 rounded bg-slate-50 border border-slate-200 text-slate-500 hover:text-[#00A3FF] transition-all flex items-center justify-center" title="Renombrar">
-                            <span className="material-symbols-outlined text-[12px]">drive_file_rename_outline</span>
-                          </button>
-                          {!file.isDirectory && (
-                            <a href={`${API_BASE}/odin-panel/files/download?path=${encodeURIComponent(file.path)}`} target="_blank" className="w-5 h-5 rounded bg-slate-50 border border-slate-200 text-slate-500 hover:text-[#00A3FF] transition-all flex items-center justify-center" title="Descargar">
-                              <span className="material-symbols-outlined text-[12px]">download</span>
-                            </a>
-                          )}
-                          <button onClick={() => handleDelete(file.path, file.isDirectory)} className="w-5 h-5 rounded bg-red-50 text-red-500 hover:bg-red-500 hover:text-white transition-all flex items-center justify-center" title="Eliminar">
-                            <span className="material-symbols-outlined text-[12px]">delete</span>
-                          </button>
-                        </div>
-                      )}
                     </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left whitespace-nowrap">
-                    <thead>
-                      <tr className="text-[9px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 bg-slate-50/20">
-                        <th className="px-4 py-2">Nombre del Elemento</th>
-                        <th className="px-4 py-2">Tamaño</th>
-                        <th className="px-4 py-2">Fecha</th>
-                        <th className="px-4 py-2">Permisos</th>
-                        <th className="px-4 py-2 text-right">Acciones</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100 bg-white">
-                      {currentPath !== "/" && (
-                        <tr className="hover:bg-slate-50 cursor-pointer transition-colors" onClick={() => navigateTo("..")}>
-                          <td className="px-4 py-2 flex items-center gap-2 text-[#00A3FF]">
+                    {/* Icon */}
+                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-1.5 shadow-sm transition-all group-hover:scale-105 ${file.isDirectory?"bg-amber-50 border border-amber-100/50":"bg-slate-50 border border-slate-100/50"}`}>
+                      <span className={`material-symbols-outlined text-2xl ${getFileIconColor(file.name,file.isDirectory)}`}>{getFileIcon(file.name,file.isDirectory)}</span>
+                    </div>
+                    {/* Rename inline or name */}
+                    {renameTarget===file.path?(
+                      <div className="w-full px-1" onClick={(e)=>e.stopPropagation()}>
+                        <input autoFocus value={renameValue} onChange={(e)=>setRenameValue(e.target.value)}
+                          onKeyDown={(e)=>{if(e.key==="Enter")confirmRename();if(e.key==="Escape")setRenameTarget(null);}}
+                          className="w-full bg-slate-50 border border-[#00A3FF] rounded-lg px-1.5 py-0.5 text-[10px] text-slate-900 font-bold focus:outline-none text-center shadow-inner"/>
+                        <div className="flex justify-center gap-1 mt-1">
+                          <button onClick={confirmRename} className="w-5 h-5 rounded-lg bg-[#00A3FF] text-white flex items-center justify-center"><span className="material-symbols-outlined text-[10px]">check</span></button>
+                          <button onClick={()=>setRenameTarget(null)} className="w-5 h-5 rounded-lg bg-slate-100 text-slate-400 flex items-center justify-center"><span className="material-symbols-outlined text-[10px]">close</span></button>
+                        </div>
+                      </div>
+                    ):(
+                      <>
+                        <span className={`text-[11px] font-bold text-slate-700 truncate w-full px-1 ${file.isDirectory?"group-hover:text-[#00A3FF]":""}`} title={file.name}>{file.name}</span>
+                        <span className="text-[9px] text-slate-400 font-mono mt-0.5">{file.isDirectory?"Carpeta":formatSize(file.size)}</span>
+                      </>
+                    )}
+                    {/* Action bar */}
+                    {renameTarget!==file.path&&(
+                      <div className="absolute bottom-1 right-1 flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity bg-white/95 backdrop-blur-sm p-0.5 rounded-lg border border-slate-100 shadow-sm" onClick={(e)=>e.stopPropagation()}>
+                        {!file.isDirectory&&isTextFile(file.name)&&<button onClick={()=>openEditor(file.path,file.name)} className="w-5 h-5 rounded-md bg-slate-50 border border-slate-200 text-slate-500 hover:text-[#00A3FF] transition-all flex items-center justify-center" title="Editar"><span className="material-symbols-outlined text-[11px]">edit</span></button>}
+                        <button onClick={()=>startRename(file)} className="w-5 h-5 rounded-md bg-slate-50 border border-slate-200 text-slate-500 hover:text-[#00A3FF] transition-all flex items-center justify-center" title="Renombrar"><span className="material-symbols-outlined text-[11px]">drive_file_rename_outline</span></button>
+                        <button onClick={()=>openMove([file])} className="w-5 h-5 rounded-md bg-slate-50 border border-slate-200 text-slate-500 hover:text-[#00A3FF] transition-all flex items-center justify-center" title="Mover"><span className="material-symbols-outlined text-[11px]">drive_file_move</span></button>
+                        {!file.isDirectory&&isArchive(file.name)&&<button onClick={()=>handleExtract(file.path)} disabled={extracting===file.path} className="w-5 h-5 rounded-md bg-emerald-50 text-emerald-600 hover:bg-emerald-600 hover:text-white transition-all flex items-center justify-center"><span className={`material-symbols-outlined text-[11px] ${extracting===file.path?"animate-spin":""}`}>{extracting===file.path?"refresh":"folder_zip"}</span></button>}
+                        {!file.isDirectory&&<a href={`${API_BASE}/odin-panel/files/download?path=${encodeURIComponent(file.path)}`} target="_blank" className="w-5 h-5 rounded-md bg-slate-50 border border-slate-200 text-slate-500 hover:text-[#00A3FF] transition-all flex items-center justify-center"><span className="material-symbols-outlined text-[11px]">download</span></a>}
+                        <button onClick={()=>handleDelete([file])} className="w-5 h-5 rounded-md bg-red-50 text-red-500 hover:bg-red-500 hover:text-white transition-all flex items-center justify-center"><span className="material-symbols-outlined text-[11px]">delete</span></button>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* ── List View ── */}
+            {!isLoading&&displayFiles.length>0&&viewMode==="list"&&(
+              <div className="overflow-x-auto">
+                <table className="w-full text-left whitespace-nowrap">
+                  <thead>
+                    <tr className="border-b border-slate-100 bg-slate-50/50">
+                      <th className="px-3 py-2 w-8">
+                        <div onClick={()=>{if(selectedFiles.size===displayFiles.length)clearSel();else setSelectedFiles(new Set(displayFiles.map(f=>f.path)));}}
+                          className={`w-4 h-4 rounded-md border-2 flex items-center justify-center cursor-pointer transition-all ${selectedFiles.size===displayFiles.length&&displayFiles.length>0?"bg-[#00A3FF] border-[#00A3FF]":"border-slate-300 bg-white hover:border-[#00A3FF]"}`}>
+                          {selectedFiles.size===displayFiles.length&&displayFiles.length>0&&<span className="material-symbols-outlined text-[10px] text-white">check</span>}
+                        </div>
+                      </th>
+                      <th className="px-3 py-2"><SortBtn label="Nombre" k="name"/></th>
+                      <th className="px-3 py-2"><SortBtn label="Tamaño" k="size"/></th>
+                      <th className="px-3 py-2"><SortBtn label="Fecha" k="date"/></th>
+                      <th className="px-3 py-2"><span className="text-[9px] font-black uppercase tracking-widest text-slate-400">Permisos</span></th>
+                      <th className="px-3 py-2 text-right"><span className="text-[9px] font-black uppercase tracking-widest text-slate-400">Acciones</span></th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-50 bg-white">
+                    {currentPath!=="/"&&(
+                      <tr className="hover:bg-slate-50 cursor-pointer transition-colors" onClick={()=>navigateTo("..")}>
+                        <td className="px-3 py-2"/><td className="px-3 py-2" colSpan={5}>
+                          <div className="flex items-center gap-2 text-[#00A3FF]">
                             <span className="material-symbols-outlined text-[16px]">keyboard_backspace</span>
                             <span className="font-bold text-[10px] uppercase tracking-wider">Volver al Directorio Anterior</span>
-                          </td>
-                          <td colSpan={4}></td>
-                        </tr>
-                      )}
-
-                      {files.map((file) => (
-                        <tr key={file.path} className="hover:bg-slate-50/50 transition-colors group border-l-2 border-transparent hover:border-l-[#00A3FF]">
-                          <td className="px-4 py-1.5">
-                            {renameTarget === file.path ? (
-                              <div className="flex items-center gap-2" onClick={e => e.stopPropagation()}>
-                                <input
-                                  autoFocus
-                                  value={renameValue}
-                                  onChange={e => setRenameValue(e.target.value)}
-                                  onKeyDown={e => { if (e.key === "Enter") confirmRename(); if (e.key === "Escape") setRenameTarget(null); }}
-                                  className="bg-slate-50 border border-[#00A3FF] rounded px-2 py-0.5 text-xs text-slate-900 font-bold focus:outline-none w-64 shadow-inner"
-                                />
-                                <button onClick={confirmRename} className="w-6 h-6 rounded bg-[#00A3FF] text-white flex items-center justify-center shadow-sm">
-                                  <span className="material-symbols-outlined text-[12px]">check</span>
-                                </button>
-                                <button onClick={() => setRenameTarget(null)} className="w-6 h-6 rounded bg-slate-100 text-slate-400 flex items-center justify-center">
-                                  <span className="material-symbols-outlined text-[12px]">close</span>
-                                </button>
-                              </div>
-                            ) : (
-                              <div
-                                className="flex items-center gap-2.5 cursor-pointer"
-                                onClick={() => file.isDirectory && navigateTo(file.name)}
-                              >
-                                <span className={`material-symbols-outlined text-[18px] ${file.isDirectory ? "text-amber-500" : "text-slate-400"}`}>
-                                  {getFileIcon(file.name, file.isDirectory)}
-                                </span>
-                                <span className={`text-xs font-bold tracking-tight ${file.isDirectory ? "text-slate-900 group-hover:text-[#00A3FF]" : "text-slate-600"} transition-colors`}>
-                                  {file.name}
-                                </span>
-                              </div>
-                            )}
-                          </td>
-                          <td className="px-4 py-1.5 text-slate-400 text-xs font-semibold font-mono">
-                            {file.isDirectory ? "—" : formatSize(file.size)}
-                          </td>
-                          <td className="px-4 py-1.5 text-slate-400 text-xs font-semibold font-mono">
-                            {new Date(file.lastModified).toLocaleDateString("es-ES")}
-                          </td>
-                          <td className="px-4 py-1.5 text-slate-300 text-xs font-mono">{file.permissions}</td>
-                          <td className="px-4 py-1.5 text-right">
-                            <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
-                              {!file.isDirectory && isTextFile(file.name) && (
-                                <button onClick={() => openEditor(file.path, file.name)} className="w-6 h-6 rounded bg-white border border-slate-200 text-slate-400 hover:text-[#00A3FF] hover:border-[#00A3FF]/30 transition-all flex items-center justify-center shadow-sm" title="Editar">
-                                  <span className="material-symbols-outlined text-[14px]">edit</span>
-                                </button>
-                              )}
-                              {!file.isDirectory && isArchive(file.name) && (
-                                <button onClick={() => extractArchive(file.path)} disabled={extracting === file.path} className="w-6 h-6 rounded bg-emerald-50 text-emerald-500 hover:bg-emerald-500 hover:text-white transition-all flex items-center justify-center shadow-sm" title="Extraer">
-                                   <span className={`material-symbols-outlined text-[14px] ${extracting === file.path ? "animate-spin" : ""}`}>
-                                     {extracting === file.path ? "refresh" : "folder_zip"}
-                                   </span>
-                                </button>
-                              )}
-                              <button onClick={() => startRename(file)} className="w-6 h-6 rounded bg-white border border-slate-200 text-slate-400 hover:text-[#00A3FF] transition-all flex items-center justify-center shadow-sm" title="Renombrar">
-                                <span className="material-symbols-outlined text-[14px]">drive_file_rename_outline</span>
-                              </button>
-                              {!file.isDirectory && (
-                                <a href={`${API_BASE}/odin-panel/files/download?path=${encodeURIComponent(file.path)}`} target="_blank" className="w-6 h-6 rounded bg-white border border-slate-200 text-slate-400 hover:text-[#00A3FF] transition-all flex items-center justify-center shadow-sm" title="Descargar">
-                                  <span className="material-symbols-outlined text-[14px]">download</span>
-                                </a>
-                              )}
-                              <button onClick={() => handleDelete(file.path, file.isDirectory)} className="w-6 h-6 rounded bg-red-50 text-red-400 hover:bg-red-500 hover:text-white transition-all flex items-center justify-center shadow-sm" title="Eliminar">
-                                <span className="material-symbols-outlined text-[14px]">delete</span>
-                              </button>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                    {displayFiles.map((file)=>(
+                      <tr key={file.path} onContextMenu={(e)=>openCtx(e,file)}
+                        className={`transition-colors group border-l-2 hover:bg-slate-50/50 ${selectedFiles.has(file.path)?"border-l-[#00A3FF] bg-[#00A3FF]/5":"border-transparent hover:border-l-slate-200"}`}>
+                        <td className="px-3 py-1.5" onClick={(e)=>e.stopPropagation()}>
+                          <div onClick={(e)=>toggleSelect(file.path,e)} className={`w-4 h-4 rounded-md border-2 flex items-center justify-center cursor-pointer transition-all opacity-0 group-hover:opacity-100 ${selectedFiles.has(file.path)?"opacity-100 bg-[#00A3FF] border-[#00A3FF]":"border-slate-300 bg-white hover:border-[#00A3FF]"}`}>
+                            {selectedFiles.has(file.path)&&<span className="material-symbols-outlined text-[10px] text-white">check</span>}
+                          </div>
+                        </td>
+                        <td className="px-3 py-1.5">
+                          {renameTarget===file.path?(
+                            <div className="flex items-center gap-2" onClick={(e)=>e.stopPropagation()}>
+                              <input autoFocus value={renameValue} onChange={(e)=>setRenameValue(e.target.value)} onKeyDown={(e)=>{if(e.key==="Enter")confirmRename();if(e.key==="Escape")setRenameTarget(null);}}
+                                className="bg-slate-50 border border-[#00A3FF] rounded-lg px-2 py-0.5 text-xs text-slate-900 font-bold focus:outline-none w-52 shadow-inner"/>
+                              <button onClick={confirmRename} className="w-6 h-6 rounded-lg bg-[#00A3FF] text-white flex items-center justify-center shadow-sm"><span className="material-symbols-outlined text-[12px]">check</span></button>
+                              <button onClick={()=>setRenameTarget(null)} className="w-6 h-6 rounded-lg bg-slate-100 text-slate-400 flex items-center justify-center"><span className="material-symbols-outlined text-[12px]">close</span></button>
                             </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )
+                          ):(
+                            <div className="flex items-center gap-2.5 cursor-pointer" onClick={()=>file.isDirectory&&navigateTo(file.name)}>
+                              <span className={`material-symbols-outlined text-[18px] ${getFileIconColor(file.name,file.isDirectory)}`}>{getFileIcon(file.name,file.isDirectory)}</span>
+                              <span className={`text-xs font-bold tracking-tight transition-colors ${file.isDirectory?"text-slate-900 group-hover:text-[#00A3FF]":"text-slate-600"}`}>{file.name}</span>
+                              <Badge name={file.name}/>
+                            </div>
+                          )}
+                        </td>
+                        <td className="px-3 py-1.5 text-slate-400 text-xs font-mono font-semibold">{file.isDirectory?"—":formatSize(file.size)}</td>
+                        <td className="px-3 py-1.5 text-slate-400 text-xs font-mono font-semibold">{formatDate(file.lastModified)}</td>
+                        <td className="px-3 py-1.5"><span className="text-slate-300 text-xs font-mono">{file.permissions}</span></td>
+                        <td className="px-3 py-1.5 text-right" onClick={(e)=>e.stopPropagation()}>
+                          <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            {!file.isDirectory&&isTextFile(file.name)&&<button onClick={()=>openEditor(file.path,file.name)} className="w-6 h-6 rounded-lg bg-white border border-slate-200 text-slate-400 hover:text-[#00A3FF] hover:border-[#00A3FF]/30 transition-all flex items-center justify-center shadow-sm" title="Editar"><span className="material-symbols-outlined text-[13px]">edit</span></button>}
+                            <button onClick={()=>startRename(file)} className="w-6 h-6 rounded-lg bg-white border border-slate-200 text-slate-400 hover:text-[#00A3FF] transition-all flex items-center justify-center shadow-sm" title="Renombrar"><span className="material-symbols-outlined text-[13px]">drive_file_rename_outline</span></button>
+                            <button onClick={()=>openMove([file])} className="w-6 h-6 rounded-lg bg-white border border-slate-200 text-slate-400 hover:text-[#00A3FF] transition-all flex items-center justify-center shadow-sm" title="Mover"><span className="material-symbols-outlined text-[13px]">drive_file_move</span></button>
+                            <button onClick={()=>openCopy([file])} className="w-6 h-6 rounded-lg bg-white border border-slate-200 text-slate-400 hover:text-[#00A3FF] transition-all flex items-center justify-center shadow-sm" title="Copiar"><span className="material-symbols-outlined text-[13px]">content_copy</span></button>
+                            {!file.isDirectory&&isArchive(file.name)&&<button onClick={()=>handleExtract(file.path)} disabled={extracting===file.path} className="w-6 h-6 rounded-lg bg-emerald-50 text-emerald-500 hover:bg-emerald-500 hover:text-white transition-all flex items-center justify-center shadow-sm"><span className={`material-symbols-outlined text-[13px] ${extracting===file.path?"animate-spin":""}`}>{extracting===file.path?"refresh":"folder_zip"}</span></button>}
+                            {!file.isDirectory&&<a href={`${API_BASE}/odin-panel/files/download?path=${encodeURIComponent(file.path)}`} target="_blank" className="w-6 h-6 rounded-lg bg-white border border-slate-200 text-slate-400 hover:text-[#00A3FF] transition-all flex items-center justify-center shadow-sm"><span className="material-symbols-outlined text-[13px]">download</span></a>}
+                            <button onClick={()=>handleDelete([file])} className="w-6 h-6 rounded-lg bg-red-50 text-red-400 hover:bg-red-500 hover:text-white transition-all flex items-center justify-center shadow-sm"><span className="material-symbols-outlined text-[13px]">delete</span></button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
           </div>
 
-          <div className="px-4 py-2 border-t border-slate-100 bg-slate-50/50 flex items-center justify-between">
-            <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400">
-              Ruta: <span className="text-slate-500">/home/user{currentPath}</span>
-            </p>
-            <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400">
-              {files?.length ?? 0} elementos cargados
-            </p>
+          {/* Status bar */}
+          <div className="px-4 py-2 border-t border-slate-100 bg-slate-50/50 flex items-center justify-between gap-4">
+            <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400 truncate"><span className="text-slate-500">/home/user{currentPath}</span></p>
+            <div className="flex items-center gap-3 flex-shrink-0">
+              {searchQuery&&<p className="text-[9px] font-bold uppercase tracking-widest text-[#00A3FF]">{displayFiles.length} resultado(s)</p>}
+              <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400">{files?.length??0} elemento(s)</p>
+              {selectedFiles.size>0&&<p className="text-[9px] font-bold uppercase tracking-widest text-[#00A3FF]">· {selectedFiles.size} sel.</p>}
+            </div>
           </div>
         </div>
       </div>
 
-      {editorOpen && (
+      {/* ── Editor Modal ──────────────────────────────────────────────────────── */}
+      {editorOpen&&(
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 animate-in fade-in duration-300">
-          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-md" onClick={() => !editorSaving && setEditorOpen(false)} />
-          <div className="relative z-10 w-full max-w-6xl h-[85vh] flex flex-col bg-white border border-slate-200 rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
-            <div className="flex items-center justify-between px-6 py-3 border-b border-slate-100 bg-slate-50/50">
+          <div className="absolute inset-0 bg-slate-900/70 backdrop-blur-md" onClick={()=>!editorSaving&&setEditorOpen(false)}/>
+          <div className="relative z-10 w-full max-w-6xl h-[88vh] flex flex-col bg-white border border-slate-200 rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
+            <div className="flex items-center justify-between px-5 py-3 border-b border-slate-100 bg-slate-50/50">
               <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-lg bg-white border border-slate-200 flex items-center justify-center text-[#00A3FF] shadow-sm">
-                   <span className="material-symbols-outlined text-lg">edit_document</span>
+                <div className="w-9 h-9 rounded-xl bg-slate-900 flex items-center justify-center">
+                  <span className="material-symbols-outlined text-emerald-400 text-lg">edit_document</span>
                 </div>
                 <div>
-                  <h3 className="text-sm font-bold text-slate-900 leading-tight">{editorFile?.name}</h3>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-sm font-bold text-slate-900 leading-tight">{editorFile?.name}</h3>
+                    {editorFile&&<Badge name={editorFile.name}/>}
+                  </div>
                   <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">{editorFile?.path}</p>
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <button
-                  onClick={saveEditor}
-                  disabled={editorSaving || editorLoading}
-                  className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#00A3FF] text-white text-[10px] font-bold uppercase tracking-widest hover:bg-[#008EE0] active:scale-95 transition-all shadow-md shadow-[#00A3FF]/10 disabled:opacity-40"
-                >
-                  <span className="material-symbols-outlined text-[16px]">save</span>
-                  {editorSaving ? "Guardando..." : "Guardar Archivo"}
+                <span className="hidden sm:block text-[9px] text-slate-400 font-mono bg-slate-100 px-2 py-1 rounded-lg">Ctrl+S para guardar · Tab=2 espacios</span>
+                <button onClick={saveEditor} disabled={editorSaving||editorLoading}
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#00A3FF] text-white text-[10px] font-black uppercase tracking-widest hover:bg-[#008EE0] active:scale-95 transition-all shadow-md shadow-[#00A3FF]/20 disabled:opacity-40">
+                  <span className="material-symbols-outlined text-[15px]">save</span>{editorSaving?"Guardando...":"Guardar"}
                 </button>
-                <button
-                  onClick={() => setEditorOpen(false)}
-                  disabled={editorSaving}
-                  className="w-9 h-9 flex items-center justify-center rounded-lg bg-white border border-slate-200 text-slate-400 hover:text-slate-900 transition-all shadow-sm"
-                >
+                <button onClick={()=>setEditorOpen(false)} disabled={editorSaving} className="w-9 h-9 flex items-center justify-center rounded-xl bg-white border border-slate-200 text-slate-400 hover:text-slate-900 transition-all shadow-sm">
                   <span className="material-symbols-outlined text-lg">close</span>
                 </button>
               </div>
             </div>
-
-            <div className="flex-1 overflow-hidden relative bg-slate-900">
-              {editorLoading ? (
-                <div className="flex items-center justify-center h-full">
-                  <div className="text-center">
-                    <div className="w-8 h-8 border-3 border-white/10 border-t-[#00A3FF] rounded-full animate-spin mx-auto mb-2"></div>
-                    <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest">Cargando código...</p>
-                  </div>
-                </div>
-              ) : (
-                <textarea
-                  value={editorContent}
-                  onChange={e => setEditorContent(e.target.value)}
-                  spellCheck={false}
-                  className="w-full h-full bg-transparent text-emerald-400 font-mono text-xs resize-none focus:outline-none p-6 leading-relaxed custom-scrollbar"
-                  style={{ tabSize: 2 }}
-                />
+            {editorError&&<div className="px-5 py-2 bg-red-50 border-b border-red-100 flex items-center gap-2"><span className="material-symbols-outlined text-red-500 text-[16px]">error</span><p className="text-xs font-bold text-red-500">{editorError}</p></div>}
+            <div className="flex-1 overflow-hidden relative bg-[#0d1117]">
+              {editorLoading?(
+                <div className="flex items-center justify-center h-full"><div className="text-center"><div className="w-8 h-8 border-2 border-white/10 border-t-[#00A3FF] rounded-full animate-spin mx-auto mb-2"/><p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest">Cargando código...</p></div></div>
+              ):(
+                <textarea value={editorContent} onChange={(e)=>setEditorContent(e.target.value)} onKeyDown={handleEditorKey}
+                  onSelect={(e)=>{ const ta=e.currentTarget; setEditorLine(editorContent.substring(0,ta.selectionStart).split("\n").length); }}
+                  spellCheck={false} className="w-full h-full bg-transparent text-emerald-400 font-mono text-xs resize-none focus:outline-none p-5 leading-relaxed custom-scrollbar" style={{tabSize:2}}/>
               )}
             </div>
-
-            <div className="px-6 py-2 border-t border-slate-200 bg-slate-50 flex items-center justify-between">
-              <span className="text-[9px] font-bold uppercase tracking-widest text-slate-400">
-                {editorContent.split("\n").length} líneas · UTF-8
-              </span>
-              <span className="text-[9px] font-bold uppercase tracking-widest text-slate-400">
-                Editor Odisea Cloud v1.0
-              </span>
+            <div className="px-5 py-1.5 border-t border-slate-800 bg-[#161b22] flex items-center justify-between">
+              <span className="text-[9px] font-bold uppercase tracking-widest text-slate-500">Línea {editorLine} · {editorContent.split("\n").length} líneas · UTF-8</span>
+              <span className="text-[9px] font-bold uppercase tracking-widest text-slate-600">Editor Odisea Cloud v2.0</span>
             </div>
           </div>
         </div>
       )}
+
+      {/* ── Modals ─────────────────────────────────────────────────────────────── */}
+      {folderPicker&&<FolderPickerModal title={folderPicker.title} subtitle={folderPicker.subtitle} confirmLabel={folderPicker.confirmLabel} onCancel={()=>setFolderPicker(null)} onConfirm={(dest)=>{ if(folderPicker.type==="move") handleMove(folderPicker.files,dest); else handleCopy(folderPicker.files,dest); }}/>}
+      {confirmDialog&&<ConfirmDialog {...confirmDialog} onCancel={()=>setConfirmDialog(null)}/>}
+      {newFileOpen&&<NewFileModal currentPath={currentPath} onConfirm={handleCreateFile} onCancel={()=>setNewFileOpen(false)} loading={creatingFile}/>}
+
+      {/* ── Context Menu ───────────────────────────────────────────────────────── */}
+      {contextMenu&&<ContextMenu menu={contextMenu} onClose={()=>setContextMenu(null)}
+        onEdit={!contextMenu.file.isDirectory&&isTextFile(contextMenu.file.name)?()=>openEditor(contextMenu.file.path,contextMenu.file.name):undefined}
+        onRename={()=>startRename(contextMenu.file)} onMove={()=>openMove([contextMenu.file])} onCopy={()=>openCopy([contextMenu.file])}
+        onDownload={!contextMenu.file.isDirectory?()=>window.open(`${API_BASE}/odin-panel/files/download?path=${encodeURIComponent(contextMenu.file.path)}`,"_blank"):undefined}
+        onExtract={isArchive(contextMenu.file.name)?()=>handleExtract(contextMenu.file.path):undefined}
+        onDelete={()=>handleDelete([contextMenu.file])} extracting={extracting===contextMenu.file.path}/>}
+
+      {/* ── Toasts ─────────────────────────────────────────────────────────────── */}
+      <ToastContainer toasts={toasts} onDismiss={dismissToast}/>
     </div>
   );
 }
