@@ -36,6 +36,9 @@ const getPermissionsString = (mode: number): string => {
 
 // ─── List ─────────────────────────────────────────────────────────────────────
 
+// Internal system files that should never be shown to users in the file manager
+const HIDDEN_ENTRIES = new Set([".provisioned"]);
+
 export const listFiles = async (basePath: string, userDir: string): Promise<FileItem[]> => {
   const targetPath = resolveSafePath(basePath, userDir);
 
@@ -43,6 +46,9 @@ export const listFiles = async (basePath: string, userDir: string): Promise<File
   const result: FileItem[] = [];
 
   for (const file of files) {
+    // Hide internal system sentinel files
+    if (HIDDEN_ENTRIES.has(file.name)) continue;
+
     const fullPath = path.join(targetPath, file.name);
     try {
       const stats = await fs.stat(fullPath);

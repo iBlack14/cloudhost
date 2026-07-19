@@ -25,24 +25,55 @@ const getBaseUserPath = async (userId: string): Promise<string> => {
   return path.join("/home", username);
 };
 
+/**
+ * One-shot provisioner: writes default placeholder files + required folders ONLY
+ * the very first time this user's home is set up.
+ *
+ * Detection strategy (in order of priority):
+ *  1. If a `.provisioned` sentinel already exists → skip entirely (fastest path).
+ *  2. If public_html already has any content (WP, static site, etc.) → write sentinel
+ *     and skip writing template files (never overwrite existing sites).
+ *  3. Otherwise (brand new account) → write folders + template files + sentinel.
+ *
+ * This fixes:
+ *  - "Ghost folders" that re-appeared on every GET /files request.
+ *  - WordPress sites reverting to the placeholder after the cron cycle, because
+ *    the old guard only checked for `index.html` while WP uses `index.php`.
+ */
 async function ensureDefaultUserFiles(basePath: string) {
   try {
+    const sentinelPath = path.join(basePath, ".provisioned");
+
+    // Fast path: already provisioned
+    const alreadyProvisioned = await fs.stat(sentinelPath).then(() => true).catch(() => false);
+    if (alreadyProvisioned) return;
+
     const pubHtml = path.join(basePath, "public_html");
-    const indexPath = path.join(pubHtml, "index.html");
-    
-    // Check if index.html already exists to avoid overwriting existing sites
-    const exists = await fs.stat(indexPath).then(() => true).catch(() => false);
-    if (!exists) {
+
+    // Check if public_html already has ANY content (WP files, uploaded site, etc.)
+    let pubHtmlHasContent = false;
+    try {
+      const entries = await fs.readdir(pubHtml);
+      pubHtmlHasContent = entries.length > 0;
+    } catch {
+      // public_html doesn't exist yet — treat as empty
+    }
+
+    if (!pubHtmlHasContent) {
+      // Brand-new account: create default structure + placeholder pages
       await fs.mkdir(pubHtml, { recursive: true }).catch(() => {});
       await fs.mkdir(path.join(basePath, "mail"), { recursive: true }).catch(() => {});
       await fs.mkdir(path.join(basePath, "logs"), { recursive: true }).catch(() => {});
-      await fs.mkdir(path.join(basePath, "tmp"), { recursive: true }).catch(() => {});
-      
-      await fs.writeFile(indexPath, INDEX_TEMPLATE, "utf8");
-      await fs.writeFile(path.join(pubHtml, "404.html"), ERROR_404_TEMPLATE, "utf8");
-      await fs.writeFile(path.join(pubHtml, "500.html"), ERROR_500_TEMPLATE, "utf8");
-      await fs.writeFile(path.join(pubHtml, "503.html"), ERROR_503_TEMPLATE, "utf8");
+      await fs.mkdir(path.join(basePath, "tmp"),  { recursive: true }).catch(() => {});
+
+      await fs.writeFile(path.join(pubHtml, "index.html"), INDEX_TEMPLATE,     "utf8");
+      await fs.writeFile(path.join(pubHtml, "404.html"),   ERROR_404_TEMPLATE, "utf8");
+      await fs.writeFile(path.join(pubHtml, "500.html"),   ERROR_500_TEMPLATE, "utf8");
+      await fs.writeFile(path.join(pubHtml, "503.html"),   ERROR_503_TEMPLATE, "utf8");
     }
+
+    // Write sentinel so this block NEVER runs again for this user
+    await fs.writeFile(sentinelPath, new Date().toISOString(), "utf8").catch(() => {});
   } catch (err) {
     console.error("Error provisioning default files:", err);
   }

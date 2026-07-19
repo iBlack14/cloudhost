@@ -203,8 +203,8 @@ class JailFileSystem extends FileSystem {
 
     const entries = await Promise.all(
       names.map(async (name) => {
-        // Never surface . / .. even if present
-        if (name === "." || name === "..") return null;
+        // Never surface . / .. even if present, and hide internal system sentinels
+        if (name === "." || name === ".." || name === ".provisioned") return null;
 
         const full = path.join(fsPath, name);
         try {
