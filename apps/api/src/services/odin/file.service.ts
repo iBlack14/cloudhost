@@ -231,3 +231,17 @@ export const saveUploadedFile = async (
 
   return { savedPath: relativeSaved, extracted: false };
 };
+
+// ─── Copy Path ────────────────────────────────────────────────────────────────
+export const copyPath = async (
+  basePath: string,
+  sourceUserPath: string,
+  destUserPath: string
+): Promise<void> => {
+  const source = resolveSafePath(basePath, sourceUserPath);
+  const dest = resolveSafePath(basePath, destUserPath);
+  
+  // Use Node's native fs.cp which supports recursive copying of files/directories
+  await fs.cp(source, dest, { recursive: true });
+};
+

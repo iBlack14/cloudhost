@@ -24,6 +24,7 @@ import {
   createFolderHandler, 
   deletePathHandler, 
   renamePathHandler, 
+  copyPathHandler,
   readFileHandler, 
   writeFileHandler, 
   compressHandler, 
@@ -243,6 +244,7 @@ odinRouter.get("/files", listFilesHandler);
 odinRouter.post("/files/folder", createFolderHandler);
 odinRouter.delete("/files", deletePathHandler);
 odinRouter.put("/files/rename", renamePathHandler);
+odinRouter.post("/files/copy", copyPathHandler);
 odinRouter.get("/files/content", readFileHandler);
 odinRouter.put("/files/content", writeFileHandler);
 odinRouter.post("/files/compress", compressHandler);

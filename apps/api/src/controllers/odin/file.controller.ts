@@ -104,6 +104,19 @@ export const renamePathHandler = async (req: Request, res: Response): Promise<Re
   }
 };
 
+export const copyPathHandler = async (req: Request, res: Response): Promise<Response> => {
+  try {
+    const userId = await getUserId(req);
+    const basePath = await getBaseUserPath(userId);
+    const { sourcePath, destPath } = req.body;
+    
+    await fileService.copyPath(basePath, sourcePath, destPath);
+    return res.status(200).json({ success: true });
+  } catch (error) {
+    return res.status(500).json({ success: false, error: { message: "Error al copiar archivo" }});
+  }
+};
+
 export const readFileHandler = async (req: Request, res: Response): Promise<Response> => {
   try {
     const userId = await getUserId(req);
