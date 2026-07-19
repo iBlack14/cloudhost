@@ -1,7 +1,8 @@
 import fs from "node:fs/promises";
-import { createWriteStream, createReadStream } from "node:fs";
+import { createWriteStream, createReadStream, statSync } from "node:fs";
 import path from "node:path";
 import mime from "mime-types";
+import * as archiver from "archiver";
 import { exec } from "node:child_process";
 import { promisify } from "node:util";
 import { pipeline } from "node:stream/promises";
@@ -138,10 +139,23 @@ export const compressPath = async (
 ): Promise<void> => {
   const targetPath = resolveSafePath(basePath, userPath);
   const destZipPath = resolveSafePath(basePath, destZipName);
-  const parentDir = path.dirname(targetPath);
-  const baseName = path.basename(targetPath);
 
-  await execAsync(`cd "${parentDir}" && zip -r "${destZipPath}" "${baseName}"`);
+  await new Promise<void>((resolve, reject) => {
+    const output  = createWriteStream(destZipPath);
+    const archive = ((archiver as any).default || archiver)("zip", { zlib: { level: 6 } });
+
+    output.on("close", resolve);
+    archive.on("error", reject);
+    archive.pipe(output);
+
+    const stats = statSync(targetPath);
+    if (stats.isDirectory()) {
+      archive.directory(targetPath, path.basename(targetPath));
+    } else {
+      archive.file(targetPath, { name: path.basename(targetPath) });
+    }
+    archive.finalize();
+  });
 };
 
 /**

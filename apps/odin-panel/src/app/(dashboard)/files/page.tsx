@@ -268,10 +268,11 @@ function NewFileModal({ currentPath, onConfirm, onCancel, loading }: {
 }
 
 // ─── Context Menu ─────────────────────────────────────────────────────────────
-function ContextMenu({ menu, onClose, onEdit, onRename, onMove, onCopy, onDownload, onExtract, onDelete, extracting }: {
+function ContextMenu({ menu, onClose, onEdit, onRename, onMove, onCopy, onDownload, onCompress, onExtract, onDelete, extracting, compressing }: {
   menu: ContextMenuState; onClose: () => void;
   onEdit?: () => void; onRename: () => void; onMove: () => void; onCopy: () => void;
-  onDownload?: () => void; onExtract?: () => void; onDelete: () => void; extracting: boolean;
+  onDownload?: () => void; onCompress: () => void; onExtract?: () => void; onDelete: () => void;
+  extracting: boolean; compressing: boolean;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -299,7 +300,8 @@ function ContextMenu({ menu, onClose, onEdit, onRename, onMove, onCopy, onDownlo
       {            item("drive_file_move",          "Mover a\u2026",  onMove)}
       {            item("content_copy",             "Copiar a\u2026", onCopy)}
       {onDownload && item("download",               "Descargar",   onDownload)}
-      {onExtract  && item("folder_zip", extracting ? "Extrayendo\u2026" : "Extraer", onExtract, "text-emerald-600", extracting)}
+      {            item("folder_zip",               compressing ? "Comprimiendo\u2026" : "Comprimir", onCompress, "text-violet-600", compressing)}
+      {onExtract  && item("unarchive",              extracting ? "Extrayendo\u2026" : "Extraer", onExtract, "text-emerald-600", extracting)}
       <div className="border-t border-slate-100 my-1"/>
       {            item("delete",                   "Eliminar",    onDelete,  "text-red-500")}
     </div>
@@ -329,8 +331,9 @@ export default function FileManagerPage() {
   // Rename
   const [renameTarget, setRenameTarget] = useState<string|null>(null);
   const [renameValue,  setRenameValue]  = useState("");
-  // Extract
-  const [extracting, setExtracting] = useState<string|null>(null);
+  // Extract + Compress
+  const [extracting,  setExtracting]  = useState<string|null>(null);
+  const [compressing, setCompressing] = useState<string|null>(null);
   // Modals
   const [folderPicker,   setFolderPicker]   = useState<{title:string;subtitle:string;confirmLabel:string;files:FileItem[];type:"move"|"copy"}|null>(null);
   const [confirmDialog,  setConfirmDialog]  = useState<ConfirmState|null>(null);
@@ -530,6 +533,21 @@ export default function FileManagerPage() {
       addToast("Archivo extraído correctamente","success"); refetch();
     } catch (err:any) { addToast("Error al extraer: "+err.message,"error"); }
     finally { setExtracting(null); }
+  };
+
+  // Compress (create ZIP)
+  const handleCompress = async (filePath: string, fileName: string) => {
+    const dir   = filePath.substring(0, filePath.lastIndexOf("/")+1) || "/";
+    const base  = fileName.replace(/\.[^.]+$/, ""); // strip extension for folders too
+    const dest  = dir + base + ".zip";
+    setCompressing(filePath); setContextMenu(null);
+    try {
+      const res  = await fetch(`${API_BASE}/odin-panel/files/compress`, { method:"POST", headers:authHeaders({"Content-Type":"application/json"}), body:JSON.stringify({ targetPath: filePath, zipName: dest }) });
+      const data = await res.json();
+      if (!res.ok||!data.success) throw new Error(data?.error?.message??"Error al comprimir");
+      addToast(`"${base}.zip" creado correctamente`, "success"); refetch();
+    } catch (err:any) { addToast("Error al comprimir: "+err.message, "error"); }
+    finally { setCompressing(null); }
   };
 
   // Upload
@@ -928,8 +946,11 @@ export default function FileManagerPage() {
         onEdit={!contextMenu.file.isDirectory&&isTextFile(contextMenu.file.name)?()=>openEditor(contextMenu.file.path,contextMenu.file.name):undefined}
         onRename={()=>startRename(contextMenu.file)} onMove={()=>openMove([contextMenu.file])} onCopy={()=>openCopy([contextMenu.file])}
         onDownload={!contextMenu.file.isDirectory?()=>window.open(`${API_BASE}/odin-panel/files/download?path=${encodeURIComponent(contextMenu.file.path)}`,"_blank"):undefined}
+        onCompress={()=>handleCompress(contextMenu.file.path,contextMenu.file.name)}
         onExtract={isArchive(contextMenu.file.name)?()=>handleExtract(contextMenu.file.path):undefined}
-        onDelete={()=>handleDelete([contextMenu.file])} extracting={extracting===contextMenu.file.path}/>}
+        onDelete={()=>handleDelete([contextMenu.file])}
+        extracting={extracting===contextMenu.file.path}
+        compressing={compressing===contextMenu.file.path}/>}
 
       {/* ── Toasts ─────────────────────────────────────────────────────────────── */}
       <ToastContainer toasts={toasts} onDismiss={dismissToast}/>
