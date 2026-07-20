@@ -253,6 +253,32 @@ export const uploadFileHandler = async (req: Request, res: Response): Promise<Re
       return res.status(400).json({ success: false, error: { message: "No se proporcionaron archivos" } });
     }
 
+    // Dynamic quota check
+    const totalBytes = files.reduce((acc, f) => acc + f.size, 0);
+    const totalMb = totalBytes / 1024 / 1024;
+
+    const planRes = await db.query(`
+      SELECT COALESCE(p.disk_quota_mb, 1024) as disk_quota_mb, COALESCE(ha.disk_used_mb, 0) as disk_used_mb
+      FROM users u
+      LEFT JOIN plans p ON p.id = u.plan_id
+      LEFT JOIN hosting_accounts ha ON ha.user_id = u.id
+      WHERE u.id = $1
+    `, [userId]);
+
+    const quotaMb = Number(planRes.rows[0]?.disk_quota_mb ?? 1024);
+    const usedMb  = Number(planRes.rows[0]?.disk_used_mb ?? 0);
+    const freeMb  = Math.max(0, quotaMb - usedMb);
+
+    if (totalMb > freeMb) {
+      for (const file of files) {
+        await fs.rm(file.path, { force: true }).catch(() => {});
+      }
+      return res.status(400).json({
+        success: false,
+        error: { message: `Espacio de disco insuficiente. Intentas subir ${totalMb.toFixed(2)} MB, pero solo te quedan ${freeMb.toFixed(2)} MB disponibles en tu cuenta.` }
+      });
+    }
+
     const results: { name: string; extracted: boolean }[] = [];
 
     for (const file of files) {
