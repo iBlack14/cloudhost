@@ -97,10 +97,41 @@ const validateAppFilesystem = async (app: { path: string; script: string; start_
 };
 
 const buildPm2Env = (app: { port: number; env_vars?: Record<string, string> | null }) => ({
-   PORT: String(app.port),
-   NODE_ENV: String((app.env_vars as Record<string, string> | undefined)?.NODE_ENV || "production"),
    ...(app.env_vars ?? {}),
+   // Panel port always wins over .env / env_vars duplicates
+   PORT: String(app.port),
+   HOST: String((app.env_vars as Record<string, string> | undefined)?.HOST || "0.0.0.0"),
+   NODE_ENV: String((app.env_vars as Record<string, string> | undefined)?.NODE_ENV || "production"),
 });
+
+/** Sync panel env vars into app .env so dotenv-based apps pick them up */
+const syncAppEnvFile = async (appRoot: string, env: Record<string, string>) => {
+   const envPath = path.join(appRoot, ".env");
+   let existing = "";
+   try {
+      existing = await fs.readFile(envPath, "utf8");
+   } catch {
+      // no .env yet
+   }
+
+   const lines = existing.split("\n");
+   const keysToSet = new Set(Object.keys(env));
+   const kept = lines.filter((line) => {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith("#")) return true;
+      const eq = trimmed.indexOf("=");
+      if (eq === -1) return true;
+      const key = trimmed.slice(0, eq).trim();
+      return !keysToSet.has(key);
+   });
+
+   const newBlock = Object.entries(env)
+      .map(([k, v]) => `${k}=${v.includes(" ") || v.includes("#") ? `"${v.replace(/"/g, '\\"')}"` : v}`)
+      .join("\n");
+
+   const content = [...kept.filter((l, i, arr) => !(i === arr.length - 1 && l === "")), "", "# --- Odisea Panel (auto-sync) ---", newBlock, ""].join("\n");
+   await fs.writeFile(envPath, content, "utf8");
+};
 
 const writePm2Ecosystem = async (
    appRoot: string,
@@ -110,38 +141,34 @@ const writePm2Ecosystem = async (
    interpreter?: string
 ) => {
    const ecosystemPath = path.join(appRoot, ".odin-ecosystem.config.cjs");
-   let appEntry: Record<string, unknown>;
+   const startScriptPath = path.join(appRoot, ".odin-start.sh");
 
-   if (start.mode === "shell") {
-      const parts = start.command.trim().split(/\s+/);
-      const runner = parts[0]?.toLowerCase();
+   // Shell wrapper: most reliable way to pass env to npm/node child processes
+   const exportLines = Object.entries(env)
+      .map(([k, v]) => `export ${k}=${quoteShellArg(v)}`)
+      .join("\n");
 
-      if (runner === "npm" || runner === "pnpm" || runner === "yarn") {
-         appEntry = {
-            name: pm2Name,
-            cwd: appRoot,
-            script: runner,
-            args: parts.slice(1).join(" ") || "start",
-            env,
-         };
-      } else {
-         appEntry = {
-            name: pm2Name,
-            cwd: appRoot,
-            script: "/bin/bash",
-            args: ["-c", start.command],
-            env,
-         };
-      }
-   } else {
-      appEntry = {
-         name: pm2Name,
-         cwd: appRoot,
-         script: start.entry,
-         interpreter: interpreter || "node",
-         env,
-      };
-   }
+   const runCmd = start.mode === "shell"
+      ? start.command
+      : `${quoteShellArg(interpreter || "node")} ${quoteShellArg(start.entry)}`;
+   const nodeBin = interpreter ? path.dirname(interpreter) : "";
+   const pathPrefix = nodeBin ? `export PATH=${quoteShellArg(nodeBin + ":" + (process.env.PATH || "/usr/local/bin:/usr/bin:/bin"))}\n` : "";
+
+   const shellScript = `#!/bin/bash
+set -e
+cd ${quoteShellArg(appRoot)}
+${pathPrefix}${exportLines}
+exec ${runCmd}
+`;
+   await fs.writeFile(startScriptPath, shellScript, { mode: 0o755 });
+
+   const appEntry = {
+      name: pm2Name,
+      cwd: appRoot,
+      script: startScriptPath,
+      interpreter: "/bin/bash",
+      env,
+   };
 
    const content = `module.exports = { apps: [${JSON.stringify(appEntry, null, 2)}] };\n`;
    await fs.writeFile(ecosystemPath, content, "utf8");
@@ -150,12 +177,35 @@ const writePm2Ecosystem = async (
 
 const isPortListening = async (port: number): Promise<boolean> => {
    if (os.platform() === "win32") return true;
+
+   // Try HTTP probe first (most reliable)
    try {
-      const { stdout } = await execAsync(`ss -tln | grep ':${port} ' || netstat -tln | grep ':${port} '`);
+      const { stdout } = await execAsync(
+         `curl -s -o /dev/null -w '%{http_code}' --connect-timeout 2 http://127.0.0.1:${port}/ 2>/dev/null || echo fail`
+      );
+      const code = stdout.trim();
+      if (code !== "fail" && code !== "000" && code.length > 0) return true;
+   } catch {}
+
+   // Fallback: socket check (IPv4 + IPv6)
+   try {
+      const { stdout } = await execAsync(
+         `ss -tlnH 2>/dev/null | awk '{print $4}' | grep -E ':${port}$' || netstat -tln 2>/dev/null | grep -E ':${port}\\s'`
+      );
       return stdout.trim().length > 0;
    } catch {
       return false;
    }
+};
+
+const waitForPort = async (port: number, maxWaitMs = 25_000): Promise<boolean> => {
+   const interval = 2000;
+   const attempts = Math.ceil(maxWaitMs / interval);
+   for (let i = 0; i < attempts; i++) {
+      if (await isPortListening(port)) return true;
+      await new Promise((r) => setTimeout(r, interval));
+   }
+   return false;
 };
 
 const buildNginxConfig = (
@@ -550,7 +600,7 @@ export const deleteAppQuery = async (userId: string, appId: string) => {
    await db.query("DELETE FROM nodejs_apps WHERE id = $1 AND user_id = $2", [appId, userId]);
 };
 
-const startPm2Process = async (app: any, userId: string) => {
+const startPm2Process = async (app: any, userId: string): Promise<{ portWarning?: string }> => {
    const pm2Name = `odin_app_${app.id}`;
    await execAsync(`pm2 delete ${quoteShellArg(pm2Name)}`).catch(() => {});
 
@@ -558,33 +608,41 @@ const startPm2Process = async (app: any, userId: string) => {
    const interpreter = await findNodeInterpreter(app.version);
    const env = buildPm2Env(app);
 
+   // Write .env so dotenv-based apps (like mesa-partes-virtual) get panel vars
+   await syncAppEnvFile(appRoot, env);
+
    const ecosystemPath = await writePm2Ecosystem(appRoot, pm2Name, start, env, interpreter);
    await execAsync(`pm2 start ${quoteShellArg(ecosystemPath)} --update-env`);
    await execAsync("pm2 save");
-
-   // Give the app a moment to bind its port
-   await new Promise((resolve) => setTimeout(resolve, 3000));
 
    if (app.domain) {
       await configureNginxProxy(userId, app.domain, app.port);
    }
 
-   const listening = await isPortListening(app.port);
+   // Wait up to 25s — apps with DB/SMTP init need more than 3s
+   const listening = await waitForPort(app.port, 25_000);
    if (!listening) {
-      throw new Error(
-         `La app no está escuchando en el puerto ${app.port}. ` +
-         `Revisa que PORT=${app.port} en Env y que npm start levante el servidor HTTP.`
-      );
+      return {
+         portWarning:
+            `Advertencia: no se detectó HTTP en el puerto ${app.port} tras 25s. ` +
+            `El proceso PM2 está corriendo — revisa Logs. ` +
+            `Si tu app usa otro puerto, cámbialo en Env y en el panel.`,
+      };
    }
+   return {};
 };
 
-export const manageAppQuery = async (userId: string, appId: string, action: "start" | "stop" | "restart" | "delete") => {
+export const manageAppQuery = async (
+   userId: string,
+   appId: string,
+   action: "start" | "stop" | "restart" | "delete"
+): Promise<{ portWarning?: string }> => {
    const app = await loadAppOrThrow(userId, appId);
    const pm2Name = `odin_app_${app.id}`;
 
    try {
      if (action === "start" || action === "restart") {
-        await startPm2Process(app, userId);
+        return await startPm2Process(app, userId);
      } else {
         await execAsync(`pm2 ${action} ${quoteShellArg(pm2Name)}`);
         if (action === "delete") await execAsync("pm2 save");
@@ -592,6 +650,7 @@ export const manageAppQuery = async (userId: string, appId: string, action: "sta
    } catch (e) {
       if (action !== "delete") throw e;
    }
+   return {};
 };
 
 export const getAppLogs = async (userId: string, appId: string) => {
@@ -772,8 +831,11 @@ export const redeployApp = async (userId: string, appId: string) => {
    }
 
    push("Reiniciando proceso PM2...");
-   await manageAppQuery(userId, appId, "restart");
+   const restartResult = await manageAppQuery(userId, appId, "restart");
+   if (restartResult.portWarning) {
+      push(`⚠️ ${restartResult.portWarning}`);
+   }
    push("Redeploy completado.");
 
-   return { message: "Redeploy OK", logs };
+   return { message: "Redeploy OK", logs, portWarning: restartResult.portWarning };
 };
