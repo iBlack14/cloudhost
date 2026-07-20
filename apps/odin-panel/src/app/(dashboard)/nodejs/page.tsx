@@ -79,6 +79,8 @@ export default function NodejsAppsPage() {
   const [newApp, setNewApp] = useState(EMPTY_APP);
   const [envVars, setEnvVars] = useState<EnvVar[]>([]);
   const [showEnvEditor, setShowEnvEditor] = useState(false);
+  const [bulkInput, setBulkInput] = useState("");
+  const [showBulk, setShowBulk] = useState(false);
 
   // ── Fetch user domains ──────────────────────────────────────────────────────
   const { data: userDomains = [] } = useQuery({
@@ -139,6 +141,39 @@ export default function NodejsAppsPage() {
 
   const buildEnvVarsRecord = (): Record<string, string> =>
     Object.fromEntries(envVars.filter((v) => v.key.trim()).map((v) => [v.key.trim(), v.value]));
+
+  const handleBulkImport = () => {
+    const lines = bulkInput.split("\n");
+    const parsed: EnvVar[] = [];
+    for (let line of lines) {
+      line = line.trim();
+      if (!line || line.startsWith("#") || line.startsWith("//")) continue;
+      const index = line.indexOf("=");
+      if (index !== -1) {
+        const key = line.substring(0, index).trim();
+        let val = line.substring(index + 1).trim();
+        // Remove surrounding single or double quotes if present
+        if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
+          val = val.substring(1, val.length - 1);
+        }
+        if (key) {
+          parsed.push({ key, value: val });
+        }
+      }
+    }
+    if (parsed.length > 0) {
+      setEnvVars((prev) => {
+        // Prevent key duplicates
+        const existingKeys = new Set(prev.map(x => x.key));
+        const filteredParsed = parsed.filter(x => !existingKeys.has(x.key));
+        return [...prev, ...filteredParsed];
+      });
+      setBulkInput("");
+      setShowBulk(false);
+    } else {
+      alert("No se encontraron variables válidas en formato LLAVE=VALOR.");
+    }
+  };
 
   // ── Build payload ───────────────────────────────────────────────────────────
   const buildPayload = () => {
@@ -514,52 +549,96 @@ export default function NodejsAppsPage() {
 
               {showEnvEditor && (
                 <div className="p-6 bg-slate-50 border border-slate-200 rounded-2xl space-y-4 animate-in slide-in-from-top-2 duration-200">
-                  {envVars.length === 0 ? (
-                    <p className="text-center text-sm text-slate-400 py-4">
-                      Sin variables. Haz clic en <strong>+ Agregar Variable</strong> para comenzar.
-                    </p>
-                  ) : (
+                  {showBulk ? (
                     <div className="space-y-3">
-                      {envVars.map((v, i) => (
-                        <div key={i} className="flex items-center gap-3">
-                          <input
-                            type="text"
-                            value={v.key}
-                            onChange={(e) => updateEnvVar(i, "key", e.target.value)}
-                            placeholder="VARIABLE_NOMBRE"
-                            className="flex-1 bg-white border border-slate-200 rounded-xl px-4 py-3 text-slate-900 font-bold text-sm font-mono outline-none focus:border-[#00A3FF] transition-all"
-                          />
-                          <span className="text-slate-300 font-black text-lg select-none">=</span>
-                          <input
-                            type="text"
-                            value={v.value}
-                            onChange={(e) => updateEnvVar(i, "value", e.target.value)}
-                            placeholder="valor"
-                            className="flex-[2] bg-white border border-slate-200 rounded-xl px-4 py-3 text-slate-900 font-bold text-sm font-mono outline-none focus:border-[#00A3FF] transition-all"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => removeEnvVar(i)}
-                            className="w-9 h-9 rounded-xl bg-red-50 text-red-400 hover:bg-red-500 hover:text-white transition-all flex items-center justify-center shrink-0"
-                          >
-                            <span className="material-symbols-outlined text-[16px]">close</span>
-                          </button>
-                        </div>
-                      ))}
+                      <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest block ml-1">
+                        Pega tu archivo .env (LLAVE=VALOR por línea)
+                      </label>
+                      <textarea
+                        rows={6}
+                        value={bulkInput}
+                        onChange={(e) => setBulkInput(e.target.value)}
+                        placeholder="PORT=3000&#10;DATABASE_URL=mysql://user:pass@host/db&#10;JWT_SECRET=super_secret_key"
+                        className="w-full bg-white border border-slate-200 rounded-2xl p-4 text-slate-900 font-bold text-sm font-mono outline-none focus:border-[#00A3FF] transition-all resize-none"
+                      />
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={handleBulkImport}
+                          className="bg-[#00A3FF] text-white px-5 py-2.5 rounded-xl text-[11px] uppercase tracking-widest font-black transition-all hover:bg-blue-600 active:scale-95"
+                        >
+                          Importar Variables
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => { setShowBulk(false); setBulkInput(""); }}
+                          className="bg-white border border-slate-200 text-slate-600 px-5 py-2.5 rounded-xl text-[11px] uppercase tracking-widest font-black transition-all hover:bg-slate-100"
+                        >
+                          Volver
+                        </button>
+                      </div>
                     </div>
-                  )}
+                  ) : (
+                    <>
+                      {envVars.length === 0 ? (
+                        <p className="text-center text-sm text-slate-400 py-4">
+                          Sin variables. Haz clic en <strong>+ Agregar Variable</strong> o <strong>Pegar en masa</strong>.
+                        </p>
+                      ) : (
+                        <div className="space-y-3">
+                          {envVars.map((v, i) => (
+                            <div key={i} className="flex items-center gap-3">
+                              <input
+                                type="text"
+                                value={v.key}
+                                onChange={(e) => updateEnvVar(i, "key", e.target.value)}
+                                placeholder="VARIABLE_NOMBRE"
+                                className="flex-1 bg-white border border-slate-200 rounded-xl px-4 py-3 text-slate-900 font-bold text-sm font-mono outline-none focus:border-[#00A3FF] transition-all"
+                              />
+                              <span className="text-slate-300 font-black text-lg select-none">=</span>
+                              <input
+                                type="text"
+                                value={v.value}
+                                onChange={(e) => updateEnvVar(i, "value", e.target.value)}
+                                placeholder="valor"
+                                className="flex-[2] bg-white border border-slate-200 rounded-xl px-4 py-3 text-slate-900 font-bold text-sm font-mono outline-none focus:border-[#00A3FF] transition-all"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => removeEnvVar(i)}
+                                className="w-9 h-9 rounded-xl bg-red-50 text-red-400 hover:bg-red-500 hover:text-white transition-all flex items-center justify-center shrink-0"
+                              >
+                                <span className="material-symbols-outlined text-[16px]">close</span>
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
 
-                  <button
-                    type="button"
-                    onClick={addEnvVar}
-                    className="flex items-center gap-2 px-5 py-3 bg-white border-2 border-dashed border-slate-200 hover:border-[#00A3FF] hover:text-[#00A3FF] rounded-xl text-slate-400 font-black text-[11px] uppercase tracking-wide transition-all"
-                  >
-                    <span className="material-symbols-outlined text-[16px]">add</span>
-                    Agregar Variable
-                  </button>
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={addEnvVar}
+                          className="flex items-center gap-2 px-5 py-3 bg-white border-2 border-dashed border-slate-200 hover:border-[#00A3FF] hover:text-[#00A3FF] rounded-xl text-slate-400 font-black text-[11px] uppercase tracking-wide transition-all"
+                        >
+                          <span className="material-symbols-outlined text-[16px]">add</span>
+                          Agregar Variable
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setShowBulk(true)}
+                          className="flex items-center gap-2 px-5 py-3 bg-slate-100 hover:bg-slate-200 rounded-xl text-slate-600 font-black text-[11px] uppercase tracking-wide transition-all"
+                        >
+                          <span className="material-symbols-outlined text-[16px]">content_paste</span>
+                          Pegar en masa (.env)
+                        </button>
+                      </div>
+                    </>
+                  )}
                 </div>
               )}
             </div>
+
 
             {/* ── Submit ── */}
             <div className="flex items-center gap-4 pt-2">
