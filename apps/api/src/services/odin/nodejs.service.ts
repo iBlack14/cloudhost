@@ -419,10 +419,10 @@ export const getAppsQuery = async (userId: string) => {
         const pm2proc = pm2List.find((p: any) => p.name === `odin_app_${app.id}`);
         return {
            ...app,
-           status: pm2proc ? pm2proc.pm2_env.status : "offline",
-           memory: pm2proc ? pm2proc.monit.memory : 0,
-           cpu: pm2proc ? pm2proc.monit.cpu : 0,
-           uptime: pm2proc ? pm2proc.pm2_env.pm_uptime : null
+           status: pm2proc ? (pm2proc as any).pm2_env.status : "offline",
+           memory: pm2proc ? (pm2proc as any).monit.memory : 0,
+           cpu: pm2proc ? (pm2proc as any).monit.cpu : 0,
+           uptime: pm2proc ? (pm2proc as any).pm2_env.pm_uptime : null
         };
      });
    } catch {
