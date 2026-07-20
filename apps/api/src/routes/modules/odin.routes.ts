@@ -32,7 +32,9 @@ import {
   chmodHandler,
   downloadFileHandler, 
   uploadFileHandler,
-  diskUsageHandler 
+  diskUsageHandler,
+  runFilesNpmInstallHandler,
+  runFilesJsScriptHandler
 } from "../../controllers/odin/file.controller.js";
 import {
   listBackupsHandler,
@@ -251,6 +253,8 @@ odinRouter.post("/files/extract", extractHandler);            // ZIP + TAR
 odinRouter.patch("/files/chmod", chmodHandler);               // chmod
 odinRouter.get("/files/download", downloadFileHandler);
 odinRouter.post("/files/upload", upload.array("files"), uploadFileHandler);
+odinRouter.post("/files/npm-install", runFilesNpmInstallHandler);
+odinRouter.post("/files/run-script", runFilesJsScriptHandler);
 
 // ── FTP Manager routes ───────────────────────────────────────────────────────
 odinRouter.use("/ftp", ftpRouter);

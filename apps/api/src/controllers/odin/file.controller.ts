@@ -447,3 +447,39 @@ export const diskUsageHandler = async (req: Request, res: Response): Promise<Res
     });
   }
 };
+
+export const runFilesNpmInstallHandler = async (req: Request, res: Response): Promise<Response> => {
+  try {
+    const userId = await getUserId(req);
+    const basePath = await getBaseUserPath(userId);
+    const { path: p } = req.body;
+    
+    if (!p) {
+      return res.status(400).json({ success: false, error: { message: "Ruta del directorio requerida" } });
+    }
+
+    const message = await fileService.runNpmInstall(basePath, p);
+    return res.status(200).json({ success: true, message });
+  } catch (error: any) {
+    return res.status(500).json({ success: false, error: { message: error.message || "Error al ejecutar npm install" } });
+  }
+};
+
+export const runFilesJsScriptHandler = async (req: Request, res: Response): Promise<Response> => {
+  try {
+    const userId = await getUserId(req);
+    const basePath = await getBaseUserPath(userId);
+    const { path: p } = req.body;
+
+    if (!p) {
+      return res.status(400).json({ success: false, error: { message: "Ruta del script requerida" } });
+    }
+
+    const output = await fileService.runJsScript(basePath, p);
+    return res.status(200).json({ success: true, output });
+  } catch (error: any) {
+    return res.status(500).json({ success: false, error: { message: error.message || "Error al ejecutar script de JS" } });
+  }
+};
+
+

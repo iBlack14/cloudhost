@@ -265,3 +265,40 @@ export const copyPath = async (
   await fs.cp(source, dest, { recursive: true });
 };
 
+// ─── Exec Commands ────────────────────────────────────────────────────────────
+export const runNpmInstall = async (basePath: string, folderUserPath: string): Promise<string> => {
+  const targetDir = resolveSafePath(basePath, folderUserPath);
+  const packageJson = path.join(targetDir, "package.json");
+
+  const exists = await fs.stat(packageJson).then(s => s.isFile()).catch(() => false);
+  if (!exists) {
+    throw new Error("No se encontró package.json en el directorio especificado");
+  }
+
+  // Run npm install in targetDir
+  const cmd = process.platform === "win32" ? "npm.cmd install" : "npm install";
+  await execAsync(cmd, { cwd: targetDir });
+  return "Dependencias instaladas correctamente.";
+};
+
+export const runJsScript = async (basePath: string, scriptUserPath: string): Promise<string> => {
+  const targetScript = resolveSafePath(basePath, scriptUserPath);
+  const targetDir = path.dirname(targetScript);
+  const scriptName = path.basename(targetScript);
+
+  const exists = await fs.stat(targetScript).then(s => s.isFile()).catch(() => false);
+  if (!exists) {
+    throw new Error("No se encontró el script especificado");
+  }
+
+  // Run JS script in its parent directory
+  const cmd = `node ${scriptName}`;
+  const { stdout, stderr } = await execAsync(cmd, { cwd: targetDir });
+  
+  if (stderr && stderr.trim()) {
+    return `Salida: ${stdout}\nErrores: ${stderr}`;
+  }
+  return stdout || "Script ejecutado con éxito (sin salida).";
+};
+
+
