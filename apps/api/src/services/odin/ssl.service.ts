@@ -17,8 +17,17 @@ const sanitizeDomain = (domain: string): string =>
 const sanitizeEmail = (email: string): string =>
   email.trim().replace(/[^a-zA-Z0-9@._+-]/g, "");
 
+const sslStatusCache = new Map<string, { status: SslStatus; expiresAt: number }>();
+const SSL_CACHE_TTL_MS = 5 * 60 * 1000;
+
 export const getSslStatus = async (domain: string): Promise<SslStatus> => {
   const safeDomain = sanitizeDomain(domain);
+  const cached = sslStatusCache.get(safeDomain);
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.status;
+  }
+
+  let status: SslStatus;
   try {
     const certPath = `/etc/letsencrypt/live/${safeDomain}/cert.pem`;
     await fs.access(certPath);
@@ -29,15 +38,34 @@ export const getSslStatus = async (domain: string): Promise<SslStatus> => {
     const { stdout: issuerOut } = await execAsync(`openssl x509 -issuer -noout -in ${certPath}`);
     const issuerMatch = issuerOut.match(/O\s*=\s*([^,]+)/);
 
-    return {
+    status = {
       domain: safeDomain,
       hasSsl: true,
       expiryDate: dateMatch ? dateMatch[1].trim() : "Unknown",
       issuer: issuerMatch ? issuerMatch[1].trim() : "Let's Encrypt",
     };
   } catch {
-    return { domain: safeDomain, hasSsl: false };
+    status = { domain: safeDomain, hasSsl: false };
   }
+
+  sslStatusCache.set(safeDomain, { status, expiresAt: Date.now() + SSL_CACHE_TTL_MS });
+  return status;
+};
+
+export const getSslStatusesForDomains = async (
+  domains: Array<{ id: string; domain_name: string; ssl_enabled?: boolean }>
+): Promise<Record<string, SslStatus & { dbSslEnabled?: boolean }>> => {
+  const entries = await Promise.all(
+    domains.map(async (d) => {
+      const status = await getSslStatus(d.domain_name);
+      return [d.id, { ...status, dbSslEnabled: d.ssl_enabled }] as const;
+    })
+  );
+  return Object.fromEntries(entries);
+};
+
+export const invalidateSslStatusCache = (domain: string): void => {
+  sslStatusCache.delete(sanitizeDomain(domain));
 };
 
 /**

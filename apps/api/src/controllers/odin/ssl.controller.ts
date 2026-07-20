@@ -4,6 +4,7 @@ import { db } from "../../config/db.js";
 import * as sslService from "../../services/odin/ssl.service.js";
 import { resyncProxyForDomain } from "../../services/odin/nodejs.service.js";
 import { z } from "zod";
+
 const getDomainInfo = async (domainId: string, userId: string) => {
   const result = await db.query(
     "SELECT d.*, u.email FROM domains d INNER JOIN users u ON u.id = d.user_id WHERE d.id = $1 AND d.user_id = $2",
@@ -11,6 +12,21 @@ const getDomainInfo = async (domainId: string, userId: string) => {
   );
   if (result.rowCount === 0) throw new Error("DOMAIN_NOT_FOUND");
   return result.rows[0] as { id: string; domain_name: string; email: string; ssl_enabled: boolean };
+};
+
+/** Batch SSL status for all user domains — one request instead of N+1 */
+export const listDomainsSslStatusHandler = async (req: Request, res: Response): Promise<Response> => {
+  try {
+    const userId = await getUserId(req);
+    const result = await db.query(
+      "SELECT id, domain_name, ssl_enabled FROM domains WHERE user_id = $1 ORDER BY created_at DESC",
+      [userId]
+    );
+    const data = await sslService.getSslStatusesForDomains(result.rows);
+    return res.status(200).json({ success: true, data });
+  } catch {
+    return res.status(500).json({ success: false, error: { message: "Error al obtener estados SSL" } });
+  }
 };
 
 export const getDomainSslStatusHandler = async (req: Request, res: Response): Promise<Response> => {
@@ -48,11 +64,11 @@ export const issueSslHandler = async (req: Request, res: Response): Promise<Resp
     }
 
     await db.query("UPDATE domains SET ssl_enabled = true WHERE id = $1", [domain.id]);
-
-    // If this domain has a Node.js app, re-apply proxy config (certbot may have broken it)
+    sslService.invalidateSslStatusCache(domain.domain_name);
     await resyncProxyForDomain(userId, domain.domain_name).catch(() => {});
 
-    const status = await sslService.getSslStatus(domain.domain_name);    return res.status(200).json({
+    const status = await sslService.getSslStatus(domain.domain_name);
+    return res.status(200).json({
       success: true,
       data: status,
       message: shouldRenew

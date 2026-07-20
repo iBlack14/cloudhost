@@ -50,7 +50,7 @@ import {
   updatePhpIniHandler,
   getExtensionsHandler,
 } from "../../controllers/odin/php.controller.js";
-import { getDomainSslStatusHandler, issueSslHandler } from "../../controllers/odin/ssl.controller.js";
+import { getDomainSslStatusHandler, issueSslHandler, listDomainsSslStatusHandler } from "../../controllers/odin/ssl.controller.js";
 import { getDnsZoneHandler, addDnsRecordHandler, deleteDnsRecordHandler } from "../../controllers/odin/dns.controller.js";
 import {
   listAppsHandler,
@@ -276,6 +276,7 @@ odinRouter.patch("/php/ini",      updatePhpIniHandler);        // Actualizar php
 odinRouter.get("/php/extensions", getExtensionsHandler);       // Extensiones disponibles
 
 // ── Auto SSL ─────────────────────────────────────────────────────────────────
+odinRouter.get("/domains/ssl-status", listDomainsSslStatusHandler);
 odinRouter.get("/domains/:domainId/ssl", getDomainSslStatusHandler);
 odinRouter.post("/domains/:domainId/ssl/issue", issueSslHandler);
 

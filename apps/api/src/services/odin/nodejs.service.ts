@@ -4,6 +4,7 @@ import { db } from "../../config/db.js";
 import path from "node:path";
 import fs from "node:fs/promises";
 import os from "node:os";
+import { cachedShell } from "../../utils/shell-cache.js";
 
 const execAsync = promisify(exec);
 const DEFAULT_NODE_VERSION = "20";
@@ -409,8 +410,10 @@ export const getAppsQuery = async (userId: string) => {
    const apps = result.rows;
 
    try {
-     const { stdout } = await execAsync("pm2 jlist");
-     const pm2List = JSON.parse(stdout);
+     const pm2List = await cachedShell("pm2:jlist", 3000, async () => {
+        const { stdout } = await execAsync("pm2 jlist");
+        return JSON.parse(stdout) as Array<Record<string, unknown>>;
+     });
 
      return apps.map(app => {
         const pm2proc = pm2List.find((p: any) => p.name === `odin_app_${app.id}`);

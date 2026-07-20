@@ -3,6 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { getOdinAccessToken } from "../../../lib/api";
+import { runtimeAppsPollInterval } from "../../../lib/hooks/use-runtime-poll-interval";
 
 const API_BASE = (() => {
   if (typeof window === "undefined") {
@@ -47,7 +48,8 @@ export default function PythonAppsPage() {
       if (!response.ok) throw new Error("Load failed");
       return (await response.json()).data;
     },
-    refetchInterval: 5000
+    refetchInterval: runtimeAppsPollInterval,
+    staleTime: 10_000,
   });
 
   const createMutation = useMutation({

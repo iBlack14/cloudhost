@@ -3,6 +3,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { getOdinAccessToken } from "../../../lib/api";
+import { runtimeAppsPollInterval } from "../../../lib/hooks/use-runtime-poll-interval";
 
 const API_BASE = (() => {
   if (typeof window === "undefined") {
@@ -99,7 +100,7 @@ function AppDetailPanel({
       return (await res.json()).data as string[];
     },
     enabled: panel === "logs",
-    refetchInterval: panel === "logs" ? 4000 : false,
+    refetchInterval: panel === "logs" ? 8000 : false,
   });
 
   const { data: pkgInfo, isLoading: scriptsLoading } = useQuery({
@@ -461,7 +462,8 @@ export default function NodejsAppsPage() {
       if (!res.ok) throw new Error("Load failed");
       return (await res.json()).data;
     },
-    refetchInterval: 5000,
+    refetchInterval: runtimeAppsPollInterval,
+    staleTime: 10_000,
   });
 
   const createMutation = useMutation({

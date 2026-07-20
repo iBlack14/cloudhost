@@ -5,6 +5,7 @@ import { createWriteStream } from "node:fs";
 import path from "node:path";
 import os from "node:os";
 import { db } from "../../config/db.js";
+import { cachedShell } from "../../utils/shell-cache.js";
 
 const execAsync = promisify(exec);
 
@@ -113,52 +114,41 @@ export const listApps = async (userId: string) => {
 
    const apps = result.rows;
 
-   // Intentar mezclar con el estado real de Docker y verificar SSL
-   try {
-      const { stdout } = await execAsync("docker ps --format '{{.Names}}|{{.Status}}'");
-      const activeContainers = stdout.trim().split("\n").reduce((acc: Record<string, string>, line) => {
-         const [name, status] = line.split("|");
-         if (name && status) acc[name] = status;
-         return acc;
-      }, {});
+   const domainSslRes = await db.query(
+      "SELECT domain_name, ssl_enabled FROM domains WHERE user_id = $1",
+      [userId]
+   );
+   const sslByDomain = Object.fromEntries(
+      domainSslRes.rows.map((row: { domain_name: string; ssl_enabled: boolean }) => [
+         String(row.domain_name).toLowerCase(),
+         Boolean(row.ssl_enabled),
+      ])
+   );
 
-      const appsEnriched = await Promise.all(apps.map(async (app) => {
-         let sslEnabled = false;
-         if (os.platform() !== "win32") {
-            try {
-               await fs.access(`/etc/letsencrypt/live/${app.domain}/cert.pem`);
-               sslEnabled = true;
-            } catch {
-               sslEnabled = false;
-            }
-         }
+   try {
+      const activeContainers = await cachedShell("docker:ps", 3000, async () => {
+         const { stdout } = await execAsync("docker ps --format '{{.Names}}|{{.Status}}'");
+         return stdout.trim().split("\n").reduce((acc: Record<string, string>, line) => {
+            const [name, status] = line.split("|");
+            if (name && status) acc[name] = status;
+            return acc;
+         }, {});
+      });
+
+      return apps.map((app) => {
          const dockerStatus = activeContainers[app.container_name];
          return {
             ...app,
             status: dockerStatus ? (dockerStatus.includes("Up") ? "online" : "offline") : "offline",
-            ssl_enabled: sslEnabled
+            ssl_enabled: sslByDomain[String(app.domain).toLowerCase()] ?? false,
          };
-      }));
-
-      return appsEnriched;
+      });
    } catch {
-      const appsEnriched = await Promise.all(apps.map(async (app) => {
-         let sslEnabled = false;
-         if (os.platform() !== "win32") {
-            try {
-               await fs.access(`/etc/letsencrypt/live/${app.domain}/cert.pem`);
-               sslEnabled = true;
-            } catch {
-               sslEnabled = false;
-            }
-         }
-         return {
-            ...app,
-            status: "offline",
-            ssl_enabled: sslEnabled
-         };
+      return apps.map((app) => ({
+         ...app,
+         status: "offline",
+         ssl_enabled: sslByDomain[String(app.domain).toLowerCase()] ?? false,
       }));
-      return appsEnriched;
    }
 };
 
