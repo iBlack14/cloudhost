@@ -81,6 +81,8 @@ export default function NodejsAppsPage() {
   const [showEnvEditor, setShowEnvEditor] = useState(false);
   const [bulkInput, setBulkInput] = useState("");
   const [showBulk, setShowBulk] = useState(false);
+  const [installingId, setInstallingId] = useState<string | null>(null);
+  const [installLog, setInstallLog] = useState<Record<string, string>>({});
 
   // ── Fetch user domains ──────────────────────────────────────────────────────
   const { data: userDomains = [] } = useQuery({
@@ -249,6 +251,25 @@ export default function NodejsAppsPage() {
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["odin_nodejs_apps"] }),
     onError: (e: Error) => alert(e.message),
+  });
+
+  const npmInstallMutation = useMutation({
+    mutationFn: async (id: string) => {
+      setInstallingId(id);
+      const res = await fetch(`${API_BASE}/odin-panel/nodejs/${id}/npm-install`, { method: "POST", headers: authHeaders() });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(data?.error?.message ?? "npm install failed");
+      return data;
+    },
+    onSuccess: (data, id) => {
+      setInstallLog((prev) => ({ ...prev, [id]: data?.data?.output ?? "✅ npm install completado" }));
+      setInstallingId(null);
+      queryClient.invalidateQueries({ queryKey: ["odin_nodejs_apps"] });
+    },
+    onError: (e: Error, id) => {
+      setInstallLog((prev) => ({ ...prev, [id]: `❌ Error: ${e.message}` }));
+      setInstallingId(null);
+    },
   });
 
   if (isLoading) {
@@ -727,14 +748,30 @@ export default function NodejsAppsPage() {
                     <span className="text-sm font-black text-slate-700 font-mono bg-slate-50 px-3 py-1 rounded-lg">{Math.round((app.memory ?? 0) / 1024 / 1024)}MB</span>
                   </div>
                 </div>
-                <div className="flex gap-2 bg-slate-50 p-2 rounded-2xl border border-slate-100 shadow-inner">
+                <div className="flex flex-wrap gap-2 bg-slate-50 p-2 rounded-2xl border border-slate-100 shadow-inner">
                   <button onClick={() => manageMutation.mutate({ id: app.id, action: "start" })}
                     className="px-4 py-2 text-[10px] uppercase font-black tracking-widest text-slate-400 hover:text-emerald-500 hover:bg-emerald-50 rounded-xl transition-all">Iniciar</button>
                   <button onClick={() => manageMutation.mutate({ id: app.id, action: "restart" })}
                     className="px-4 py-2 text-[10px] uppercase font-black tracking-widest text-slate-400 hover:text-amber-500 hover:bg-amber-50 rounded-xl transition-all">Reiniciar</button>
                   <button onClick={() => manageMutation.mutate({ id: app.id, action: "stop" })}
                     className="px-4 py-2 text-[10px] uppercase font-black tracking-widest text-red-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all">Parar</button>
+                  <button
+                    onClick={() => npmInstallMutation.mutate(app.id)}
+                    disabled={installingId === app.id}
+                    className="px-4 py-2 text-[10px] uppercase font-black tracking-widest text-slate-400 hover:text-violet-600 hover:bg-violet-50 rounded-xl transition-all flex items-center gap-1.5 disabled:opacity-50"
+                  >
+                    {installingId === app.id ? (
+                      <><span className="w-3 h-3 border-2 border-violet-400 border-t-transparent rounded-full animate-spin" />Instalando...</>
+                    ) : (
+                      <><span className="material-symbols-outlined text-[14px]">package_2</span>npm install</>
+                    )}
+                  </button>
                 </div>
+                {installLog[app.id] && (
+                  <div className="mt-2 w-full p-3 bg-slate-900 rounded-xl text-[10px] font-mono text-emerald-400 whitespace-pre-wrap max-h-32 overflow-y-auto">
+                    {installLog[app.id]}
+                  </div>
+                )}
               </div>
 
               <button onClick={() => { if (confirm("¿Eliminar aplicación permanentemente?")) deleteMutation.mutate(app.id); }}
