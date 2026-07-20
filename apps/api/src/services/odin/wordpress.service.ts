@@ -306,7 +306,7 @@ server {
     server_name ${normalizedDomain} www.${normalizedDomain};
     root ${targetPath};
     index index.php index.html index.htm;
-    client_max_body_size 100M;
+    client_max_body_size 0;
     
     access_log /home/${osUsername}/logs/access.log;
     error_log /home/${osUsername}/logs/error.log;

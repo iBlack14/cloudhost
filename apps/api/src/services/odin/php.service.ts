@@ -190,8 +190,9 @@ server {
     server_name ${domain} www.${domain};
     root /home/${username}/public_html;
     index index.php index.html;
+    client_max_body_size 0;
 
-    location ~ \\.php$ {
+    location ~ \.php$ {
         fastcgi_pass unix:${socketPath};
         fastcgi_index index.php;
         include fastcgi_params;

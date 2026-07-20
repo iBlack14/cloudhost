@@ -411,7 +411,7 @@ server {
 server {
     listen 443 ssl;
     server_name ${targetDomain} www.${targetDomain};
-    client_max_body_size 100M;
+    client_max_body_size 0;
 
     ssl_certificate /etc/letsencrypt/live/${targetDomain}/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/${targetDomain}/privkey.pem;
@@ -449,6 +449,7 @@ server {
     server_name ${targetDomain} www.${targetDomain};
     root ${publicRoot};
     index index.html index.htm;
+    client_max_body_size 0;
 
     location / {
         try_files $uri $uri/ /index.html;
@@ -460,7 +461,7 @@ server {
 server {
     listen 80;
     server_name ${targetDomain} www.${targetDomain};
-    client_max_body_size 100M;
+    client_max_body_size 0;
 
     location / {
         proxy_pass http://127.0.0.1:${hostPort};

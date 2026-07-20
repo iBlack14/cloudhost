@@ -31,6 +31,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [authChecked, setAuthChecked] = useState(false);
   const [showHttpAlert, setShowHttpAlert] = useState(false);
   const [isActivatingSsl, setIsActivatingSsl] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
     // Perform check only on client side
@@ -102,11 +103,28 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }
 
   return (
-    <div className="flex min-h-screen bg-white">
-      <Sidebar />
+    <div className="flex flex-col lg:flex-row min-h-screen bg-white">
+      <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+
+      {/* Mobile Top Navbar */}
+      <header className="lg:hidden flex items-center justify-between p-4 bg-white border-b border-slate-200 relative z-30 shrink-0">
+        <button 
+          onClick={() => setSidebarOpen(true)} 
+          className="w-10 h-10 flex items-center justify-center rounded-xl bg-slate-50 border border-slate-200 text-slate-600 active:scale-95 transition-all shadow-sm"
+        >
+          <span className="material-symbols-outlined">menu</span>
+        </button>
+        <div className="flex items-center gap-2">
+          <img src="/logo.png" alt="Logo" className="w-8 h-8 object-contain" />
+          <h2 className="text-sm font-black tracking-tighter text-slate-900 uppercase italic leading-none">
+            ODISEA <span className="text-[#00A3FF] not-italic">CLOUD</span>
+          </h2>
+        </div>
+        <div className="w-10 h-10" /> {/* Balancer */}
+      </header>
 
       {/* Main Content Area */}
-      <main className="flex-1 ml-64 p-6 lg:p-12 relative overflow-hidden flex flex-col bg-slate-50/30">
+      <main className="flex-1 ml-0 lg:ml-64 p-6 lg:p-12 relative overflow-hidden flex flex-col bg-slate-50/30">
         {/* Background Decorative Elements - Pure Corporate Light */}
         <div className="fixed inset-0 z-0 pointer-events-none">
           {/* Subtle Blue Glow in the top right */}

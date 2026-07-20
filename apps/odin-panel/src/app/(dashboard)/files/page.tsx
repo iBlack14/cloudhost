@@ -603,25 +603,25 @@ export default function FileManagerPage() {
     <div className="flex flex-col h-[calc(100vh-10rem)] space-y-4 animate-in fade-in duration-700">
 
       {/* ── Header ─────────────────────────────────────────────────────────────── */}
-      <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 border-b border-slate-200 pb-4">
-        <div className="space-y-1.5">
+      <header className="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-4 border-b border-slate-200 pb-4">
+        <div className="space-y-1">
           <span className="px-2 py-0.5 bg-[#00A3FF]/10 text-[#00A3FF] text-[9px] font-bold uppercase rounded-full tracking-wider">Almacenamiento Cloud</span>
-          <h1 className="text-2xl font-black text-slate-900 uppercase mt-1.5">Gestor de <span className="text-[#00A3FF]">Archivos</span></h1>
+          <h1 className="text-2xl font-black text-slate-900 uppercase mt-1">Gestor de <span className="text-[#00A3FF]">Archivos</span></h1>
           <p className="text-slate-500 text-xs font-medium">Administra los ficheros de tu servidor — mover, copiar, editar y más.</p>
         </div>
-        <div className="flex gap-2 flex-wrap">
-          <button onClick={()=>setNewFileOpen(true)} className="px-4 py-2 bg-white border border-slate-200 rounded-xl text-slate-500 font-bold text-xs uppercase hover:border-[#00A3FF]/30 hover:text-[#00A3FF] transition-all shadow-sm flex items-center gap-1.5">
-            <span className="material-symbols-outlined text-[16px]">note_add</span>Nuevo Archivo
+        <div className="grid grid-cols-3 gap-2 w-full lg:w-auto lg:flex lg:flex-row">
+          <button onClick={()=>setNewFileOpen(true)} className="px-2.5 sm:px-4 py-2 bg-white border border-slate-200 rounded-xl text-slate-500 font-bold text-[10px] sm:text-xs uppercase hover:border-[#00A3FF]/30 hover:text-[#00A3FF] transition-all shadow-sm flex items-center justify-center gap-1">
+            <span className="material-symbols-outlined text-[14px] sm:text-[16px]">note_add</span>Nuevo
           </button>
-          <button onClick={handleCreateFolder} className="px-4 py-2 bg-white border border-slate-200 rounded-xl text-slate-500 font-bold text-xs uppercase hover:border-[#00A3FF]/30 hover:text-[#00A3FF] transition-all shadow-sm flex items-center gap-1.5">
-            <span className="material-symbols-outlined text-[16px]">create_new_folder</span>Carpeta
+          <button onClick={handleCreateFolder} className="px-2.5 sm:px-4 py-2 bg-white border border-slate-200 rounded-xl text-slate-500 font-bold text-[10px] sm:text-xs uppercase hover:border-[#00A3FF]/30 hover:text-[#00A3FF] transition-all shadow-sm flex items-center justify-center gap-1">
+            <span className="material-symbols-outlined text-[14px] sm:text-[16px]">create_new_folder</span>Carpeta
           </button>
           <input type="file" ref={fileInputRef} onChange={(e)=>handleUpload(e.target.files)} className="hidden" multiple/>
           <button onClick={()=>fileInputRef.current?.click()} disabled={uploadMutation.isPending}
-            className="bg-[#00A3FF] px-4 py-2 rounded-xl text-white font-bold uppercase text-xs shadow-md shadow-[#00A3FF]/20 hover:bg-[#008EE0] transition-all disabled:opacity-40 flex items-center gap-1.5 relative overflow-hidden">
+            className="bg-[#00A3FF] px-2.5 sm:px-4 py-2 rounded-xl text-white font-bold uppercase text-[10px] sm:text-xs shadow-md shadow-[#00A3FF]/20 hover:bg-[#008EE0] transition-all disabled:opacity-40 flex items-center justify-center gap-1 relative overflow-hidden">
             {uploadMutation.isPending&&uploadProgress!==null&&<div className="absolute inset-y-0 left-0 bg-black/10 transition-all pointer-events-none" style={{width:`${uploadProgress}%`}}/>}
-            <span className="material-symbols-outlined text-[16px] relative z-10">upload</span>
-            <span className="relative z-10">{uploadMutation.isPending?(uploadProgress!==null?`Subiendo ${uploadProgress}%`:"Subiendo..."):"Subir"}</span>
+            <span className="material-symbols-outlined text-[14px] sm:text-[16px] relative z-10">upload</span>
+            <span className="relative z-10 truncate">{uploadMutation.isPending?(uploadProgress!==null?`${uploadProgress}%`:"Subiendo..."):"Subir"}</span>
           </button>
         </div>
       </header>
@@ -677,41 +677,43 @@ export default function FileManagerPage() {
           )}
 
           {/* Address bar */}
-          <div className="px-4 py-2 border-b border-slate-100 flex items-center gap-2 bg-slate-50/50">
-            <button onClick={navigateUp} disabled={currentPath==="/"} className="w-7 h-7 rounded-lg bg-white border border-slate-200 text-slate-500 hover:bg-slate-50 transition-all flex items-center justify-center disabled:opacity-30 shadow-sm">
+          <div className="px-3 py-2 border-b border-slate-100 flex items-center gap-1.5 bg-slate-50/50">
+            <button onClick={navigateUp} disabled={currentPath==="/"} className="w-7 h-7 rounded-lg bg-white border border-slate-200 text-slate-500 hover:bg-slate-50 transition-all flex items-center justify-center disabled:opacity-30 shadow-sm flex-shrink-0">
               <span className="material-symbols-outlined text-[15px]">arrow_upward</span>
             </button>
-            <button onClick={()=>refetch()} className="w-7 h-7 rounded-lg bg-white border border-slate-200 text-slate-500 hover:bg-slate-50 transition-all flex items-center justify-center shadow-sm">
+            <button onClick={()=>refetch()} className="w-7 h-7 rounded-lg bg-white border border-slate-200 text-slate-500 hover:bg-slate-50 transition-all flex items-center justify-center shadow-sm flex-shrink-0">
               <span className={`material-symbols-outlined text-[15px] ${isLoading?"animate-spin":""}`}>refresh</span>
             </button>
-            <form onSubmit={handlePathSubmit} className="flex-1 flex items-center bg-white border border-slate-200 rounded-xl px-3 py-1 shadow-inner gap-2">
-              <span className="material-symbols-outlined text-[15px] text-slate-400">folder_open</span>
-              <input type="text" value={pathInput} onChange={(e)=>setPathInput(e.target.value)} className="bg-transparent border-none outline-none text-slate-700 w-full text-xs font-mono"/>
-              <button type="button" onClick={()=>{navigator.clipboard.writeText("/home/user"+currentPath);addToast("Ruta copiada","info");}} className="text-slate-400 hover:text-[#00A3FF] transition-colors">
+            <form onSubmit={handlePathSubmit} className="flex-1 flex items-center bg-white border border-slate-200 rounded-xl px-2.5 py-1 shadow-inner gap-1.5 min-w-0">
+              <span className="material-symbols-outlined text-[14px] text-slate-400 flex-shrink-0">folder_open</span>
+              <input type="text" value={pathInput} onChange={(e)=>setPathInput(e.target.value)} className="bg-transparent border-none outline-none text-slate-700 w-full text-xs font-mono min-w-0"/>
+              <button type="button" onClick={()=>{navigator.clipboard.writeText("/home/user"+currentPath);addToast("Ruta copiada","info");}} className="text-slate-400 hover:text-[#00A3FF] transition-colors flex-shrink-0">
                 <span className="material-symbols-outlined text-[13px]">content_copy</span>
               </button>
             </form>
-            <div className="flex items-center border border-slate-200 rounded-xl bg-white p-0.5 shadow-sm">
+            <div className="flex items-center border border-slate-200 rounded-xl bg-white p-0.5 shadow-sm flex-shrink-0">
               <button onClick={()=>setViewMode("grid")} className={`px-2 py-1 rounded-lg transition-all flex items-center justify-center ${viewMode==="grid"?"bg-[#00A3FF] text-white":"text-slate-400 hover:bg-slate-50"}`}>
-                <span className="material-symbols-outlined text-[15px]">grid_view</span>
+                <span className="material-symbols-outlined text-[14px]">grid_view</span>
               </button>
               <button onClick={()=>setViewMode("list")} className={`px-2 py-1 rounded-lg transition-all flex items-center justify-center ${viewMode==="list"?"bg-[#00A3FF] text-white":"text-slate-400 hover:bg-slate-50"}`}>
-                <span className="material-symbols-outlined text-[15px]">format_list_bulleted</span>
+                <span className="material-symbols-outlined text-[14px]">format_list_bulleted</span>
               </button>
             </div>
           </div>
 
           {/* Search + sort bar */}
-          <div className="px-4 py-2 border-b border-slate-100 bg-white flex items-center gap-3">
+          <div className="px-3 py-2 border-b border-slate-100 bg-white flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
             <div className="flex-1 relative flex items-center">
               <span className="material-symbols-outlined text-[15px] text-slate-400 absolute left-2.5">search</span>
               <input type="text" value={searchQuery} onChange={(e)=>setSearchQuery(e.target.value)} placeholder="Buscar en este directorio..."
                 className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-8 pr-8 py-1.5 text-xs text-slate-700 font-medium focus:outline-none focus:border-[#00A3FF] focus:ring-2 focus:ring-[#00A3FF]/10 transition-all"/>
               {searchQuery&&<button onClick={()=>setSearchQuery("")} className="absolute right-2.5 text-slate-400 hover:text-slate-600"><span className="material-symbols-outlined text-[13px]">close</span></button>}
             </div>
-            <div className="flex items-center gap-1">
+            <div className="flex items-center justify-between sm:justify-start gap-1 flex-shrink-0">
               <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 hidden sm:block mr-1">Ordenar:</span>
-              <SortBtn label="Nombre" k="name"/><SortBtn label="Tamaño" k="size"/><SortBtn label="Fecha" k="date"/>
+              <div className="grid grid-cols-3 sm:flex gap-1 w-full sm:w-auto">
+                <SortBtn label="Nombre" k="name"/><SortBtn label="Tamaño" k="size"/><SortBtn label="Fecha" k="date"/>
+              </div>
             </div>
           </div>
 
@@ -764,6 +766,11 @@ export default function FileManagerPage() {
                         {selectedFiles.has(file.path)&&<span className="material-symbols-outlined text-[10px] text-white">check</span>}
                       </div>
                     </div>
+                    {/* Options trigger (mobile-friendly) */}
+                    <button onClick={(e)=>{ e.stopPropagation(); openCtx(e,file); }}
+                      className="absolute top-1.5 right-1.5 z-10 w-6 h-6 rounded-lg bg-slate-50 border border-slate-200 text-slate-500 hover:text-[#00A3FF] flex items-center justify-center shadow-sm md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+                      <span className="material-symbols-outlined text-[15px]">more_vert</span>
+                    </button>
                     {/* Icon */}
                     <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-1.5 shadow-sm transition-all group-hover:scale-105 ${file.isDirectory?"bg-amber-50 border border-amber-100/50":"bg-slate-50 border border-slate-100/50"}`}>
                       <span className={`material-symbols-outlined text-2xl ${getFileIconColor(file.name,file.isDirectory)}`}>{getFileIcon(file.name,file.isDirectory)}</span>
@@ -785,9 +792,9 @@ export default function FileManagerPage() {
                         <span className="text-[9px] text-slate-400 font-mono mt-0.5">{file.isDirectory?"Carpeta":formatSize(file.size)}</span>
                       </>
                     )}
-                    {/* Action bar */}
+                    {/* Action bar (Desktop only, mobile uses the 3-dots trigger above) */}
                     {renameTarget!==file.path&&(
-                      <div className="absolute bottom-1 right-1 flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity bg-white/95 backdrop-blur-sm p-0.5 rounded-lg border border-slate-100 shadow-sm" onClick={(e)=>e.stopPropagation()}>
+                      <div className="absolute bottom-1.5 right-1.5 hidden md:flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity bg-white/95 backdrop-blur-sm p-0.5 rounded-lg border border-slate-100 shadow-sm" onClick={(e)=>e.stopPropagation()}>
                         {!file.isDirectory&&isTextFile(file.name)&&<button onClick={()=>openEditor(file.path,file.name)} className="w-5 h-5 rounded-md bg-slate-50 border border-slate-200 text-slate-500 hover:text-[#00A3FF] transition-all flex items-center justify-center" title="Editar"><span className="material-symbols-outlined text-[11px]">edit</span></button>}
                         <button onClick={()=>startRename(file)} className="w-5 h-5 rounded-md bg-slate-50 border border-slate-200 text-slate-500 hover:text-[#00A3FF] transition-all flex items-center justify-center" title="Renombrar"><span className="material-symbols-outlined text-[11px]">drive_file_rename_outline</span></button>
                         <button onClick={()=>openMove([file])} className="w-5 h-5 rounded-md bg-slate-50 border border-slate-200 text-slate-500 hover:text-[#00A3FF] transition-all flex items-center justify-center" title="Mover"><span className="material-symbols-outlined text-[11px]">drive_file_move</span></button>
@@ -814,9 +821,9 @@ export default function FileManagerPage() {
                         </div>
                       </th>
                       <th className="px-3 py-2"><SortBtn label="Nombre" k="name"/></th>
-                      <th className="px-3 py-2"><SortBtn label="Tamaño" k="size"/></th>
-                      <th className="px-3 py-2"><SortBtn label="Fecha" k="date"/></th>
-                      <th className="px-3 py-2"><span className="text-[9px] font-black uppercase tracking-widest text-slate-400">Permisos</span></th>
+                      <th className="px-3 py-2 hidden md:table-cell"><SortBtn label="Tamaño" k="size"/></th>
+                      <th className="px-3 py-2 hidden md:table-cell"><SortBtn label="Fecha" k="date"/></th>
+                      <th className="px-3 py-2 hidden md:table-cell"><span className="text-[9px] font-black uppercase tracking-widest text-slate-400">Permisos</span></th>
                       <th className="px-3 py-2 text-right"><span className="text-[9px] font-black uppercase tracking-widest text-slate-400">Acciones</span></th>
                     </tr>
                   </thead>
@@ -835,7 +842,7 @@ export default function FileManagerPage() {
                       <tr key={file.path} onContextMenu={(e)=>openCtx(e,file)}
                         className={`transition-colors group border-l-2 hover:bg-slate-50/50 ${selectedFiles.has(file.path)?"border-l-[#00A3FF] bg-[#00A3FF]/5":"border-transparent hover:border-l-slate-200"}`}>
                         <td className="px-3 py-1.5" onClick={(e)=>e.stopPropagation()}>
-                          <div onClick={(e)=>toggleSelect(file.path,e)} className={`w-4 h-4 rounded-md border-2 flex items-center justify-center cursor-pointer transition-all opacity-0 group-hover:opacity-100 ${selectedFiles.has(file.path)?"opacity-100 bg-[#00A3FF] border-[#00A3FF]":"border-slate-300 bg-white hover:border-[#00A3FF]"}`}>
+                          <div onClick={(e)=>toggleSelect(file.path,e)} className={`w-4 h-4 rounded-md border-2 flex items-center justify-center cursor-pointer transition-all opacity-100 md:opacity-0 md:group-hover:opacity-100 ${selectedFiles.has(file.path)?"opacity-100 bg-[#00A3FF] border-[#00A3FF]":"border-slate-300 bg-white hover:border-[#00A3FF]"}`}>
                             {selectedFiles.has(file.path)&&<span className="material-symbols-outlined text-[10px] text-white">check</span>}
                           </div>
                         </td>
@@ -855,11 +862,12 @@ export default function FileManagerPage() {
                             </div>
                           )}
                         </td>
-                        <td className="px-3 py-1.5 text-slate-400 text-xs font-mono font-semibold">{file.isDirectory?"—":formatSize(file.size)}</td>
-                        <td className="px-3 py-1.5 text-slate-400 text-xs font-mono font-semibold">{formatDate(file.lastModified)}</td>
-                        <td className="px-3 py-1.5"><span className="text-slate-300 text-xs font-mono">{file.permissions}</span></td>
+                        <td className="px-3 py-1.5 text-slate-400 text-xs font-mono font-semibold hidden md:table-cell">{file.isDirectory?"—":formatSize(file.size)}</td>
+                        <td className="px-3 py-1.5 text-slate-400 text-xs font-mono font-semibold hidden md:table-cell">{formatDate(file.lastModified)}</td>
+                        <td className="px-3 py-1.5 hidden md:table-cell"><span className="text-slate-300 text-xs font-mono">{file.permissions}</span></td>
                         <td className="px-3 py-1.5 text-right" onClick={(e)=>e.stopPropagation()}>
-                          <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          {/* Desktop action bar */}
+                          <div className="hidden md:flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                             {!file.isDirectory&&isTextFile(file.name)&&<button onClick={()=>openEditor(file.path,file.name)} className="w-6 h-6 rounded-lg bg-white border border-slate-200 text-slate-400 hover:text-[#00A3FF] hover:border-[#00A3FF]/30 transition-all flex items-center justify-center shadow-sm" title="Editar"><span className="material-symbols-outlined text-[13px]">edit</span></button>}
                             <button onClick={()=>startRename(file)} className="w-6 h-6 rounded-lg bg-white border border-slate-200 text-slate-400 hover:text-[#00A3FF] transition-all flex items-center justify-center shadow-sm" title="Renombrar"><span className="material-symbols-outlined text-[13px]">drive_file_rename_outline</span></button>
                             <button onClick={()=>openMove([file])} className="w-6 h-6 rounded-lg bg-white border border-slate-200 text-slate-400 hover:text-[#00A3FF] transition-all flex items-center justify-center shadow-sm" title="Mover"><span className="material-symbols-outlined text-[13px]">drive_file_move</span></button>
@@ -867,6 +875,13 @@ export default function FileManagerPage() {
                             {!file.isDirectory&&isArchive(file.name)&&<button onClick={()=>handleExtract(file.path)} disabled={extracting===file.path} className="w-6 h-6 rounded-lg bg-emerald-50 text-emerald-500 hover:bg-emerald-500 hover:text-white transition-all flex items-center justify-center shadow-sm"><span className={`material-symbols-outlined text-[13px] ${extracting===file.path?"animate-spin":""}`}>{extracting===file.path?"refresh":"folder_zip"}</span></button>}
                             {!file.isDirectory&&<a href={`${API_BASE}/odin-panel/files/download?path=${encodeURIComponent(file.path)}`} target="_blank" className="w-6 h-6 rounded-lg bg-white border border-slate-200 text-slate-400 hover:text-[#00A3FF] transition-all flex items-center justify-center shadow-sm"><span className="material-symbols-outlined text-[13px]">download</span></a>}
                             <button onClick={()=>handleDelete([file])} className="w-6 h-6 rounded-lg bg-red-50 text-red-400 hover:bg-red-500 hover:text-white transition-all flex items-center justify-center shadow-sm"><span className="material-symbols-outlined text-[13px]">delete</span></button>
+                          </div>
+                          {/* Mobile action bar */}
+                          <div className="flex md:hidden justify-end">
+                            <button onClick={(e)=>{ e.stopPropagation(); openCtx(e,file); }}
+                              className="w-7 h-7 rounded-lg bg-slate-50 border border-slate-200 text-slate-500 hover:text-[#00A3FF] flex items-center justify-center active:scale-95 transition-all">
+                              <span className="material-symbols-outlined text-[16px]">more_vert</span>
+                            </button>
                           </div>
                         </td>
                       </tr>
@@ -891,30 +906,30 @@ export default function FileManagerPage() {
 
       {/* ── Editor Modal ──────────────────────────────────────────────────────── */}
       {editorOpen&&(
-        <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 animate-in fade-in duration-300">
+        <div className="fixed inset-0 z-[200] flex items-center justify-center sm:p-6 animate-in fade-in duration-300">
           <div className="absolute inset-0 bg-slate-900/70 backdrop-blur-md" onClick={()=>!editorSaving&&setEditorOpen(false)}/>
-          <div className="relative z-10 w-full max-w-6xl h-[88vh] flex flex-col bg-white border border-slate-200 rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
-            <div className="flex items-center justify-between px-5 py-3 border-b border-slate-100 bg-slate-50/50">
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-slate-900 flex items-center justify-center">
-                  <span className="material-symbols-outlined text-emerald-400 text-lg">edit_document</span>
+          <div className="relative z-10 w-full h-full sm:h-[88vh] sm:max-w-6xl flex flex-col bg-white border border-slate-200 sm:rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
+            <div className="flex items-center justify-between px-3 sm:px-5 py-2.5 sm:py-3 border-b border-slate-100 bg-slate-50/50">
+              <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-slate-900 flex items-center justify-center flex-shrink-0">
+                  <span className="material-symbols-outlined text-emerald-400 text-base sm:text-lg">edit_document</span>
                 </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-sm font-bold text-slate-900 leading-tight">{editorFile?.name}</h3>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5 sm:gap-2">
+                    <h3 className="text-xs sm:text-sm font-bold text-slate-900 leading-tight truncate" title={editorFile?.name}>{editorFile?.name}</h3>
                     {editorFile&&<Badge name={editorFile.name}/>}
                   </div>
-                  <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">{editorFile?.path}</p>
+                  <p className="text-[8px] sm:text-[9px] text-slate-400 font-bold uppercase tracking-widest mt-0.5 truncate">{editorFile?.path}</p>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
-                <span className="hidden sm:block text-[9px] text-slate-400 font-mono bg-slate-100 px-2 py-1 rounded-lg">Ctrl+S para guardar · Tab=2 espacios</span>
+              <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
+                <span className="hidden lg:block text-[9px] text-slate-400 font-mono bg-slate-100 px-2 py-1 rounded-lg">Ctrl+S para guardar · Tab=2 espacios</span>
                 <button onClick={saveEditor} disabled={editorSaving||editorLoading}
-                  className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#00A3FF] text-white text-[10px] font-black uppercase tracking-widest hover:bg-[#008EE0] active:scale-95 transition-all shadow-md shadow-[#00A3FF]/20 disabled:opacity-40">
-                  <span className="material-symbols-outlined text-[15px]">save</span>{editorSaving?"Guardando...":"Guardar"}
+                  className="flex items-center gap-1.5 px-3 sm:px-4 py-2 rounded-xl bg-[#00A3FF] text-white text-[9px] sm:text-[10px] font-black uppercase tracking-widest hover:bg-[#008EE0] active:scale-95 transition-all shadow-md shadow-[#00A3FF]/20 disabled:opacity-40">
+                  <span className="material-symbols-outlined text-[13px] sm:text-[15px]">save</span><span>{editorSaving?"Guardando...":"Guardar"}</span>
                 </button>
-                <button onClick={()=>setEditorOpen(false)} disabled={editorSaving} className="w-9 h-9 flex items-center justify-center rounded-xl bg-white border border-slate-200 text-slate-400 hover:text-slate-900 transition-all shadow-sm">
-                  <span className="material-symbols-outlined text-lg">close</span>
+                <button onClick={()=>setEditorOpen(false)} disabled={editorSaving} className="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center rounded-xl bg-white border border-slate-200 text-slate-400 hover:text-slate-900 transition-all shadow-sm">
+                  <span className="material-symbols-outlined text-base sm:text-lg">close</span>
                 </button>
               </div>
             </div>
@@ -925,12 +940,12 @@ export default function FileManagerPage() {
               ):(
                 <textarea value={editorContent} onChange={(e)=>setEditorContent(e.target.value)} onKeyDown={handleEditorKey}
                   onSelect={(e)=>{ const ta=e.currentTarget; setEditorLine(editorContent.substring(0,ta.selectionStart).split("\n").length); }}
-                  spellCheck={false} className="w-full h-full bg-transparent text-emerald-400 font-mono text-xs resize-none focus:outline-none p-5 leading-relaxed custom-scrollbar" style={{tabSize:2}}/>
+                  spellCheck={false} className="w-full h-full bg-transparent text-emerald-400 font-mono text-xs resize-none focus:outline-none p-3 sm:p-5 leading-relaxed custom-scrollbar" style={{tabSize:2}}/>
               )}
             </div>
             <div className="px-5 py-1.5 border-t border-slate-800 bg-[#161b22] flex items-center justify-between">
               <span className="text-[9px] font-bold uppercase tracking-widest text-slate-500">Línea {editorLine} · {editorContent.split("\n").length} líneas · UTF-8</span>
-              <span className="text-[9px] font-bold uppercase tracking-widest text-slate-600">Editor Odisea Cloud v2.0</span>
+              <span className="text-[9px] font-bold uppercase tracking-widest text-slate-600 hidden sm:inline-block">Editor Odisea Cloud v2.0</span>
             </div>
           </div>
         </div>
