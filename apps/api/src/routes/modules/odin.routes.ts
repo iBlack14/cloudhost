@@ -59,7 +59,10 @@ import {
   manageAppHandler,
   getAppLogsHandler,
   updateAppEnvHandler,
-  runNpmInstallHandler
+  runNpmInstallHandler,
+  getPackageScriptsHandler,
+  runPackageScriptHandler,
+  redeployAppHandler
 } from "../../controllers/odin/nodejs.controller.js";
 import { ensureNodejsTables } from "../../services/odin/nodejs.service.js";
 import {
@@ -289,6 +292,9 @@ odinRouter.post("/nodejs/:id/:action(start|stop|restart)", manageAppHandler);
 odinRouter.get("/nodejs/:id/logs", getAppLogsHandler);
 odinRouter.put("/nodejs/:id/env", updateAppEnvHandler);
 odinRouter.post("/nodejs/:id/npm-install", runNpmInstallHandler);
+odinRouter.get("/nodejs/:id/scripts", getPackageScriptsHandler);
+odinRouter.post("/nodejs/:id/run-script", runPackageScriptHandler);
+odinRouter.post("/nodejs/:id/redeploy", redeployAppHandler);
 
 // ── Python Runtime Integrations ─────────────────────────────────────────────
 odinRouter.get("/python", listPythonAppsHandler);

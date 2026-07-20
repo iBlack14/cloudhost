@@ -18,22 +18,20 @@ export const listAppsHandler = async (req: Request, res: Response): Promise<Resp
 
 export const createAppHandler = async (req: Request, res: Response): Promise<Response> => {
   const schema = z.object({
-     name: z.string(),
+     name: z.string().min(1),
      version: z.string(),
      path: z.string(),
      script: z.string(),
-     domain: z.string(),
+     domain: z.string().min(1),
      port: z.number().int().min(1024).max(65535),
-     // GitHub source fields (optional)
      githubRepo:   z.string().optional(),
      githubBranch: z.string().optional(),
      installCmd:   z.string().optional(),
      buildCmd:     z.string().optional(),
      startCmd:     z.string().optional(),
-     // Domain-linked path
-     linkedDomain: z.string().optional(),  // domain_name selected from the user's domain list
-     // Env vars at creation time
+     linkedDomain: z.string().optional(),
      envVars: z.record(z.string()).optional(),
+     autoStart: z.boolean().optional(),
   });
 
   const parsed = schema.safeParse(req.body);
@@ -47,7 +45,6 @@ export const createAppHandler = async (req: Request, res: Response): Promise<Res
     return res.status(500).json({ success: false, error: { message: getErrorMessage(error, "Error al registrar la aplicación.") } });
   }
 };
-
 
 export const deleteAppHandler = async (req: Request, res: Response): Promise<Response> => {
   try {
@@ -84,14 +81,22 @@ export const getAppLogsHandler = async (req: Request, res: Response): Promise<Re
 };
 
 export const updateAppEnvHandler = async (req: Request, res: Response): Promise<Response> => {
-   const schema = z.object({ envs: z.record(z.string()) });
+   const schema = z.object({
+      envs: z.record(z.string()),
+      restart: z.boolean().optional()
+   });
    const parsed = schema.safeParse(req.body);
    if (!parsed.success) return res.status(422).json({ success: false, error: parsed.error.flatten() });
 
    try {
      const userId = await getUserId(req);
-     await nodejsService.updateAppEnv(userId, req.params.id as string, parsed.data.envs);
-     return res.status(200).json({ success: true, message: "Variables de Entorno actualizadas. Requiere reinicio." });
+     await nodejsService.updateAppEnv(userId, req.params.id as string, parsed.data.envs, parsed.data.restart ?? true);
+     return res.status(200).json({
+        success: true,
+        message: parsed.data.restart === false
+          ? "Variables de entorno actualizadas."
+          : "Variables de entorno actualizadas y aplicación reiniciada."
+     });
    } catch (error) {
      return res.status(500).json({ success: false, error: { message: getErrorMessage(error, "Failed updating envs") } });
    }
@@ -100,9 +105,43 @@ export const updateAppEnvHandler = async (req: Request, res: Response): Promise<
 export const runNpmInstallHandler = async (req: Request, res: Response): Promise<Response> => {
    try {
       const userId = await getUserId(req);
-      const msg = await nodejsService.runNpmInstall(userId, req.params.id as string);
-      return res.status(200).json({ success: true, message: msg });
+      const result = await nodejsService.runNpmInstall(userId, req.params.id as string);
+      return res.status(200).json({ success: true, message: result.message, data: { output: result.output } });
    } catch (error) {
       return res.status(500).json({ success: false, error: { message: getErrorMessage(error, "Fallo ejecución npm install") }});
    }
-}
+};
+
+export const getPackageScriptsHandler = async (req: Request, res: Response): Promise<Response> => {
+   try {
+      const userId = await getUserId(req);
+      const data = await nodejsService.getPackageScripts(userId, req.params.id as string);
+      return res.status(200).json({ success: true, data });
+   } catch (error) {
+      return res.status(500).json({ success: false, error: { message: getErrorMessage(error, "No se pudieron leer los scripts") } });
+   }
+};
+
+export const runPackageScriptHandler = async (req: Request, res: Response): Promise<Response> => {
+   const schema = z.object({ script: z.string().min(1) });
+   const parsed = schema.safeParse(req.body);
+   if (!parsed.success) return res.status(422).json({ success: false, error: parsed.error.flatten() });
+
+   try {
+      const userId = await getUserId(req);
+      const result = await nodejsService.runPackageScript(userId, req.params.id as string, parsed.data.script);
+      return res.status(200).json({ success: true, message: result.message, data: { output: result.output } });
+   } catch (error) {
+      return res.status(500).json({ success: false, error: { message: getErrorMessage(error, "Fallo al ejecutar el script") } });
+   }
+};
+
+export const redeployAppHandler = async (req: Request, res: Response): Promise<Response> => {
+   try {
+      const userId = await getUserId(req);
+      const result = await nodejsService.redeployApp(userId, req.params.id as string);
+      return res.status(200).json({ success: true, message: result.message, data: { logs: result.logs } });
+   } catch (error) {
+      return res.status(500).json({ success: false, error: { message: getErrorMessage(error, "Fallo en el redeploy") } });
+   }
+};

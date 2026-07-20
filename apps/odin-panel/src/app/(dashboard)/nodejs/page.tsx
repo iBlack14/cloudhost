@@ -23,12 +23,12 @@ const API_BASE = (() => {
   const parts = host.split(".");
   return `${proto}//api.${parts.length >= 2 ? parts.slice(-2).join(".") : host}/api/v1`;
 })();
+
 const authHeaders = (): Record<string, string> => {
   const t = getOdinAccessToken();
   return t ? { Authorization: `Bearer ${t}`, "Content-Type": "application/json" } : { "Content-Type": "application/json" };
 };
 
-// ─── Node.js version catalog ──────────────────────────────────────────────────
 const NODE_VERSIONS = [
   {
     version: "22", label: "22.x", tag: "Current",
@@ -48,6 +48,7 @@ const NODE_VERSIONS = [
 ];
 
 type SourceMode = "manual" | "github";
+type AppPanel = "none" | "logs" | "env" | "scripts";
 
 interface EnvVar { key: string; value: string; }
 
@@ -58,12 +59,12 @@ const EMPTY_APP = {
   script: "index.js",
   domain: "",
   port: "3000",
-  linkedDomain: "",      // domain_name chosen from user's domain list
+  linkedDomain: "",
   githubRepo: "",
   githubBranch: "main",
   installCmd: "npm install",
   buildCmd: "",
-  startCmd: "",
+  startCmd: "npm start",
 };
 
 const GitHubIcon = ({ className = "w-5 h-5" }: { className?: string }) => (
@@ -72,19 +73,284 @@ const GitHubIcon = ({ className = "w-5 h-5" }: { className?: string }) => (
   </svg>
 );
 
+function AppDetailPanel({
+  app,
+  panel,
+  onClose,
+}: {
+  app: any;
+  panel: AppPanel;
+  onClose: () => void;
+}) {
+  const queryClient = useQueryClient();
+  const [envRows, setEnvRows] = useState<EnvVar[]>(() =>
+    Object.entries(app.env_vars || {}).map(([key, value]) => ({ key, value: String(value) }))
+  );
+  const [bulkInput, setBulkInput] = useState("");
+  const [showBulk, setShowBulk] = useState(false);
+  const [scriptOutput, setScriptOutput] = useState("");
+  const [runningScript, setRunningScript] = useState<string | null>(null);
+
+  const { data: logs = [], isFetching: logsLoading, refetch: refetchLogs } = useQuery({
+    queryKey: ["odin_nodejs_logs", app.id],
+    queryFn: async () => {
+      const res = await fetch(`${API_BASE}/odin-panel/nodejs/${app.id}/logs`, { headers: authHeaders() });
+      if (!res.ok) throw new Error("No se pudieron cargar los logs");
+      return (await res.json()).data as string[];
+    },
+    enabled: panel === "logs",
+    refetchInterval: panel === "logs" ? 4000 : false,
+  });
+
+  const { data: pkgInfo, isLoading: scriptsLoading } = useQuery({
+    queryKey: ["odin_nodejs_scripts", app.id],
+    queryFn: async () => {
+      const res = await fetch(`${API_BASE}/odin-panel/nodejs/${app.id}/scripts`, { headers: authHeaders() });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error?.message ?? "No se pudieron leer scripts");
+      return data.data as {
+        scripts: Record<string, string>;
+        installCmd?: string;
+        buildCmd?: string;
+        startCmd?: string;
+        main?: string;
+      };
+    },
+    enabled: panel === "scripts",
+  });
+
+  const saveEnvMutation = useMutation({
+    mutationFn: async () => {
+      const envs = Object.fromEntries(envRows.filter((v) => v.key.trim()).map((v) => [v.key.trim(), v.value]));
+      const res = await fetch(`${API_BASE}/odin-panel/nodejs/${app.id}/env`, {
+        method: "PUT",
+        headers: authHeaders(),
+        body: JSON.stringify({ envs, restart: true }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error?.message ?? "Error al guardar env");
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["odin_nodejs_apps"] });
+      alert("Variables guardadas y app reiniciada");
+    },
+    onError: (e: Error) => alert(e.message),
+  });
+
+  const runScriptMutation = useMutation({
+    mutationFn: async (script: string) => {
+      setRunningScript(script);
+      setScriptOutput("");
+      const res = await fetch(`${API_BASE}/odin-panel/nodejs/${app.id}/run-script`, {
+        method: "POST",
+        headers: authHeaders(),
+        body: JSON.stringify({ script }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error?.message ?? "Error al ejecutar script");
+      return data;
+    },
+    onSuccess: (data) => {
+      setScriptOutput(data?.data?.output ?? data?.message ?? "OK");
+      setRunningScript(null);
+    },
+    onError: (e: Error) => {
+      setScriptOutput(`❌ ${e.message}`);
+      setRunningScript(null);
+    },
+  });
+
+  const handleBulkImport = () => {
+    const parsed: EnvVar[] = [];
+    for (let line of bulkInput.split("\n")) {
+      line = line.trim();
+      if (!line || line.startsWith("#")) continue;
+      const index = line.indexOf("=");
+      if (index === -1) continue;
+      let key = line.substring(0, index).trim();
+      let val = line.substring(index + 1).trim();
+      if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
+        val = val.slice(1, -1);
+      }
+      if (key) parsed.push({ key, value: val });
+    }
+    if (!parsed.length) {
+      alert("No se encontraron variables LLAVE=VALOR");
+      return;
+    }
+    setEnvRows((prev) => {
+      const keys = new Set(prev.map((x) => x.key));
+      return [...prev, ...parsed.filter((x) => !keys.has(x.key))];
+    });
+    setBulkInput("");
+    setShowBulk(false);
+  };
+
+  if (panel === "none") return null;
+
+  return (
+    <div className="mt-6 w-full border-t border-slate-100 pt-6 space-y-4">
+      <div className="flex items-center justify-between">
+        <h4 className="text-sm font-black uppercase tracking-widest text-slate-700">
+          {panel === "logs" && "Logs en vivo"}
+          {panel === "env" && "Variables de entorno"}
+          {panel === "scripts" && "Scripts de package.json"}
+        </h4>
+        <button
+          onClick={onClose}
+          className="text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-700"
+        >
+          Cerrar
+        </button>
+      </div>
+
+      {panel === "logs" && (
+        <div className="space-y-3">
+          <div className="flex gap-2">
+            <button
+              onClick={() => refetchLogs()}
+              className="px-4 py-2 rounded-xl bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest"
+            >
+              {logsLoading ? "Actualizando..." : "Refrescar"}
+            </button>
+          </div>
+          <pre className="bg-slate-950 text-emerald-400 text-[11px] font-mono p-5 rounded-2xl max-h-72 overflow-auto whitespace-pre-wrap leading-relaxed">
+            {logs.length ? logs.join("\n") : "Sin logs todavía."}
+          </pre>
+        </div>
+      )}
+
+      {panel === "env" && (
+        <div className="space-y-4">
+          {showBulk ? (
+            <div className="space-y-3">
+              <textarea
+                rows={6}
+                value={bulkInput}
+                onChange={(e) => setBulkInput(e.target.value)}
+                placeholder={"NODE_ENV=production\nDATABASE_URL=...\nJWT_SECRET=..."}
+                className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-4 text-sm font-mono outline-none focus:border-[#00A3FF]"
+              />
+              <div className="flex gap-2">
+                <button onClick={handleBulkImport} className="px-5 py-2.5 rounded-xl bg-[#00A3FF] text-white text-[11px] font-black uppercase">
+                  Importar
+                </button>
+                <button onClick={() => setShowBulk(false)} className="px-5 py-2.5 rounded-xl bg-slate-100 text-slate-600 text-[11px] font-black uppercase">
+                  Volver
+                </button>
+              </div>
+            </div>
+          ) : (
+            <>
+              <div className="space-y-3">
+                {envRows.map((row, i) => (
+                  <div key={i} className="flex items-center gap-3">
+                    <input
+                      value={row.key}
+                      onChange={(e) => setEnvRows((prev) => prev.map((v, idx) => (idx === i ? { ...v, key: e.target.value } : v)))}
+                      placeholder="KEY"
+                      className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-mono outline-none focus:border-[#00A3FF]"
+                    />
+                    <span className="text-slate-300 font-black">=</span>
+                    <input
+                      value={row.value}
+                      onChange={(e) => setEnvRows((prev) => prev.map((v, idx) => (idx === i ? { ...v, value: e.target.value } : v)))}
+                      placeholder="value"
+                      className="flex-[2] bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-mono outline-none focus:border-[#00A3FF]"
+                    />
+                    <button
+                      onClick={() => setEnvRows((prev) => prev.filter((_, idx) => idx !== i))}
+                      className="w-9 h-9 rounded-xl bg-red-50 text-red-400 hover:bg-red-500 hover:text-white flex items-center justify-center"
+                    >
+                      <span className="material-symbols-outlined text-[16px]">close</span>
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  onClick={() => setEnvRows((prev) => [...prev, { key: "", value: "" }])}
+                  className="px-4 py-2.5 rounded-xl border-2 border-dashed border-slate-200 text-[11px] font-black uppercase text-slate-500"
+                >
+                  + Variable
+                </button>
+                <button
+                  onClick={() => setShowBulk(true)}
+                  className="px-4 py-2.5 rounded-xl bg-slate-100 text-[11px] font-black uppercase text-slate-600"
+                >
+                  Pegar .env
+                </button>
+                <button
+                  disabled={saveEnvMutation.isPending}
+                  onClick={() => saveEnvMutation.mutate()}
+                  className="ml-auto px-6 py-2.5 rounded-xl bg-[#00A3FF] text-white text-[11px] font-black uppercase disabled:opacity-40"
+                >
+                  {saveEnvMutation.isPending ? "Guardando..." : "Guardar y reiniciar"}
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      {panel === "scripts" && (
+        <div className="space-y-4">
+          {scriptsLoading ? (
+            <p className="text-sm text-slate-400">Leyendo package.json...</p>
+          ) : !pkgInfo?.scripts || !Object.keys(pkgInfo.scripts).length ? (
+            <p className="text-sm text-slate-400">No hay scripts en package.json</p>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {Object.entries(pkgInfo.scripts).map(([name, cmd]) => (
+                <div key={name} className="flex items-center gap-3 p-4 bg-slate-50 border border-slate-100 rounded-2xl">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-black text-slate-800 font-mono">npm run {name}</p>
+                    <p className="text-[11px] text-slate-400 font-mono truncate mt-0.5">{String(cmd)}</p>
+                  </div>
+                  <button
+                    disabled={runningScript === name}
+                    onClick={() => runScriptMutation.mutate(name)}
+                    className="shrink-0 px-4 py-2 rounded-xl bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest disabled:opacity-40"
+                  >
+                    {runningScript === name ? "..." : "Run"}
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+          {(pkgInfo?.installCmd || pkgInfo?.buildCmd || pkgInfo?.startCmd) && (
+            <div className="flex flex-wrap gap-3 text-[10px] font-black uppercase tracking-widest text-slate-400">
+              {pkgInfo.installCmd && <span>Install: <strong className="text-slate-700 normal-case font-mono">{pkgInfo.installCmd}</strong></span>}
+              {pkgInfo.buildCmd && <span>Build: <strong className="text-slate-700 normal-case font-mono">{pkgInfo.buildCmd}</strong></span>}
+              {pkgInfo.startCmd && <span>Start: <strong className="text-slate-700 normal-case font-mono">{pkgInfo.startCmd}</strong></span>}
+            </div>
+          )}
+          {scriptOutput && (
+            <pre className="bg-slate-950 text-emerald-400 text-[11px] font-mono p-5 rounded-2xl max-h-56 overflow-auto whitespace-pre-wrap">
+              {scriptOutput}
+            </pre>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function NodejsAppsPage() {
   const queryClient = useQueryClient();
   const [showCreate, setShowCreate] = useState(false);
-  const [sourceMode, setSourceMode] = useState<SourceMode>("manual");
+  const [sourceMode, setSourceMode] = useState<SourceMode>("github");
   const [newApp, setNewApp] = useState(EMPTY_APP);
   const [envVars, setEnvVars] = useState<EnvVar[]>([]);
   const [showEnvEditor, setShowEnvEditor] = useState(false);
   const [bulkInput, setBulkInput] = useState("");
   const [showBulk, setShowBulk] = useState(false);
   const [installingId, setInstallingId] = useState<string | null>(null);
-  const [installLog, setInstallLog] = useState<Record<string, string>>({});
+  const [redeployingId, setRedeployingId] = useState<string | null>(null);
+  const [actionLog, setActionLog] = useState<Record<string, string>>({});
+  const [openPanel, setOpenPanel] = useState<Record<string, AppPanel>>({});
 
-  // ── Fetch user domains ──────────────────────────────────────────────────────
   const { data: userDomains = [] } = useQuery({
     queryKey: ["odin_domains_for_nodejs"],
     queryFn: async () => {
@@ -95,29 +361,24 @@ export default function NodejsAppsPage() {
     enabled: showCreate,
   });
 
-  // ── Domain selection: auto-fill domain + resolve path server-side ───────────
   const handleDomainSelect = (domainName: string) => {
     setNewApp((prev) => ({
       ...prev,
       linkedDomain: domainName,
-      domain: domainName,           // also set reverse proxy domain
+      domain: domainName,
       name: prev.name || domainName.split(".")[0],
     }));
   };
 
-  // ── GitHub/Git repo URL parser ───────────────────────────────────────────────
   const parseGitUrl = (raw: string): { repoPath: string; host: string } => {
     const trimmed = raw.trim().replace(/\.git$/, "");
-    // Full HTTPS URL: https://github.com/user/repo
     try {
       const url = new URL(trimmed);
       const parts = url.pathname.replace(/^\//, "").split("/");
       return { repoPath: parts.slice(0, 2).join("/"), host: url.hostname };
     } catch {
-      // SSH: git@github.com:user/repo
       const sshMatch = trimmed.match(/git@([^:]+):(.+)/);
       if (sshMatch) return { repoPath: sshMatch[2], host: sshMatch[1] };
-      // Plain user/repo
       return { repoPath: trimmed, host: "github.com" };
     }
   };
@@ -127,15 +388,13 @@ export default function NodejsAppsPage() {
     const repoName = repoPath.split("/")[1] ?? "";
     setNewApp((prev) => ({
       ...prev,
-      githubRepo: value,          // store raw URL as typed
+      githubRepo: value,
       name: prev.name || repoName,
     }));
   };
 
-  // Resolved repo path sent to backend
   const resolvedRepo = parseGitUrl(newApp.githubRepo);
 
-  // ── Env vars helpers ────────────────────────────────────────────────────────
   const addEnvVar = () => setEnvVars((prev) => [...prev, { key: "", value: "" }]);
   const removeEnvVar = (i: number) => setEnvVars((prev) => prev.filter((_, idx) => idx !== i));
   const updateEnvVar = (i: number, field: "key" | "value", val: string) =>
@@ -145,30 +404,23 @@ export default function NodejsAppsPage() {
     Object.fromEntries(envVars.filter((v) => v.key.trim()).map((v) => [v.key.trim(), v.value]));
 
   const handleBulkImport = () => {
-    const lines = bulkInput.split("\n");
     const parsed: EnvVar[] = [];
-    for (let line of lines) {
+    for (let line of bulkInput.split("\n")) {
       line = line.trim();
       if (!line || line.startsWith("#") || line.startsWith("//")) continue;
       const index = line.indexOf("=");
-      if (index !== -1) {
-        const key = line.substring(0, index).trim();
-        let val = line.substring(index + 1).trim();
-        // Remove surrounding single or double quotes if present
-        if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
-          val = val.substring(1, val.length - 1);
-        }
-        if (key) {
-          parsed.push({ key, value: val });
-        }
+      if (index === -1) continue;
+      const key = line.substring(0, index).trim();
+      let val = line.substring(index + 1).trim();
+      if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
+        val = val.slice(1, -1);
       }
+      if (key) parsed.push({ key, value: val });
     }
     if (parsed.length > 0) {
       setEnvVars((prev) => {
-        // Prevent key duplicates
-        const existingKeys = new Set(prev.map(x => x.key));
-        const filteredParsed = parsed.filter(x => !existingKeys.has(x.key));
-        return [...prev, ...filteredParsed];
+        const existingKeys = new Set(prev.map((x) => x.key));
+        return [...prev, ...parsed.filter((x) => !existingKeys.has(x.key))];
       });
       setBulkInput("");
       setShowBulk(false);
@@ -177,7 +429,6 @@ export default function NodejsAppsPage() {
     }
   };
 
-  // ── Build payload ───────────────────────────────────────────────────────────
   const buildPayload = () => {
     const base = {
       name: newApp.name,
@@ -188,21 +439,21 @@ export default function NodejsAppsPage() {
       port: parseInt(newApp.port, 10),
       linkedDomain: newApp.linkedDomain || undefined,
       envVars: buildEnvVarsRecord(),
+      autoStart: true,
+      installCmd: newApp.installCmd || "npm install",
+      buildCmd: newApp.buildCmd || undefined,
+      startCmd: newApp.startCmd || undefined,
     };
     if (sourceMode === "github") {
       return {
         ...base,
-        githubRepo: resolvedRepo.repoPath,  // always send user/repo
+        githubRepo: resolvedRepo.repoPath,
         githubBranch: newApp.githubBranch || "main",
-        installCmd: newApp.installCmd || "npm install",
-        buildCmd: newApp.buildCmd || undefined,
-        startCmd: newApp.startCmd || undefined,
       };
     }
     return base;
   };
 
-  // ── Queries & mutations ─────────────────────────────────────────────────────
   const { data: apps, isLoading } = useQuery({
     queryKey: ["odin_nodejs_apps"],
     queryFn: async () => {
@@ -222,13 +473,16 @@ export default function NodejsAppsPage() {
       if (!res.ok) throw new Error(data?.error?.message ?? "Error creating app");
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       setShowCreate(false);
       setNewApp(EMPTY_APP);
-      setSourceMode("manual");
+      setSourceMode("github");
       setEnvVars([]);
       setShowEnvEditor(false);
       queryClient.invalidateQueries({ queryKey: ["odin_nodejs_apps"] });
+      if (data?.data?._startError) {
+        alert(`App creada, pero el arranque falló:\n${data.data._startError}\nRevisa Logs y Scripts.`);
+      }
     },
     onError: (e: any) => alert(e.message),
   });
@@ -262,15 +516,42 @@ export default function NodejsAppsPage() {
       return data;
     },
     onSuccess: (data, id) => {
-      setInstallLog((prev) => ({ ...prev, [id]: data?.data?.output ?? "✅ npm install completado" }));
+      setActionLog((prev) => ({ ...prev, [id]: data?.data?.output ?? data?.message ?? "✅ npm install completado" }));
       setInstallingId(null);
       queryClient.invalidateQueries({ queryKey: ["odin_nodejs_apps"] });
     },
     onError: (e: Error, id) => {
-      setInstallLog((prev) => ({ ...prev, [id]: `❌ Error: ${e.message}` }));
+      setActionLog((prev) => ({ ...prev, [id]: `❌ Error: ${e.message}` }));
       setInstallingId(null);
     },
   });
+
+  const redeployMutation = useMutation({
+    mutationFn: async (id: string) => {
+      setRedeployingId(id);
+      const res = await fetch(`${API_BASE}/odin-panel/nodejs/${id}/redeploy`, { method: "POST", headers: authHeaders() });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(data?.error?.message ?? "Redeploy failed");
+      return data;
+    },
+    onSuccess: (data, id) => {
+      const logs = (data?.data?.logs as string[] | undefined)?.join("\n");
+      setActionLog((prev) => ({ ...prev, [id]: logs || data?.message || "✅ Redeploy completado" }));
+      setRedeployingId(null);
+      queryClient.invalidateQueries({ queryKey: ["odin_nodejs_apps"] });
+    },
+    onError: (e: Error, id) => {
+      setActionLog((prev) => ({ ...prev, [id]: `❌ Redeploy: ${e.message}` }));
+      setRedeployingId(null);
+    },
+  });
+
+  const togglePanel = (appId: string, panel: AppPanel) => {
+    setOpenPanel((prev) => ({
+      ...prev,
+      [appId]: prev[appId] === panel ? "none" : panel,
+    }));
+  };
 
   if (isLoading) {
     return (
@@ -286,11 +567,8 @@ export default function NodejsAppsPage() {
     newApp.domain.trim() &&
     (sourceMode === "github" ? newApp.githubRepo.includes("/") : true);
 
-  // ── Render ──────────────────────────────────────────────────────────────────
   return (
     <div className="space-y-12 animate-in fade-in duration-700">
-
-      {/* Header */}
       <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 border-b border-slate-200 pb-10">
         <div className="space-y-1.5">
           <span className="px-2.5 py-1 bg-[#00A3FF]/10 text-[#00A3FF] text-[10px] font-bold uppercase rounded-full tracking-wider">
@@ -300,7 +578,7 @@ export default function NodejsAppsPage() {
             Node.js <span className="text-[#00A3FF]">App Engine</span>
           </h1>
           <p className="text-slate-500 text-sm font-medium">
-            Despliega PM2 Wrappers, APIs REST o frameworks SSR de forma instantánea.
+            Clone → install → build → start → proxy SSL. Despliegue completo con PM2.
           </p>
         </div>
         <button
@@ -312,22 +590,21 @@ export default function NodejsAppsPage() {
         </button>
       </header>
 
-      {/* ── Create Panel ── */}
       {showCreate && (
         <div className="bg-white border border-slate-200 p-12 rounded-[3rem] shadow-2xl animate-in zoom-in-95 duration-300 relative overflow-hidden">
           <div className="absolute top-[-10%] right-[-5%] w-64 h-64 bg-[#00A3FF]/5 rounded-full blur-[80px] pointer-events-none" />
           <div className="relative z-10 space-y-10">
-
             <div>
               <h3 className="text-2xl font-black text-slate-900 uppercase">Topología de Aplicación</h3>
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Configurar entorno de ejecución aislado</p>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">
+                Instalación + build + start + nginx proxy automático
+              </p>
             </div>
 
-            {/* ── Source Mode Toggle ── */}
             <div className="space-y-3">
               <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">Origen del Código</label>
               <div className="flex gap-3">
-                {(["manual", "github"] as SourceMode[]).map((mode) => (
+                {(["github", "manual"] as SourceMode[]).map((mode) => (
                   <button key={mode} onClick={() => setSourceMode(mode)}
                     className={`flex-1 flex items-center gap-3 p-4 rounded-2xl border-2 transition-all text-left ${sourceMode === mode ? "border-[#00A3FF] bg-[#00A3FF]/5" : "border-slate-200 bg-slate-50 hover:border-slate-300"}`}
                   >
@@ -341,7 +618,7 @@ export default function NodejsAppsPage() {
                         {mode === "manual" ? "Directorio Manual" : "Repositorio GitHub"}
                       </p>
                       <p className="text-[11px] text-slate-400 mt-0.5">
-                        {mode === "manual" ? "Ruta existente en el servidor" : "Clone y despliega automáticamente"}
+                        {mode === "manual" ? "Ruta existente en el servidor" : "Clone, install, build y start automático"}
                       </p>
                     </div>
                   </button>
@@ -349,9 +626,8 @@ export default function NodejsAppsPage() {
               </div>
             </div>
 
-            {/* ── Node.js Version Cards ── */}
             <div className="space-y-3">
-              <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">Runtime Node.js (NVM)</label>
+              <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">Runtime Node.js</label>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {NODE_VERSIONS.map((nv) => (
                   <button key={nv.version} type="button" onClick={() => setNewApp({ ...newApp, version: nv.version })}
@@ -375,11 +651,10 @@ export default function NodejsAppsPage() {
               </div>
             </div>
 
-            {/* ── Domain Selector ── */}
             <div className="space-y-3">
               <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">
                 Dominio <span className="text-red-400">*</span>
-                <span className="ml-2 text-slate-300 normal-case font-semibold">— define la ruta de instalación automáticamente</span>
+                <span className="ml-2 text-slate-300 normal-case font-semibold">— proxy nginx + SSL automático</span>
               </label>
 
               {userDomains.length > 0 ? (
@@ -405,9 +680,7 @@ export default function NodejsAppsPage() {
                           {d.domain_name}
                         </p>
                         {newApp.linkedDomain === d.domain_name && (
-                          <p className="text-[10px] text-slate-400 mt-0.5 font-mono truncate">
-                            ~/{ d.domain_name }
-                          </p>
+                          <p className="text-[10px] text-slate-400 mt-0.5 font-mono truncate">~/{d.domain_name}</p>
                         )}
                       </div>
                     </button>
@@ -417,17 +690,16 @@ export default function NodejsAppsPage() {
                 <div className="p-5 bg-amber-50 border border-amber-200 rounded-2xl flex items-center gap-3">
                   <span className="material-symbols-outlined text-amber-500">warning</span>
                   <p className="text-xs text-amber-700 font-semibold">
-                    No tienes dominios registrados. Agrega uno en la sección <strong>Dominios</strong> primero.
+                    No tienes dominios registrados. Agrega uno en <strong>Dominios</strong> primero.
                   </p>
                 </div>
               )}
 
-              {/* Manual domain override */}
               {newApp.linkedDomain && (
                 <div className="flex items-center gap-3 mt-2 p-3 bg-slate-50 rounded-xl border border-slate-200">
                   <span className="material-symbols-outlined text-slate-400 text-[18px]">folder</span>
                   <span className="text-[11px] text-slate-500 font-mono">
-                    Ruta: <strong className="text-slate-800">~/{ newApp.linkedDomain }/</strong>
+                    Ruta: <strong className="text-slate-800">~/{newApp.linkedDomain}/</strong>
                   </span>
                   <button
                     onClick={() => setNewApp((p) => ({ ...p, linkedDomain: "", domain: "" }))}
@@ -439,7 +711,6 @@ export default function NodejsAppsPage() {
               )}
             </div>
 
-            {/* ── GitHub Fields ── */}
             {sourceMode === "github" && (
               <div className="space-y-5 p-6 bg-slate-50 rounded-2xl border border-slate-200">
                 <div className="flex items-center gap-3">
@@ -448,7 +719,7 @@ export default function NodejsAppsPage() {
                   </div>
                   <div>
                     <p className="text-xs font-black text-slate-700 uppercase tracking-wide">Fuente GitHub</p>
-                    <p className="text-[11px] text-slate-400">Se ejecutará git clone al crear la app</p>
+                    <p className="text-[11px] text-slate-400">git clone → install → build → PM2 start → nginx</p>
                   </div>
                 </div>
 
@@ -471,81 +742,84 @@ export default function NodejsAppsPage() {
                         autoComplete="off"
                       />
                     </div>
-                    {/* Live preview of resolved repo */}
                     {newApp.githubRepo && (
-                      <div className="flex items-center gap-2 px-4 py-2 bg-slate-50 border border-slate-100 rounded-xl">
+                      <div className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-100 rounded-xl">
                         <GitHubIcon className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                        <span className="text-[11px] font-mono font-bold text-slate-600 truncate">
-                          {resolvedRepo.host !== "github.com" && (
-                            <span className="text-slate-400">{resolvedRepo.host}/</span>
-                          )}
-                          {resolvedRepo.repoPath}
-                        </span>
-                        <a
-                          href={newApp.githubRepo.startsWith("http") ? newApp.githubRepo : `https://${resolvedRepo.host}/${resolvedRepo.repoPath}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="ml-auto text-[9px] font-black text-[#00A3FF] hover:underline flex items-center gap-1 shrink-0"
-                        >
-                          <span className="material-symbols-outlined text-[12px]">open_in_new</span>
-                          Abrir
-                        </a>
+                        <span className="text-[11px] font-mono font-bold text-slate-600 truncate">{resolvedRepo.repoPath}</span>
                       </div>
                     )}
                   </div>
                   <div className="space-y-2">
-                    <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">Rama (Branch)</label>
+                    <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">Rama</label>
                     <input type="text" value={newApp.githubBranch} onChange={(e) => setNewApp({ ...newApp, githubBranch: e.target.value })}
-                      className="w-full bg-white border border-slate-200 rounded-2xl px-5 py-4 text-slate-900 font-bold text-sm outline-none focus:border-[#00A3FF] transition-all" placeholder="main"
+                      className="w-full bg-white border border-slate-200 rounded-2xl px-5 py-4 text-slate-900 font-bold text-sm outline-none focus:border-[#00A3FF]" placeholder="main"
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">Comando Instalación</label>
+                    <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">Install</label>
                     <input type="text" value={newApp.installCmd} onChange={(e) => setNewApp({ ...newApp, installCmd: e.target.value })}
-                      className="w-full bg-white border border-slate-200 rounded-2xl px-5 py-4 text-slate-900 font-bold text-sm font-mono outline-none focus:border-[#00A3FF] transition-all" placeholder="npm install"
+                      className="w-full bg-white border border-slate-200 rounded-2xl px-5 py-4 text-slate-900 font-bold text-sm font-mono outline-none focus:border-[#00A3FF]" placeholder="npm install"
                     />
                   </div>
                   <div className="space-y-2">
                     <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">Build <span className="text-slate-300">(opcional)</span></label>
                     <input type="text" value={newApp.buildCmd} onChange={(e) => setNewApp({ ...newApp, buildCmd: e.target.value })}
-                      className="w-full bg-white border border-slate-200 rounded-2xl px-5 py-4 text-slate-900 font-bold text-sm font-mono outline-none focus:border-[#00A3FF] transition-all" placeholder="npm run build"
+                      className="w-full bg-white border border-slate-200 rounded-2xl px-5 py-4 text-slate-900 font-bold text-sm font-mono outline-none focus:border-[#00A3FF]" placeholder="npm run build"
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">Start cmd <span className="text-slate-300">(vacío = usa fichero inicio)</span></label>
+                    <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">Start command</label>
                     <input type="text" value={newApp.startCmd} onChange={(e) => setNewApp({ ...newApp, startCmd: e.target.value })}
-                      className="w-full bg-white border border-slate-200 rounded-2xl px-5 py-4 text-slate-900 font-bold text-sm font-mono outline-none focus:border-[#00A3FF] transition-all" placeholder="node dist/index.js"
+                      className="w-full bg-white border border-slate-200 rounded-2xl px-5 py-4 text-slate-900 font-bold text-sm font-mono outline-none focus:border-[#00A3FF]" placeholder="npm start"
                     />
                   </div>
                 </div>
               </div>
             )}
 
-            {/* ── Core fields ── */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
                 <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">Nombre del Proyecto <span className="text-red-400">*</span></label>
                 <input type="text" value={newApp.name} onChange={(e) => setNewApp({ ...newApp, name: e.target.value })}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-6 py-4 text-slate-900 font-bold text-sm outline-none focus:border-[#00A3FF] focus:bg-white transition-all shadow-inner"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-6 py-4 text-slate-900 font-bold text-sm outline-none focus:border-[#00A3FF] focus:bg-white"
                   placeholder="ej: mi-api-rest"
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">Fichero de Inicio</label>
+                <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                  Fichero de inicio <span className="text-slate-300">(si no usas start cmd)</span>
+                </label>
                 <input type="text" value={newApp.script} onChange={(e) => setNewApp({ ...newApp, script: e.target.value })}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-6 py-4 text-slate-900 font-bold text-sm font-mono outline-none focus:border-[#00A3FF] focus:bg-white transition-all shadow-inner"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-6 py-4 text-slate-900 font-bold text-sm font-mono outline-none focus:border-[#00A3FF] focus:bg-white"
                   placeholder="index.js"
                 />
               </div>
+              {sourceMode === "manual" && (
+                <>
+                  <div className="space-y-2">
+                    <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">Install cmd</label>
+                    <input type="text" value={newApp.installCmd} onChange={(e) => setNewApp({ ...newApp, installCmd: e.target.value })}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-6 py-4 text-slate-900 font-bold text-sm font-mono outline-none focus:border-[#00A3FF]"
+                      placeholder="npm install"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">Start cmd</label>
+                    <input type="text" value={newApp.startCmd} onChange={(e) => setNewApp({ ...newApp, startCmd: e.target.value })}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-6 py-4 text-slate-900 font-bold text-sm font-mono outline-none focus:border-[#00A3FF]"
+                      placeholder="npm start"
+                    />
+                  </div>
+                </>
+              )}
               <div className="space-y-2">
                 <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">Puerto Interno</label>
                 <input type="number" value={newApp.port} onChange={(e) => setNewApp({ ...newApp, port: e.target.value })}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-6 py-4 text-slate-900 font-bold text-sm font-mono outline-none focus:border-[#00A3FF] focus:bg-white transition-all shadow-inner"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-6 py-4 text-slate-900 font-bold text-sm font-mono outline-none focus:border-[#00A3FF] focus:bg-white"
                 />
               </div>
             </div>
 
-            {/* ── Environment Variables Editor ── */}
             <div className="space-y-4">
               <button
                 type="button"
@@ -553,106 +827,47 @@ export default function NodejsAppsPage() {
                 className="flex items-center gap-3 w-full p-4 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-2xl transition-all group"
               >
                 <div className="w-8 h-8 bg-white border border-slate-200 rounded-xl flex items-center justify-center group-hover:bg-[#00A3FF] group-hover:text-white group-hover:border-[#00A3FF] transition-all">
-                  <span className="material-symbols-outlined text-[18px]">
-                    {showEnvEditor ? "keyboard_arrow_up" : "tune"}
-                  </span>
+                  <span className="material-symbols-outlined text-[18px]">{showEnvEditor ? "keyboard_arrow_up" : "tune"}</span>
                 </div>
                 <div className="text-left flex-1">
                   <p className="text-xs font-black text-slate-700 uppercase tracking-wide">Variables de Entorno</p>
                   <p className="text-[11px] text-slate-400 mt-0.5">
-                    {envVars.length > 0 ? `${envVars.length} variable${envVars.length !== 1 ? "s" : ""} configurada${envVars.length !== 1 ? "s" : ""}` : "Opcional — NODE_ENV, DATABASE_URL, API_KEY..."}
+                    {envVars.length > 0 ? `${envVars.length} configurada(s)` : "Opcional — NODE_ENV, DATABASE_URL..."}
                   </p>
                 </div>
-                <span className="material-symbols-outlined text-slate-300 text-[20px]">
-                  {showEnvEditor ? "expand_less" : "expand_more"}
-                </span>
               </button>
 
               {showEnvEditor && (
-                <div className="p-6 bg-slate-50 border border-slate-200 rounded-2xl space-y-4 animate-in slide-in-from-top-2 duration-200">
+                <div className="p-6 bg-slate-50 border border-slate-200 rounded-2xl space-y-4">
                   {showBulk ? (
                     <div className="space-y-3">
-                      <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest block ml-1">
-                        Pega tu archivo .env (LLAVE=VALOR por línea)
-                      </label>
                       <textarea
                         rows={6}
                         value={bulkInput}
                         onChange={(e) => setBulkInput(e.target.value)}
-                        placeholder="PORT=3000&#10;DATABASE_URL=mysql://user:pass@host/db&#10;JWT_SECRET=super_secret_key"
-                        className="w-full bg-white border border-slate-200 rounded-2xl p-4 text-slate-900 font-bold text-sm font-mono outline-none focus:border-[#00A3FF] transition-all resize-none"
+                        placeholder={"PORT=3000\nDATABASE_URL=...\nJWT_SECRET=..."}
+                        className="w-full bg-white border border-slate-200 rounded-2xl p-4 text-sm font-mono outline-none focus:border-[#00A3FF]"
                       />
                       <div className="flex gap-2">
-                        <button
-                          type="button"
-                          onClick={handleBulkImport}
-                          className="bg-[#00A3FF] text-white px-5 py-2.5 rounded-xl text-[11px] uppercase tracking-widest font-black transition-all hover:bg-blue-600 active:scale-95"
-                        >
-                          Importar Variables
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => { setShowBulk(false); setBulkInput(""); }}
-                          className="bg-white border border-slate-200 text-slate-600 px-5 py-2.5 rounded-xl text-[11px] uppercase tracking-widest font-black transition-all hover:bg-slate-100"
-                        >
-                          Volver
-                        </button>
+                        <button type="button" onClick={handleBulkImport} className="bg-[#00A3FF] text-white px-5 py-2.5 rounded-xl text-[11px] uppercase font-black">Importar</button>
+                        <button type="button" onClick={() => { setShowBulk(false); setBulkInput(""); }} className="bg-white border border-slate-200 text-slate-600 px-5 py-2.5 rounded-xl text-[11px] uppercase font-black">Volver</button>
                       </div>
                     </div>
                   ) : (
                     <>
-                      {envVars.length === 0 ? (
-                        <p className="text-center text-sm text-slate-400 py-4">
-                          Sin variables. Haz clic en <strong>+ Agregar Variable</strong> o <strong>Pegar en masa</strong>.
-                        </p>
-                      ) : (
-                        <div className="space-y-3">
-                          {envVars.map((v, i) => (
-                            <div key={i} className="flex items-center gap-3">
-                              <input
-                                type="text"
-                                value={v.key}
-                                onChange={(e) => updateEnvVar(i, "key", e.target.value)}
-                                placeholder="VARIABLE_NOMBRE"
-                                className="flex-1 bg-white border border-slate-200 rounded-xl px-4 py-3 text-slate-900 font-bold text-sm font-mono outline-none focus:border-[#00A3FF] transition-all"
-                              />
-                              <span className="text-slate-300 font-black text-lg select-none">=</span>
-                              <input
-                                type="text"
-                                value={v.value}
-                                onChange={(e) => updateEnvVar(i, "value", e.target.value)}
-                                placeholder="valor"
-                                className="flex-[2] bg-white border border-slate-200 rounded-xl px-4 py-3 text-slate-900 font-bold text-sm font-mono outline-none focus:border-[#00A3FF] transition-all"
-                              />
-                              <button
-                                type="button"
-                                onClick={() => removeEnvVar(i)}
-                                className="w-9 h-9 rounded-xl bg-red-50 text-red-400 hover:bg-red-500 hover:text-white transition-all flex items-center justify-center shrink-0"
-                              >
-                                <span className="material-symbols-outlined text-[16px]">close</span>
-                              </button>
-                            </div>
-                          ))}
+                      {envVars.map((v, i) => (
+                        <div key={i} className="flex items-center gap-3">
+                          <input type="text" value={v.key} onChange={(e) => updateEnvVar(i, "key", e.target.value)} placeholder="KEY" className="flex-1 bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm font-mono outline-none focus:border-[#00A3FF]" />
+                          <span className="text-slate-300 font-black">=</span>
+                          <input type="text" value={v.value} onChange={(e) => updateEnvVar(i, "value", e.target.value)} placeholder="value" className="flex-[2] bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm font-mono outline-none focus:border-[#00A3FF]" />
+                          <button type="button" onClick={() => removeEnvVar(i)} className="w-9 h-9 rounded-xl bg-red-50 text-red-400 hover:bg-red-500 hover:text-white flex items-center justify-center">
+                            <span className="material-symbols-outlined text-[16px]">close</span>
+                          </button>
                         </div>
-                      )}
-
+                      ))}
                       <div className="flex gap-2">
-                        <button
-                          type="button"
-                          onClick={addEnvVar}
-                          className="flex items-center gap-2 px-5 py-3 bg-white border-2 border-dashed border-slate-200 hover:border-[#00A3FF] hover:text-[#00A3FF] rounded-xl text-slate-400 font-black text-[11px] uppercase tracking-wide transition-all"
-                        >
-                          <span className="material-symbols-outlined text-[16px]">add</span>
-                          Agregar Variable
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setShowBulk(true)}
-                          className="flex items-center gap-2 px-5 py-3 bg-slate-100 hover:bg-slate-200 rounded-xl text-slate-600 font-black text-[11px] uppercase tracking-wide transition-all"
-                        >
-                          <span className="material-symbols-outlined text-[16px]">content_paste</span>
-                          Pegar en masa (.env)
-                        </button>
+                        <button type="button" onClick={addEnvVar} className="flex items-center gap-2 px-5 py-3 bg-white border-2 border-dashed border-slate-200 rounded-xl text-slate-400 font-black text-[11px] uppercase">+ Variable</button>
+                        <button type="button" onClick={() => setShowBulk(true)} className="flex items-center gap-2 px-5 py-3 bg-slate-100 rounded-xl text-slate-600 font-black text-[11px] uppercase">Pegar .env</button>
                       </div>
                     </>
                   )}
@@ -660,8 +875,6 @@ export default function NodejsAppsPage() {
               )}
             </div>
 
-
-            {/* ── Submit ── */}
             <div className="flex items-center gap-4 pt-2">
               <button
                 disabled={createMutation.isPending || !isFormValid}
@@ -671,34 +884,20 @@ export default function NodejsAppsPage() {
                 {createMutation.isPending ? (
                   <>
                     <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    {sourceMode === "github" ? "Clonando y Desplegando..." : "Provisionando..."}
+                    Desplegando (clone → install → start)...
                   </>
                 ) : (
                   <>
-                    <span className="material-symbols-outlined text-[18px]">
-                      {sourceMode === "github" ? "deployed_code" : "rocket_launch"}
-                    </span>
-                    {sourceMode === "github" ? "Clonar y Desplegar" : "Provisionar Entorno Node"}
+                    <span className="material-symbols-outlined text-[18px]">rocket_launch</span>
+                    Desplegar App Completa
                   </>
                 )}
               </button>
-
-              {sourceMode === "github" && newApp.githubRepo && (
-                <a
-                  href={newApp.githubRepo.startsWith("http") ? newApp.githubRepo : `https://github.com/${resolvedRepo.repoPath}`}
-                  target="_blank" rel="noopener noreferrer"
-                  className="flex items-center gap-2 text-[11px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-700 transition-colors"
-                >
-                  <GitHubIcon className="w-3.5 h-3.5" />
-                  Ver Repositorio
-                </a>
-              )}
             </div>
           </div>
         </div>
       )}
 
-      {/* ── App Cards ── */}
       {apps?.length === 0 && !showCreate ? (
         <div className="p-20 bg-slate-50 border-2 border-dashed border-slate-200 rounded-[3rem] flex flex-col items-center justify-center text-center cursor-pointer hover:border-[#00A3FF]/20 transition-all"
           onClick={() => setShowCreate(true)}
@@ -707,80 +906,121 @@ export default function NodejsAppsPage() {
             <span className="material-symbols-outlined text-5xl">javascript</span>
           </div>
           <h4 className="text-lg font-black text-slate-900 uppercase">Sin Aplicaciones Activas</h4>
-          <p className="text-sm text-slate-500 mt-2 font-medium">Comienza a desplegar servidores de alto rendimiento usando PM2 Native.</p>
+          <p className="text-sm text-slate-500 mt-2 font-medium">Despliega desde GitHub o un directorio existente.</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-8">
-          {apps?.map((app: any) => (
-            <div key={app.id} className="bg-white border border-slate-200 p-8 rounded-[2.5rem] flex flex-col xl:flex-row justify-between items-center gap-10 group hover:border-[#00A3FF]/30 transition-all duration-500 shadow-sm">
-              <div className="flex gap-6 items-center w-full xl:w-1/3">
-                <div className="w-16 h-16 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-400 group-hover:bg-[#00A3FF] group-hover:text-white transition-all shadow-sm shrink-0">
-                  <span className="material-symbols-outlined text-3xl">javascript</span>
-                </div>
-                <div className="space-y-1">
-                  <h3 className="text-2xl font-black text-slate-900 group-hover:text-[#00A3FF] transition-colors flex items-center gap-3">
-                    {app.name}
-                    <span className={`w-2.5 h-2.5 rounded-full ${app.status === "online" ? "bg-emerald-500 shadow-[0_0_8px_#10b981]" : app.status === "stopped" ? "bg-amber-500" : "bg-red-500"}`} />
-                  </h3>
-                  <div className="flex flex-wrap gap-3">
-                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Puerto: <strong className="text-[#00A3FF]">{app.port}</strong></span>
-                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Node: <strong className="text-[#00A3FF]">v{app.version}</strong></span>
-                    <span className="text-[10px] font-black text-[#00A3FF] tracking-widest">https://{app.domain}</span>
-                    {app.github_repo && (
-                      <a href={`https://github.com/${app.github_repo}`} target="_blank" rel="noopener noreferrer"
-                        className="flex items-center gap-1 text-[10px] font-black text-slate-500 hover:text-slate-800 transition-colors"
-                      >
-                        <GitHubIcon className="w-3 h-3" /> {app.github_repo}
-                      </a>
-                    )}
+          {apps?.map((app: any) => {
+            const panel = openPanel[app.id] || "none";
+            return (
+              <div key={app.id} className="bg-white border border-slate-200 p-8 rounded-[2.5rem] group hover:border-[#00A3FF]/30 transition-all duration-500 shadow-sm">
+                <div className="flex flex-col xl:flex-row justify-between items-center gap-10">
+                  <div className="flex gap-6 items-center w-full xl:w-1/3">
+                    <div className="w-16 h-16 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-400 group-hover:bg-[#00A3FF] group-hover:text-white transition-all shadow-sm shrink-0">
+                      <span className="material-symbols-outlined text-3xl">javascript</span>
+                    </div>
+                    <div className="space-y-1 min-w-0">
+                      <h3 className="text-2xl font-black text-slate-900 group-hover:text-[#00A3FF] transition-colors flex items-center gap-3">
+                        {app.name}
+                        <span className={`w-2.5 h-2.5 rounded-full ${app.status === "online" ? "bg-emerald-500 shadow-[0_0_8px_#10b981]" : app.status === "stopped" ? "bg-amber-500" : "bg-red-500"}`} />
+                      </h3>
+                      <div className="flex flex-wrap gap-3">
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Puerto: <strong className="text-[#00A3FF]">{app.port}</strong></span>
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Node: <strong className="text-[#00A3FF]">v{app.version}</strong></span>
+                        <a href={`https://${app.domain}`} target="_blank" rel="noopener noreferrer" className="text-[10px] font-black text-[#00A3FF] tracking-widest hover:underline">
+                          https://{app.domain}
+                        </a>
+                        {app.github_repo && (
+                          <a href={`https://github.com/${app.github_repo}`} target="_blank" rel="noopener noreferrer"
+                            className="flex items-center gap-1 text-[10px] font-black text-slate-500 hover:text-slate-800"
+                          >
+                            <GitHubIcon className="w-3 h-3" /> {app.github_repo}
+                          </a>
+                        )}
+                      </div>
+                      {(app.start_cmd || app.script) && (
+                        <p className="text-[10px] font-mono text-slate-400 truncate">
+                          start: {app.start_cmd || app.script}
+                        </p>
+                      )}
+                    </div>
                   </div>
-                </div>
-              </div>
 
-              <div className="flex flex-col md:flex-row gap-6 md:gap-10 items-center flex-1 w-full xl:w-auto border-y xl:border-y-0 xl:border-x border-slate-100 py-6 xl:py-0 px-8">
-                <div className="grid grid-cols-2 gap-8 flex-1">
-                  <div className="text-center md:text-left">
-                    <span className="block text-[10px] uppercase tracking-widest text-slate-300 font-black mb-2">Carga CPU</span>
-                    <span className="text-sm font-black text-slate-700 font-mono bg-slate-50 px-3 py-1 rounded-lg">{app.cpu ?? 0}%</span>
+                  <div className="flex flex-col md:flex-row gap-6 md:gap-8 items-center flex-1 w-full xl:w-auto border-y xl:border-y-0 xl:border-x border-slate-100 py-6 xl:py-0 px-4 xl:px-8">
+                    <div className="grid grid-cols-2 gap-8">
+                      <div className="text-center md:text-left">
+                        <span className="block text-[10px] uppercase tracking-widest text-slate-300 font-black mb-2">CPU</span>
+                        <span className="text-sm font-black text-slate-700 font-mono bg-slate-50 px-3 py-1 rounded-lg">{app.cpu ?? 0}%</span>
+                      </div>
+                      <div className="text-center md:text-left">
+                        <span className="block text-[10px] uppercase tracking-widest text-slate-300 font-black mb-2">RAM</span>
+                        <span className="text-sm font-black text-slate-700 font-mono bg-slate-50 px-3 py-1 rounded-lg">{Math.round((app.memory ?? 0) / 1024 / 1024)}MB</span>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap gap-2 bg-slate-50 p-2 rounded-2xl border border-slate-100 shadow-inner justify-center">
+                      <button onClick={() => manageMutation.mutate({ id: app.id, action: "start" })}
+                        className="px-3 py-2 text-[10px] uppercase font-black tracking-widest text-slate-400 hover:text-emerald-500 hover:bg-emerald-50 rounded-xl">Iniciar</button>
+                      <button onClick={() => manageMutation.mutate({ id: app.id, action: "restart" })}
+                        className="px-3 py-2 text-[10px] uppercase font-black tracking-widest text-slate-400 hover:text-amber-500 hover:bg-amber-50 rounded-xl">Reiniciar</button>
+                      <button onClick={() => manageMutation.mutate({ id: app.id, action: "stop" })}
+                        className="px-3 py-2 text-[10px] uppercase font-black tracking-widest text-red-400 hover:text-red-500 hover:bg-red-50 rounded-xl">Parar</button>
+                      <button
+                        onClick={() => npmInstallMutation.mutate(app.id)}
+                        disabled={installingId === app.id}
+                        className="px-3 py-2 text-[10px] uppercase font-black tracking-widest text-slate-400 hover:text-violet-600 hover:bg-violet-50 rounded-xl flex items-center gap-1 disabled:opacity-50"
+                      >
+                        {installingId === app.id ? "..." : <><span className="material-symbols-outlined text-[14px]">package_2</span>Install</>}
+                      </button>
+                      <button
+                        onClick={() => redeployMutation.mutate(app.id)}
+                        disabled={redeployingId === app.id}
+                        className="px-3 py-2 text-[10px] uppercase font-black tracking-widest text-slate-400 hover:text-[#00A3FF] hover:bg-sky-50 rounded-xl flex items-center gap-1 disabled:opacity-50"
+                      >
+                        {redeployingId === app.id ? "..." : <><span className="material-symbols-outlined text-[14px]">cloud_sync</span>Redeploy</>}
+                      </button>
+                      <button
+                        onClick={() => togglePanel(app.id, "logs")}
+                        className={`px-3 py-2 text-[10px] uppercase font-black tracking-widest rounded-xl ${panel === "logs" ? "bg-slate-900 text-white" : "text-slate-400 hover:bg-slate-100"}`}
+                      >
+                        Logs
+                      </button>
+                      <button
+                        onClick={() => togglePanel(app.id, "env")}
+                        className={`px-3 py-2 text-[10px] uppercase font-black tracking-widest rounded-xl ${panel === "env" ? "bg-slate-900 text-white" : "text-slate-400 hover:bg-slate-100"}`}
+                      >
+                        Env
+                      </button>
+                      <button
+                        onClick={() => togglePanel(app.id, "scripts")}
+                        className={`px-3 py-2 text-[10px] uppercase font-black tracking-widest rounded-xl ${panel === "scripts" ? "bg-slate-900 text-white" : "text-slate-400 hover:bg-slate-100"}`}
+                      >
+                        Scripts
+                      </button>
+                    </div>
                   </div>
-                  <div className="text-center md:text-left">
-                    <span className="block text-[10px] uppercase tracking-widest text-slate-300 font-black mb-2">Memoria RAM</span>
-                    <span className="text-sm font-black text-slate-700 font-mono bg-slate-50 px-3 py-1 rounded-lg">{Math.round((app.memory ?? 0) / 1024 / 1024)}MB</span>
-                  </div>
-                </div>
-                <div className="flex flex-wrap gap-2 bg-slate-50 p-2 rounded-2xl border border-slate-100 shadow-inner">
-                  <button onClick={() => manageMutation.mutate({ id: app.id, action: "start" })}
-                    className="px-4 py-2 text-[10px] uppercase font-black tracking-widest text-slate-400 hover:text-emerald-500 hover:bg-emerald-50 rounded-xl transition-all">Iniciar</button>
-                  <button onClick={() => manageMutation.mutate({ id: app.id, action: "restart" })}
-                    className="px-4 py-2 text-[10px] uppercase font-black tracking-widest text-slate-400 hover:text-amber-500 hover:bg-amber-50 rounded-xl transition-all">Reiniciar</button>
-                  <button onClick={() => manageMutation.mutate({ id: app.id, action: "stop" })}
-                    className="px-4 py-2 text-[10px] uppercase font-black tracking-widest text-red-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all">Parar</button>
-                  <button
-                    onClick={() => npmInstallMutation.mutate(app.id)}
-                    disabled={installingId === app.id}
-                    className="px-4 py-2 text-[10px] uppercase font-black tracking-widest text-slate-400 hover:text-violet-600 hover:bg-violet-50 rounded-xl transition-all flex items-center gap-1.5 disabled:opacity-50"
+
+                  <button onClick={() => { if (confirm("¿Eliminar aplicación permanentemente?")) deleteMutation.mutate(app.id); }}
+                    className="w-12 h-12 rounded-2xl bg-red-50 text-red-400 hover:bg-red-500 hover:text-white transition-all flex items-center justify-center shadow-sm shrink-0"
                   >
-                    {installingId === app.id ? (
-                      <><span className="w-3 h-3 border-2 border-violet-400 border-t-transparent rounded-full animate-spin" />Instalando...</>
-                    ) : (
-                      <><span className="material-symbols-outlined text-[14px]">package_2</span>npm install</>
-                    )}
+                    <span className="material-symbols-outlined text-[20px]">delete</span>
                   </button>
                 </div>
-                {installLog[app.id] && (
-                  <div className="mt-2 w-full p-3 bg-slate-900 rounded-xl text-[10px] font-mono text-emerald-400 whitespace-pre-wrap max-h-32 overflow-y-auto">
-                    {installLog[app.id]}
-                  </div>
-                )}
-              </div>
 
-              <button onClick={() => { if (confirm("¿Eliminar aplicación permanentemente?")) deleteMutation.mutate(app.id); }}
-                className="w-12 h-12 rounded-2xl bg-red-50 text-red-400 hover:bg-red-500 hover:text-white transition-all flex items-center justify-center shadow-sm"
-              >
-                <span className="material-symbols-outlined text-[20px]">delete</span>
-              </button>
-            </div>
-          ))}
+                {actionLog[app.id] && (
+                  <pre className="mt-4 w-full p-4 bg-slate-900 rounded-2xl text-[10px] font-mono text-emerald-400 whitespace-pre-wrap max-h-40 overflow-y-auto">
+                    {actionLog[app.id]}
+                  </pre>
+                )}
+
+                <AppDetailPanel
+                  app={app}
+                  panel={panel}
+                  onClose={() => setOpenPanel((prev) => ({ ...prev, [app.id]: "none" }))}
+                />
+              </div>
+            );
+          })}
         </div>
       )}
     </div>

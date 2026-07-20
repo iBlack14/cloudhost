@@ -3,6 +3,7 @@ import { promisify } from "node:util";
 import { db } from "../../config/db.js";
 import path from "node:path";
 import fs from "node:fs/promises";
+import os from "node:os";
 
 const execAsync = promisify(exec);
 const DEFAULT_NODE_VERSION = "20";
@@ -55,21 +56,179 @@ const loadAppOrThrow = async (userId: string, appId: string) => {
    return result.rows[0];
 };
 
-const validateAppFilesystem = async (app: { path: string; script: string }) => {
-   const appRoot = path.resolve(app.path);
-   const entryFile = path.resolve(appRoot, app.script);
+/** Detect if start_cmd is a shell/npm command vs a relative JS entry file */
+const isShellStartCommand = (cmd: string | null | undefined): boolean => {
+   if (!cmd || !cmd.trim()) return false;
+   const first = cmd.trim().split(/\s+/)[0]?.toLowerCase() ?? "";
+   return ["npm", "npx", "pnpm", "yarn", "node", "bun", "tsx", "ts-node"].includes(first)
+      || cmd.includes(" ");
+};
 
+const resolveStartMode = (app: { script?: string; start_cmd?: string | null }) => {
+   const startCmd = (app.start_cmd || "").trim();
+   if (startCmd && isShellStartCommand(startCmd)) {
+      return { mode: "shell" as const, command: startCmd };
+   }
+   if (startCmd && !isShellStartCommand(startCmd)) {
+      return { mode: "file" as const, entry: startCmd };
+   }
+   return { mode: "file" as const, entry: app.script || "index.js" };
+};
+
+const validateAppFilesystem = async (app: { path: string; script: string; start_cmd?: string | null }) => {
+   const appRoot = path.resolve(app.path);
    const appRootStat = await fs.stat(appRoot).catch(() => null);
    if (!appRootStat?.isDirectory()) {
       throw new Error(`Application root no existe: ${appRoot}`);
    }
 
+   const start = resolveStartMode(app);
+   if (start.mode === "shell") {
+      return { appRoot, entryFile: null as string | null, start };
+   }
+
+   const entryFile = path.resolve(appRoot, start.entry);
    const entryStat = await fs.stat(entryFile).catch(() => null);
    if (!entryStat?.isFile()) {
       throw new Error(`Startup file no existe: ${entryFile}`);
    }
 
-   return { appRoot, entryFile };
+   return { appRoot, entryFile, start };
+};
+
+const buildEnvPrefix = (app: { port: number; env_vars?: Record<string, string> | null }) => {
+   const envStr = Object.entries(app.env_vars ?? {})
+      .map(([key, value]) => `${key}=${quoteShellArg(String(value))}`)
+      .join(" ");
+   return [`PORT=${app.port}`, `NODE_ENV=${(app.env_vars as any)?.NODE_ENV || "production"}`, envStr]
+      .filter(Boolean)
+      .join(" ");
+};
+
+/** Configure nginx reverse proxy → PM2 app port (+ optional SSL) */
+const configureNginxProxy = async (userId: string, domain: string, port: number) => {
+   if (!domain || os.platform() === "win32") return;
+
+   const targetDomain = domain.trim().toLowerCase();
+   let hasSslCert = false;
+   let hasSslParams = false;
+   let hasDhParams = false;
+
+   try {
+      await fs.access(`/etc/letsencrypt/live/${targetDomain}/fullchain.pem`);
+      hasSslCert = true;
+   } catch {}
+   try {
+      await fs.access(`/etc/letsencrypt/options-ssl-nginx.conf`);
+      hasSslParams = true;
+   } catch {}
+   try {
+      await fs.access(`/etc/letsencrypt/ssl-dhparams.pem`);
+      hasDhParams = true;
+   } catch {}
+
+   const proxyBlock = `
+    location / {
+        proxy_pass http://127.0.0.1:${port};
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_cache_bypass $http_upgrade;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 300s;
+        proxy_connect_timeout 75s;
+    }`.trim();
+
+   let nginxConfig: string;
+   if (hasSslCert) {
+      nginxConfig = `
+server {
+    listen 80;
+    server_name ${targetDomain} www.${targetDomain};
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl;
+    server_name ${targetDomain} www.${targetDomain};
+    client_max_body_size 50m;
+
+    ssl_certificate /etc/letsencrypt/live/${targetDomain}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/${targetDomain}/privkey.pem;
+    ${hasSslParams ? `include /etc/letsencrypt/options-ssl-nginx.conf;` : ""}
+    ${hasDhParams ? `ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;` : ""}
+
+    ${proxyBlock}
+}
+      `.trim();
+   } else {
+      nginxConfig = `
+server {
+    listen 80;
+    server_name ${targetDomain} www.${targetDomain};
+    client_max_body_size 50m;
+
+    ${proxyBlock}
+}
+      `.trim();
+   }
+
+   await fs.mkdir("/etc/nginx/sites-available", { recursive: true }).catch(() => {});
+   await fs.mkdir("/etc/nginx/sites-enabled", { recursive: true }).catch(() => {});
+   await fs.writeFile(`/etc/nginx/sites-available/${targetDomain}`, nginxConfig, "utf8");
+   await execAsync(`ln -sf /etc/nginx/sites-available/${targetDomain} /etc/nginx/sites-enabled/`);
+   await execAsync("nginx -t").catch(() => {});
+   await execAsync("systemctl reload nginx").catch(() => {});
+
+   if (!hasSslCert) {
+      let userEmail = "soporte@odiseacloud.com";
+      try {
+         const userRes = await db.query("SELECT email FROM users WHERE id = $1", [userId]);
+         if (userRes.rows.length > 0 && userRes.rows[0].email) {
+            userEmail = userRes.rows[0].email;
+         }
+      } catch {}
+
+      // Domain/email already validated; avoid shell quoting that breaks certbot args
+      const safeDomain = targetDomain.replace(/[^a-z0-9.-]/gi, "");
+      const safeEmail = userEmail.replace(/[^a-zA-Z0-9@._+-]/g, "");
+      try {
+         await execAsync(
+            `certbot --nginx -d ${safeDomain} -d www.${safeDomain} --non-interactive --agree-tos -m ${safeEmail} --redirect`,
+            { timeout: 120_000 }
+         );
+      } catch {
+         try {
+            await execAsync(
+               `certbot --nginx -d ${safeDomain} --non-interactive --agree-tos -m ${safeEmail} --redirect`,
+               { timeout: 120_000 }
+            );
+         } catch {
+            // HTTP-only deploy is fine if certbot fails
+         }
+      }
+      await execAsync("systemctl reload nginx").catch(() => {});
+   }
+};
+
+const removeNginxProxy = async (domain: string | null | undefined) => {
+   if (!domain || os.platform() === "win32") return;
+   const targetDomain = domain.trim().toLowerCase();
+   await fs.unlink(`/etc/nginx/sites-available/${targetDomain}`).catch(() => {});
+   await fs.unlink(`/etc/nginx/sites-enabled/${targetDomain}`).catch(() => {});
+   await execAsync("systemctl reload nginx").catch(() => {});
+};
+
+const readPackageJson = async (appRoot: string): Promise<Record<string, any> | null> => {
+   try {
+      const raw = await fs.readFile(path.join(appRoot, "package.json"), "utf8");
+      return JSON.parse(raw);
+   } catch {
+      return null;
+   }
 };
 
 let _nodejsTablesReady = false;
@@ -88,13 +247,18 @@ export const ensureNodejsTables = async () => {
           env_vars JSONB DEFAULT '{}'::jsonb,
           github_repo TEXT,
           github_branch TEXT DEFAULT 'main',
+          install_cmd TEXT DEFAULT 'npm install',
+          build_cmd TEXT,
+          start_cmd TEXT,
           created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
           updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
       );
 
-      -- Idempotent migrations for existing tables
       ALTER TABLE nodejs_apps ADD COLUMN IF NOT EXISTS github_repo TEXT;
       ALTER TABLE nodejs_apps ADD COLUMN IF NOT EXISTS github_branch TEXT DEFAULT 'main';
+      ALTER TABLE nodejs_apps ADD COLUMN IF NOT EXISTS install_cmd TEXT DEFAULT 'npm install';
+      ALTER TABLE nodejs_apps ADD COLUMN IF NOT EXISTS build_cmd TEXT;
+      ALTER TABLE nodejs_apps ADD COLUMN IF NOT EXISTS start_cmd TEXT;
    `);
    _nodejsTablesReady = true;
 };
@@ -102,14 +266,13 @@ export const ensureNodejsTables = async () => {
 export const getAppsQuery = async (userId: string) => {
    await ensureNodejsTables();
    const result = await db.query("SELECT * FROM nodejs_apps WHERE user_id = $1 ORDER BY created_at DESC", [userId]);
-   
+
    const apps = result.rows;
 
-   // Mix with PM2 status
    try {
      const { stdout } = await execAsync("pm2 jlist");
      const pm2List = JSON.parse(stdout);
-     
+
      return apps.map(app => {
         const pm2proc = pm2List.find((p: any) => p.name === `odin_app_${app.id}`);
         return {
@@ -132,19 +295,16 @@ interface CreateAppData {
    script: string;
    domain: string;
    port: number;
-   // GitHub source (optional)
    githubRepo?: string;
    githubBranch?: string;
    installCmd?: string;
    buildCmd?: string;
    startCmd?: string;
-   // Domain-linked path: if set, resolve appRoot from user home + domainName
    linkedDomain?: string;
-   // Env vars at creation time
    envVars?: Record<string, string>;
+   autoStart?: boolean;
 }
 
-/** Resolve the user's home directory from their userId (same logic as file.controller) */
 const getUserHomePath = async (userId: string): Promise<string> => {
    const result = await db.query("SELECT username FROM users WHERE id = $1", [userId]);
    if (result.rowCount === 0) throw new Error("Usuario no encontrado");
@@ -155,12 +315,44 @@ const getUserHomePath = async (userId: string): Promise<string> => {
    return path.join("/home", username);
 };
 
+const insertApp = async (
+   userId: string,
+   data: CreateAppData,
+   appRoot: string,
+   extras: { githubRepo?: string | null; githubBranch?: string | null } = {}
+) => {
+   const envVarsJson = data.envVars && Object.keys(data.envVars).length > 0 ? data.envVars : {};
+   const script = data.script || "index.js";
+   const startCmd = data.startCmd?.trim() || null;
+   const installCmd = data.installCmd?.trim() || "npm install";
+   const buildCmd = data.buildCmd?.trim() || null;
+
+   const res = await db.query(
+      `INSERT INTO nodejs_apps
+         (user_id, name, version, path, script, domain, port, env_vars, github_repo, github_branch, install_cmd, build_cmd, start_cmd)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8::jsonb,$9,$10,$11,$12,$13) RETURNING *`,
+      [
+         userId,
+         data.name,
+         data.version || DEFAULT_NODE_VERSION,
+         appRoot,
+         script,
+         data.domain,
+         data.port,
+         JSON.stringify(envVarsJson),
+         extras.githubRepo ?? null,
+         extras.githubBranch ?? null,
+         installCmd,
+         buildCmd,
+         startCmd
+      ]
+   );
+   return res.rows[0];
+};
+
 export const createAppQuery = async (userId: string, data: CreateAppData) => {
    await ensureNodejsTables();
 
-   // ── Resolve the installation path ──────────────────────────────────────────
-   // If the user picked a domain from their list, resolve path from user home.
-   // Otherwise fall back to the explicit path field.
    let appRoot: string;
    if (data.linkedDomain) {
       const userHome = await getUserHomePath(userId);
@@ -169,14 +361,11 @@ export const createAppQuery = async (userId: string, data: CreateAppData) => {
       appRoot = path.resolve(data.path);
    }
 
-   const envVarsJson = data.envVars && Object.keys(data.envVars).length > 0
-      ? data.envVars
-      : {};
+   let appRow: any;
 
-   // ── GitHub source: clone the repository ────────────────────────────────────
    if (data.githubRepo) {
       const repoUrl = `https://github.com/${data.githubRepo}.git`;
-      const branch  = data.githubBranch || "main";
+      const branch = data.githubBranch || "main";
 
       await fs.mkdir(path.dirname(appRoot), { recursive: true });
 
@@ -191,47 +380,133 @@ export const createAppQuery = async (userId: string, data: CreateAppData) => {
       );
 
       const installCmd = data.installCmd || "npm install";
-      await execAsync(installCmd, { cwd: appRoot, timeout: 180_000 });
+      const { stdout: installOut, stderr: installErr } = await execAsync(installCmd, {
+         cwd: appRoot,
+         timeout: 300_000,
+         maxBuffer: 10 * 1024 * 1024
+      });
 
       if (data.buildCmd) {
-         await execAsync(data.buildCmd, { cwd: appRoot, timeout: 180_000 });
+         await execAsync(data.buildCmd, {
+            cwd: appRoot,
+            timeout: 300_000,
+            maxBuffer: 10 * 1024 * 1024
+         });
       }
 
-      const resolvedScript = data.startCmd ? data.startCmd.split(" ")[0] : data.script || "index.js";
+      // Auto-detect entry from package.json if script still default
+      const pkg = await readPackageJson(appRoot);
+      if ((!data.script || data.script === "index.js") && !data.startCmd && pkg) {
+         if (pkg.scripts?.start) {
+            data.startCmd = "npm start";
+         } else if (typeof pkg.main === "string") {
+            data.script = pkg.main;
+         }
+      }
 
-      const res = await db.query(
-         `INSERT INTO nodejs_apps (user_id, name, version, path, script, domain, port, env_vars, github_repo, github_branch)
-          VALUES ($1,$2,$3,$4,$5,$6,$7,$8::jsonb,$9,$10) RETURNING *`,
-         [userId, data.name, data.version || DEFAULT_NODE_VERSION, appRoot, resolvedScript,
-          data.domain, data.port, JSON.stringify(envVarsJson), data.githubRepo, branch]
-      );
-      return res.rows[0];
+      appRow = await insertApp(userId, data, appRoot, {
+         githubRepo: data.githubRepo,
+         githubBranch: branch
+      });
+
+      // Attach install output for debugging (not persisted)
+      appRow._installOutput = [installOut, installErr].filter(Boolean).join("\n").slice(0, 4000);
+   } else {
+      const appRootStat = await fs.stat(appRoot).catch(() => null);
+      if (!appRootStat?.isDirectory()) {
+         throw new Error(`Application root no existe: ${appRoot}`);
+      }
+
+      // If using shell startCmd, skip file validation; otherwise require entry file
+      if (!data.startCmd || !isShellStartCommand(data.startCmd)) {
+         const entryFile = path.resolve(appRoot, data.script || "index.js");
+         const entryStat = await fs.stat(entryFile).catch(() => null);
+         if (!entryStat?.isFile()) {
+            // Try package.json start as fallback
+            const pkg = await readPackageJson(appRoot);
+            if (pkg?.scripts?.start) {
+               data.startCmd = data.startCmd || "npm start";
+            } else {
+               throw new Error(`Startup file no existe: ${entryFile}`);
+            }
+         }
+      }
+
+      appRow = await insertApp(userId, data, appRoot);
    }
 
-   // ── Manual source: directory must already exist ─────────────────────────────
-   const appRootStat = await fs.stat(appRoot).catch(() => null);
-   if (!appRootStat?.isDirectory()) {
-      throw new Error(`Application root no existe: ${appRoot}`);
+   // Nginx reverse proxy so https://domain reaches the PM2 port
+   if (data.domain) {
+      await configureNginxProxy(userId, data.domain, data.port);
    }
 
-   const entryFile = path.resolve(appRoot, data.script);
-   const entryStat = await fs.stat(entryFile).catch(() => null);
-   if (!entryStat?.isFile()) {
-      throw new Error(`Startup file no existe: ${entryFile}`);
+   // Auto-start by default so deploy is complete out of the box
+   if (data.autoStart !== false) {
+      try {
+         await manageAppQuery(userId, appRow.id, "start");
+         appRow.status = "online";
+      } catch (startErr: any) {
+         appRow.status = "offline";
+         appRow._startError = startErr?.message || String(startErr);
+      }
    }
 
-   const res = await db.query(
-      `INSERT INTO nodejs_apps (user_id, name, version, path, script, domain, port, env_vars)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb) RETURNING *`,
-      [userId, data.name, data.version || DEFAULT_NODE_VERSION, appRoot, data.script, data.domain, data.port, JSON.stringify(envVarsJson)]
-   );
-   return res.rows[0];
+   return appRow;
 };
 
 export const deleteAppQuery = async (userId: string, appId: string) => {
-   // Stop and delete from PM2 first
+   const app = await loadAppOrThrow(userId, appId);
    await manageAppQuery(userId, appId, "delete");
+   await removeNginxProxy(app.domain);
    await db.query("DELETE FROM nodejs_apps WHERE id = $1 AND user_id = $2", [appId, userId]);
+};
+
+const startPm2Process = async (app: any, userId: string) => {
+   const pm2Name = `odin_app_${app.id}`;
+   await execAsync(`pm2 delete ${quoteShellArg(pm2Name)}`).catch(() => {});
+
+   const { appRoot, entryFile, start } = await validateAppFilesystem(app);
+   const interpreter = await findNodeInterpreter(app.version);
+   const prefix = buildEnvPrefix(app);
+
+   let command: string;
+   if (start.mode === "shell") {
+      const nodeBinDir = path.dirname(interpreter);
+      command = [
+         prefix,
+         `PATH=${quoteShellArg(nodeBinDir + ":" + (process.env.PATH || ""))}`,
+         "pm2 start",
+         quoteShellArg("bash"),
+         "--name",
+         quoteShellArg(pm2Name),
+         "--cwd",
+         quoteShellArg(appRoot),
+         "--update-env",
+         "--",
+         "-c",
+         quoteShellArg(start.command)
+      ].filter(Boolean).join(" ");
+   } else {
+      command = [
+         prefix,
+         "pm2 start",
+         quoteShellArg(entryFile!),
+         "--name",
+         quoteShellArg(pm2Name),
+         "--cwd",
+         quoteShellArg(appRoot),
+         "--interpreter",
+         quoteShellArg(interpreter),
+         "--update-env"
+      ].filter(Boolean).join(" ");
+   }
+
+   await execAsync(command);
+   await execAsync("pm2 save");
+
+   if (app.domain) {
+      await configureNginxProxy(userId, app.domain, app.port);
+   }
 };
 
 export const manageAppQuery = async (userId: string, appId: string, action: "start" | "stop" | "restart" | "delete") => {
@@ -239,34 +514,14 @@ export const manageAppQuery = async (userId: string, appId: string, action: "sta
    const pm2Name = `odin_app_${app.id}`;
 
    try {
-     if (action === "start") {
-        const { appRoot, entryFile } = await validateAppFilesystem(app);
-        const interpreter = await findNodeInterpreter(app.version);
-        const envStr = Object.entries(app.env_vars ?? {})
-          .map(([key, value]) => `${key}=${quoteShellArg(String(value))}`)
-          .join(" ");
-        const prefix = [`PORT=${app.port}`, envStr].filter(Boolean).join(" ");
-        const command = [
-          prefix,
-          "pm2 start",
-          quoteShellArg(entryFile),
-          "--name",
-          quoteShellArg(pm2Name),
-          "--cwd",
-          quoteShellArg(appRoot),
-          "--interpreter",
-          quoteShellArg(interpreter),
-          "--update-env"
-        ].filter(Boolean).join(" ");
-
-        await execAsync(command);
-        await execAsync("pm2 save");
+     if (action === "start" || action === "restart") {
+        await startPm2Process(app, userId);
      } else {
         await execAsync(`pm2 ${action} ${quoteShellArg(pm2Name)}`);
-        if(action === "delete") await execAsync("pm2 save");
+        if (action === "delete") await execAsync("pm2 save");
      }
    } catch (e) {
-      if (action !== "delete") throw e; // Safe fail if it didn't exist in pm2
+      if (action !== "delete") throw e;
    }
 };
 
@@ -275,18 +530,28 @@ export const getAppLogs = async (userId: string, appId: string) => {
    const pm2Name = `odin_app_${appId}`;
 
    try {
-     // Retrieve last 150 lines from PM2 internal command
-     const { stdout } = await execAsync(`pm2 logs ${quoteShellArg(pm2Name)} --lines 150 --nostream --raw`);
+     const { stdout } = await execAsync(`pm2 logs ${quoteShellArg(pm2Name)} --lines 200 --nostream --raw`);
      return stdout.trim().split("\n");
    } catch {
      return ["Logs no disponibles o aplicación fuera de línea."];
    }
 };
 
-export const updateAppEnv = async (userId: string, appId: string, envVars: any) => {
-   const res = await db.query("UPDATE nodejs_apps SET env_vars = $1 WHERE id = $2 AND user_id = $3 RETURNING *", [envVars, appId, userId]);
+export const updateAppEnv = async (userId: string, appId: string, envVars: Record<string, string>, restart = false) => {
+   const res = await db.query(
+      "UPDATE nodejs_apps SET env_vars = $1::jsonb, updated_at = NOW() WHERE id = $2 AND user_id = $3 RETURNING *",
+      [JSON.stringify(envVars), appId, userId]
+   );
    if (res.rowCount === 0) throw new Error("Not found");
-   // After updating env, we might want to automatically restart if active, let's keep it manual
+
+   if (restart) {
+      try {
+         await manageAppQuery(userId, appId, "restart");
+      } catch {
+         // Env saved even if restart fails (app may be offline)
+      }
+   }
+
    return res.rows[0];
 };
 
@@ -300,16 +565,146 @@ export const runNpmInstall = async (userId: string, appId: string) => {
       throw new Error(`No se encontró package.json en ${appRoot}`);
    }
 
-   const installCommand = await commandExists("pnpm")
-      ? "pnpm install --prod=false"
-      : await commandExists("npm")
-        ? "npm install"
-        : null;
+   const customCmd = (app.install_cmd || "").trim();
+   let installCommand = customCmd || null;
+
+   if (!installCommand) {
+      installCommand = await commandExists("pnpm")
+         ? "pnpm install --prod=false"
+         : await commandExists("npm")
+           ? "npm install"
+           : null;
+   }
 
    if (!installCommand) {
       throw new Error("No se encontró pnpm ni npm en el servidor");
    }
 
-   await execAsync(installCommand, { cwd: appRoot });
-   return `${installCommand} ejecutado correctamente en ${appRoot}`;
+   const { stdout, stderr } = await execAsync(installCommand, {
+      cwd: appRoot,
+      timeout: 300_000,
+      maxBuffer: 10 * 1024 * 1024
+   });
+
+   const output = [stdout, stderr].filter(Boolean).join("\n").trim();
+   return {
+      message: `${installCommand} ejecutado correctamente en ${appRoot}`,
+      output: output.slice(0, 8000) || `${installCommand} OK`
+   };
+};
+
+export const getPackageScripts = async (userId: string, appId: string) => {
+   const app = await loadAppOrThrow(userId, appId);
+   const pkg = await readPackageJson(path.resolve(app.path));
+   if (!pkg) throw new Error("No se encontró package.json");
+
+   return {
+      name: pkg.name ?? app.name,
+      version: pkg.version ?? null,
+      main: pkg.main ?? null,
+      scripts: pkg.scripts ?? {},
+      installCmd: app.install_cmd ?? "npm install",
+      buildCmd: app.build_cmd ?? null,
+      startCmd: app.start_cmd ?? null,
+      script: app.script
+   };
+};
+
+export const runPackageScript = async (userId: string, appId: string, scriptName: string) => {
+   const app = await loadAppOrThrow(userId, appId);
+   const appRoot = path.resolve(app.path);
+   const pkg = await readPackageJson(appRoot);
+   if (!pkg?.scripts?.[scriptName]) {
+      throw new Error(`Script "${scriptName}" no existe en package.json`);
+   }
+
+   const runner = await commandExists("pnpm")
+      ? `pnpm run ${scriptName}`
+      : await commandExists("npm")
+        ? `npm run ${scriptName}`
+        : null;
+
+   if (!runner) throw new Error("No se encontró npm/pnpm");
+
+   const { stdout, stderr } = await execAsync(runner, {
+      cwd: appRoot,
+      timeout: 300_000,
+      maxBuffer: 10 * 1024 * 1024,
+      env: {
+         ...process.env,
+         PORT: String(app.port),
+         ...(app.env_vars || {})
+      }
+   });
+
+   const output = [stdout, stderr].filter(Boolean).join("\n").trim();
+   return {
+      message: `Script "${scriptName}" ejecutado`,
+      output: output.slice(0, 8000) || "Sin salida"
+   };
+};
+
+export const redeployApp = async (userId: string, appId: string) => {
+   const app = await loadAppOrThrow(userId, appId);
+   const appRoot = path.resolve(app.path);
+   const logs: string[] = [];
+
+   const push = (msg: string) => logs.push(`[${new Date().toISOString()}] ${msg}`);
+
+   if (app.github_repo) {
+      const branch = app.github_branch || "main";
+      push(`git fetch / pull (${app.github_repo}@${branch})...`);
+      const safeBranch = String(branch).replace(/[^a-zA-Z0-9._\/-]/g, "");
+      try {
+         await execAsync(`git fetch --depth=1 origin ${quoteShellArg(safeBranch)}`, {
+            cwd: appRoot,
+            timeout: 120_000
+         });
+         await execAsync(`git reset --hard ${quoteShellArg(`origin/${safeBranch}`)}`, {
+            cwd: appRoot,
+            timeout: 60_000
+         });
+         push("Código actualizado desde GitHub.");
+      } catch (e: any) {
+         push(`Pull falló (${e.message}). Re-clonando...`);
+         const tmp = `${appRoot}.__redeploy_tmp`;
+         await fs.rm(tmp, { recursive: true, force: true }).catch(() => {});
+         await execAsync(
+            `git clone --depth=1 --branch ${quoteShellArg(safeBranch)} ${quoteShellArg(`https://github.com/${app.github_repo}.git`)} ${quoteShellArg(tmp)}`,
+            { timeout: 120_000 }
+         );
+         await fs.rm(appRoot, { recursive: true, force: true });
+         await fs.rename(tmp, appRoot);
+         push("Repositorio re-clonado.");
+      }
+   } else {
+      push("Sin repositorio GitHub — solo reinstall + restart.");
+   }
+
+   const installCmd = app.install_cmd || "npm install";
+   push(`Instalando: ${installCmd}`);
+   const { stdout: iOut, stderr: iErr } = await execAsync(installCmd, {
+      cwd: appRoot,
+      timeout: 300_000,
+      maxBuffer: 10 * 1024 * 1024
+   });
+   if (iOut) push(iOut.slice(0, 2000));
+   if (iErr) push(iErr.slice(0, 1000));
+
+   if (app.build_cmd) {
+      push(`Build: ${app.build_cmd}`);
+      const { stdout: bOut, stderr: bErr } = await execAsync(app.build_cmd, {
+         cwd: appRoot,
+         timeout: 300_000,
+         maxBuffer: 10 * 1024 * 1024
+      });
+      if (bOut) push(bOut.slice(0, 2000));
+      if (bErr) push(bErr.slice(0, 1000));
+   }
+
+   push("Reiniciando proceso PM2...");
+   await manageAppQuery(userId, appId, "restart");
+   push("Redeploy completado.");
+
+   return { message: "Redeploy OK", logs };
 };
