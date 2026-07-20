@@ -45,13 +45,19 @@ export const issueAutoSsl = async (domain: string, email: string): Promise<void>
     // Certbot --nginx automatically configures the nginx config file
     const cmd = `certbot --nginx -d ${domain} -d www.${domain} --non-interactive --agree-tos -m ${email} --redirect`;
     await execAsync(cmd);
-    
-    // Explicitly reload Nginx to guarantee activation
-    await execAsync("systemctl reload nginx").catch(() => {});
-  } catch (error) {
-    const msg = error instanceof Error ? error.message : "Desconocido";
-    throw new Error(`Fallo certbot para ${domain}. Revisa que los registros DNS (A/CNAME) apunten aquí. Error: ${msg}`);
+  } catch (error: any) {
+    console.warn(`[ssl] Certbot failed with www subdomain for ${domain}. Retrying for root domain only...`);
+    try {
+      const fallbackCmd = `certbot --nginx -d ${domain} --non-interactive --agree-tos -m ${email} --redirect`;
+      await execAsync(fallbackCmd);
+    } catch (fallbackErr: any) {
+      const msg = fallbackErr instanceof Error ? fallbackErr.message : "Desconocido";
+      throw new Error(`Fallo certbot para ${domain}. Revisa que los registros DNS (A/CNAME) apunten aquí. Error: ${msg}`);
+    }
   }
+  
+  // Explicitly reload Nginx to guarantee activation
+  await execAsync("systemctl reload nginx").catch(() => {});
 };
 
 /**
