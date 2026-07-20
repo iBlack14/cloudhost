@@ -2,7 +2,8 @@ import type { Request, Response } from "express";
 import { getUserId } from "../../utils/get-user-id.js";
 import { db } from "../../config/db.js";
 import * as sslService from "../../services/odin/ssl.service.js";
-
+import { resyncProxyForDomain } from "../../services/odin/nodejs.service.js";
+import { z } from "zod";
 const getDomainInfo = async (domainId: string, userId: string) => {
   const result = await db.query(
     "SELECT d.*, u.email FROM domains d INNER JOIN users u ON u.id = d.user_id WHERE d.id = $1 AND d.user_id = $2",
@@ -16,7 +17,7 @@ export const getDomainSslStatusHandler = async (req: Request, res: Response): Pr
   try {
     const userId = await getUserId(req);
     const domain = await getDomainInfo(req.params.domainId as string, userId);
-    
+
     const status = await sslService.getSslStatus(domain.domain_name);
     return res.status(200).json({ success: true, data: { ...status, dbSslEnabled: domain.ssl_enabled } });
   } catch (error) {
@@ -28,19 +29,39 @@ export const getDomainSslStatusHandler = async (req: Request, res: Response): Pr
 };
 
 export const issueSslHandler = async (req: Request, res: Response): Promise<Response> => {
+  const schema = z.object({ renew: z.boolean().optional() });
+  const parsed = schema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    return res.status(422).json({ success: false, error: parsed.error.flatten() });
+  }
+
   try {
     const userId = await getUserId(req);
     const domain = await getDomainInfo(req.params.domainId as string, userId);
-    
-    await sslService.issueAutoSsl(domain.domain_name, domain.email);
-    
+    const currentStatus = await sslService.getSslStatus(domain.domain_name);
+    const shouldRenew = parsed.data.renew ?? currentStatus.hasSsl;
+
+    if (shouldRenew) {
+      await sslService.renewAutoSsl(domain.domain_name);
+    } else {
+      await sslService.issueAutoSsl(domain.domain_name, domain.email);
+    }
+
     await db.query("UPDATE domains SET ssl_enabled = true WHERE id = $1", [domain.id]);
-    
-    const status = await sslService.getSslStatus(domain.domain_name);
-    return res.status(200).json({ success: true, data: status, message: "SSL Instalado y Configurado Exitosamente" });
+
+    // If this domain has a Node.js app, re-apply proxy config (certbot may have broken it)
+    await resyncProxyForDomain(userId, domain.domain_name).catch(() => {});
+
+    const status = await sslService.getSslStatus(domain.domain_name);    return res.status(200).json({
+      success: true,
+      data: status,
+      message: shouldRenew
+        ? `SSL de ${domain.domain_name} regenerado correctamente`
+        : `SSL de ${domain.domain_name} instalado correctamente`,
+    });
   } catch (error) {
-    return res.status(500).json({ 
-      success: false, 
+    return res.status(500).json({
+      success: false,
       error: { message: error instanceof Error ? error.message : "Error instalando SSL" }
     });
   }

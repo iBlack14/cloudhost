@@ -96,13 +96,122 @@ const validateAppFilesystem = async (app: { path: string; script: string; start_
    return { appRoot, entryFile, start };
 };
 
-const buildEnvPrefix = (app: { port: number; env_vars?: Record<string, string> | null }) => {
-   const envStr = Object.entries(app.env_vars ?? {})
-      .map(([key, value]) => `${key}=${quoteShellArg(String(value))}`)
-      .join(" ");
-   return [`PORT=${app.port}`, `NODE_ENV=${(app.env_vars as any)?.NODE_ENV || "production"}`, envStr]
-      .filter(Boolean)
-      .join(" ");
+const buildPm2Env = (app: { port: number; env_vars?: Record<string, string> | null }) => ({
+   PORT: String(app.port),
+   NODE_ENV: String((app.env_vars as Record<string, string> | undefined)?.NODE_ENV || "production"),
+   ...(app.env_vars ?? {}),
+});
+
+const writePm2Ecosystem = async (
+   appRoot: string,
+   pm2Name: string,
+   start: ReturnType<typeof resolveStartMode>,
+   env: Record<string, string>,
+   interpreter?: string
+) => {
+   const ecosystemPath = path.join(appRoot, ".odin-ecosystem.config.cjs");
+   let appEntry: Record<string, unknown>;
+
+   if (start.mode === "shell") {
+      const parts = start.command.trim().split(/\s+/);
+      const runner = parts[0]?.toLowerCase();
+
+      if (runner === "npm" || runner === "pnpm" || runner === "yarn") {
+         appEntry = {
+            name: pm2Name,
+            cwd: appRoot,
+            script: runner,
+            args: parts.slice(1).join(" ") || "start",
+            env,
+         };
+      } else {
+         appEntry = {
+            name: pm2Name,
+            cwd: appRoot,
+            script: "/bin/bash",
+            args: ["-c", start.command],
+            env,
+         };
+      }
+   } else {
+      appEntry = {
+         name: pm2Name,
+         cwd: appRoot,
+         script: start.entry,
+         interpreter: interpreter || "node",
+         env,
+      };
+   }
+
+   const content = `module.exports = { apps: [${JSON.stringify(appEntry, null, 2)}] };\n`;
+   await fs.writeFile(ecosystemPath, content, "utf8");
+   return ecosystemPath;
+};
+
+const isPortListening = async (port: number): Promise<boolean> => {
+   if (os.platform() === "win32") return true;
+   try {
+      const { stdout } = await execAsync(`ss -tln | grep ':${port} ' || netstat -tln | grep ':${port} '`);
+      return stdout.trim().length > 0;
+   } catch {
+      return false;
+   }
+};
+
+const buildNginxConfig = (
+   targetDomain: string,
+   port: number,
+   hasSslCert: boolean,
+   hasSslParams: boolean,
+   hasDhParams: boolean
+) => {
+   const proxyBlock = `
+    location / {
+        proxy_pass http://127.0.0.1:${port};
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_cache_bypass $http_upgrade;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 300s;
+        proxy_connect_timeout 75s;
+    }`.trim();
+
+   if (hasSslCert) {
+      return `
+server {
+    listen 80;
+    server_name ${targetDomain} www.${targetDomain};
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl;
+    server_name ${targetDomain} www.${targetDomain};
+    client_max_body_size 50m;
+
+    ssl_certificate /etc/letsencrypt/live/${targetDomain}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/${targetDomain}/privkey.pem;
+    ${hasSslParams ? `include /etc/letsencrypt/options-ssl-nginx.conf;` : ""}
+    ${hasDhParams ? `ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;` : ""}
+
+    ${proxyBlock}
+}
+      `.trim();
+   }
+
+   return `
+server {
+    listen 80;
+    server_name ${targetDomain} www.${targetDomain};
+    client_max_body_size 50m;
+
+    ${proxyBlock}
+}
+   `.trim();
 };
 
 /** Configure nginx reverse proxy → PM2 app port (+ optional SSL) */
@@ -127,63 +236,16 @@ const configureNginxProxy = async (userId: string, domain: string, port: number)
       hasDhParams = true;
    } catch {}
 
-   const proxyBlock = `
-    location / {
-        proxy_pass http://127.0.0.1:${port};
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_set_header Host $host;
-        proxy_cache_bypass $http_upgrade;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_read_timeout 300s;
-        proxy_connect_timeout 75s;
-    }`.trim();
-
-   let nginxConfig: string;
-   if (hasSslCert) {
-      nginxConfig = `
-server {
-    listen 80;
-    server_name ${targetDomain} www.${targetDomain};
-    return 301 https://$host$request_uri;
-}
-
-server {
-    listen 443 ssl;
-    server_name ${targetDomain} www.${targetDomain};
-    client_max_body_size 50m;
-
-    ssl_certificate /etc/letsencrypt/live/${targetDomain}/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/${targetDomain}/privkey.pem;
-    ${hasSslParams ? `include /etc/letsencrypt/options-ssl-nginx.conf;` : ""}
-    ${hasDhParams ? `ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;` : ""}
-
-    ${proxyBlock}
-}
-      `.trim();
-   } else {
-      nginxConfig = `
-server {
-    listen 80;
-    server_name ${targetDomain} www.${targetDomain};
-    client_max_body_size 50m;
-
-    ${proxyBlock}
-}
-      `.trim();
-   }
-
-   await fs.mkdir("/etc/nginx/sites-available", { recursive: true }).catch(() => {});
-   await fs.mkdir("/etc/nginx/sites-enabled", { recursive: true }).catch(() => {});
-   await fs.writeFile(`/etc/nginx/sites-available/${targetDomain}`, nginxConfig, "utf8");
-   await execAsync(`ln -sf /etc/nginx/sites-available/${targetDomain} /etc/nginx/sites-enabled/`);
-   await execAsync("nginx -t").catch(() => {});
-   await execAsync("systemctl reload nginx").catch(() => {});
-
+   // Step 1: HTTP config so certbot can authenticate if needed
    if (!hasSslCert) {
+      const httpConfig = buildNginxConfig(targetDomain, port, false, false, false);
+      await fs.mkdir("/etc/nginx/sites-available", { recursive: true }).catch(() => {});
+      await fs.mkdir("/etc/nginx/sites-enabled", { recursive: true }).catch(() => {});
+      await fs.writeFile(`/etc/nginx/sites-available/${targetDomain}`, httpConfig, "utf8");
+      await execAsync(`ln -sf /etc/nginx/sites-available/${targetDomain} /etc/nginx/sites-enabled/`);
+      await execAsync("nginx -t").catch(() => {});
+      await execAsync("systemctl reload nginx").catch(() => {});
+
       let userEmail = "soporte@odiseacloud.com";
       try {
          const userRes = await db.query("SELECT email FROM users WHERE id = $1", [userId]);
@@ -192,26 +254,53 @@ server {
          }
       } catch {}
 
-      // Domain/email already validated; avoid shell quoting that breaks certbot args
       const safeDomain = targetDomain.replace(/[^a-z0-9.-]/gi, "");
       const safeEmail = userEmail.replace(/[^a-zA-Z0-9@._+-]/g, "");
       try {
+         // certonly = obtain cert only — does NOT rewrite nginx (avoids breaking proxy_pass)
          await execAsync(
-            `certbot --nginx -d ${safeDomain} -d www.${safeDomain} --non-interactive --agree-tos -m ${safeEmail} --redirect`,
+            `certbot certonly --nginx -d ${safeDomain} -d www.${safeDomain} --cert-name ${safeDomain} --non-interactive --agree-tos -m ${safeEmail}`,
             { timeout: 120_000 }
          );
+         hasSslCert = true;
       } catch {
          try {
             await execAsync(
-               `certbot --nginx -d ${safeDomain} --non-interactive --agree-tos -m ${safeEmail} --redirect`,
+               `certbot certonly --nginx -d ${safeDomain} --cert-name ${safeDomain} --non-interactive --agree-tos -m ${safeEmail}`,
                { timeout: 120_000 }
             );
+            hasSslCert = true;
          } catch {
-            // HTTP-only deploy is fine if certbot fails
+            // HTTP-only is fine
          }
       }
-      await execAsync("systemctl reload nginx").catch(() => {});
+
+      if (hasSslCert) {
+         try { await fs.access(`/etc/letsencrypt/options-ssl-nginx.conf`); hasSslParams = true; } catch {}
+         try { await fs.access(`/etc/letsencrypt/ssl-dhparams.pem`); hasDhParams = true; } catch {}
+      }
    }
+
+   // Step 2: ALWAYS write our canonical proxy config last (fixes certbot --nginx overwrites)
+   const finalConfig = buildNginxConfig(targetDomain, port, hasSslCert, hasSslParams, hasDhParams);
+   await fs.mkdir("/etc/nginx/sites-available", { recursive: true }).catch(() => {});
+   await fs.mkdir("/etc/nginx/sites-enabled", { recursive: true }).catch(() => {});
+   await fs.writeFile(`/etc/nginx/sites-available/${targetDomain}`, finalConfig, "utf8");
+   await execAsync(`ln -sf /etc/nginx/sites-available/${targetDomain} /etc/nginx/sites-enabled/`);
+   await execAsync("nginx -t").catch(() => {});
+   await execAsync("systemctl reload nginx").catch(() => {});
+};
+
+/** Re-apply nginx proxy for a Node.js app bound to this domain (after SSL changes) */
+export const resyncProxyForDomain = async (userId: string, domainName: string): Promise<boolean> => {
+   await ensureNodejsTables();
+   const result = await db.query(
+      "SELECT port FROM nodejs_apps WHERE user_id = $1 AND LOWER(domain) = LOWER($2) LIMIT 1",
+      [userId, domainName]
+   );
+   if (result.rowCount === 0) return false;
+   await configureNginxProxy(userId, domainName, result.rows[0].port as number);
+   return true;
 };
 
 const removeNginxProxy = async (domain: string | null | undefined) => {
@@ -465,47 +554,27 @@ const startPm2Process = async (app: any, userId: string) => {
    const pm2Name = `odin_app_${app.id}`;
    await execAsync(`pm2 delete ${quoteShellArg(pm2Name)}`).catch(() => {});
 
-   const { appRoot, entryFile, start } = await validateAppFilesystem(app);
+   const { appRoot, start } = await validateAppFilesystem(app);
    const interpreter = await findNodeInterpreter(app.version);
-   const prefix = buildEnvPrefix(app);
+   const env = buildPm2Env(app);
 
-   let command: string;
-   if (start.mode === "shell") {
-      const nodeBinDir = path.dirname(interpreter);
-      command = [
-         prefix,
-         `PATH=${quoteShellArg(nodeBinDir + ":" + (process.env.PATH || ""))}`,
-         "pm2 start",
-         quoteShellArg("bash"),
-         "--name",
-         quoteShellArg(pm2Name),
-         "--cwd",
-         quoteShellArg(appRoot),
-         "--update-env",
-         "--",
-         "-c",
-         quoteShellArg(start.command)
-      ].filter(Boolean).join(" ");
-   } else {
-      command = [
-         prefix,
-         "pm2 start",
-         quoteShellArg(entryFile!),
-         "--name",
-         quoteShellArg(pm2Name),
-         "--cwd",
-         quoteShellArg(appRoot),
-         "--interpreter",
-         quoteShellArg(interpreter),
-         "--update-env"
-      ].filter(Boolean).join(" ");
-   }
-
-   await execAsync(command);
+   const ecosystemPath = await writePm2Ecosystem(appRoot, pm2Name, start, env, interpreter);
+   await execAsync(`pm2 start ${quoteShellArg(ecosystemPath)} --update-env`);
    await execAsync("pm2 save");
+
+   // Give the app a moment to bind its port
+   await new Promise((resolve) => setTimeout(resolve, 3000));
 
    if (app.domain) {
       await configureNginxProxy(userId, app.domain, app.port);
+   }
+
+   const listening = await isPortListening(app.port);
+   if (!listening) {
+      throw new Error(
+         `La app no está escuchando en el puerto ${app.port}. ` +
+         `Revisa que PORT=${app.port} en Env y que npm start levante el servidor HTTP.`
+      );
    }
 };
 

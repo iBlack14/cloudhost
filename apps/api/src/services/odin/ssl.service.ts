@@ -11,52 +11,83 @@ export interface SslStatus {
   expiryDate?: string;
 }
 
+const sanitizeDomain = (domain: string): string =>
+  domain.trim().toLowerCase().replace(/[^a-z0-9.-]/g, "");
+
+const sanitizeEmail = (email: string): string =>
+  email.trim().replace(/[^a-zA-Z0-9@._+-]/g, "");
+
 export const getSslStatus = async (domain: string): Promise<SslStatus> => {
+  const safeDomain = sanitizeDomain(domain);
   try {
-    const certPath = `/etc/letsencrypt/live/${domain}/cert.pem`;
-    // We check if file exists
+    const certPath = `/etc/letsencrypt/live/${safeDomain}/cert.pem`;
     await fs.access(certPath);
 
-    // Read the cert's expiry using openssl
     const { stdout } = await execAsync(`openssl x509 -enddate -noout -in ${certPath}`);
     const dateMatch = stdout.match(/notAfter=([\s\S]+)/);
-    
-    // Read the issuer
+
     const { stdout: issuerOut } = await execAsync(`openssl x509 -issuer -noout -in ${certPath}`);
     const issuerMatch = issuerOut.match(/O\s*=\s*([^,]+)/);
-    
+
     return {
-      domain,
+      domain: safeDomain,
       hasSsl: true,
       expiryDate: dateMatch ? dateMatch[1].trim() : "Unknown",
       issuer: issuerMatch ? issuerMatch[1].trim() : "Let's Encrypt",
     };
   } catch {
-    return { domain, hasSsl: false };
+    return { domain: safeDomain, hasSsl: false };
   }
 };
 
 /**
- * Issues a Let's Encrypt SSL via Certbot.
- * We assume Nginx is installed and configured per domain.
+ * Issues a new Let's Encrypt certificate for a single domain only.
  */
 export const issueAutoSsl = async (domain: string, email: string): Promise<void> => {
+  const safeDomain = sanitizeDomain(domain);
+  const safeEmail = sanitizeEmail(email);
+
   try {
-    // Certbot --nginx automatically configures the nginx config file
-    const cmd = `certbot --nginx -d ${domain} -d www.${domain} --non-interactive --agree-tos -m ${email} --redirect`;
-    await execAsync(cmd);
-  } catch (error: any) {
-    console.warn(`[ssl] Certbot failed with www subdomain for ${domain}. Retrying for root domain only...`);
+    const cmd = `certbot --nginx -d ${safeDomain} -d www.${safeDomain} --cert-name ${safeDomain} --non-interactive --agree-tos -m ${safeEmail} --redirect`;
+    await execAsync(cmd, { timeout: 120_000 });
+  } catch (error: unknown) {
+    console.warn(`[ssl] Certbot failed with www subdomain for ${safeDomain}. Retrying for root domain only...`);
     try {
-      const fallbackCmd = `certbot --nginx -d ${domain} --non-interactive --agree-tos -m ${email} --redirect`;
-      await execAsync(fallbackCmd);
-    } catch (fallbackErr: any) {
+      const fallbackCmd = `certbot --nginx -d ${safeDomain} --cert-name ${safeDomain} --non-interactive --agree-tos -m ${safeEmail} --redirect`;
+      await execAsync(fallbackCmd, { timeout: 120_000 });
+    } catch (fallbackErr: unknown) {
       const msg = fallbackErr instanceof Error ? fallbackErr.message : "Desconocido";
-      throw new Error(`Fallo certbot para ${domain}. Revisa que los registros DNS (A/CNAME) apunten aquí. Error: ${msg}`);
+      throw new Error(`Fallo certbot para ${safeDomain}. Revisa que los registros DNS (A/CNAME) apunten aquí. Error: ${msg}`);
     }
   }
-  
-  // Explicitly reload Nginx to guarantee activation
+
+  await execAsync("systemctl reload nginx").catch(() => {});
+};
+
+/**
+ * Renews only the certificate for the given domain — does not touch other domains.
+ */
+export const renewAutoSsl = async (domain: string): Promise<void> => {
+  const safeDomain = sanitizeDomain(domain);
+  const certPath = `/etc/letsencrypt/live/${safeDomain}/cert.pem`;
+
+  try {
+    await fs.access(certPath);
+  } catch {
+    throw new Error(`No existe certificado SSL para ${safeDomain}. Usa emitir primero.`);
+  }
+
+  try {
+    // Scoped renewal: only this cert lineage is renewed
+    await execAsync(
+      `certbot renew --cert-name ${safeDomain} --force-renewal --non-interactive`,
+      { timeout: 120_000 }
+    );
+  } catch (error: unknown) {
+    const msg = error instanceof Error ? error.message : "Desconocido";
+    throw new Error(`Fallo al renovar SSL de ${safeDomain}: ${msg}`);
+  }
+
   await execAsync("systemctl reload nginx").catch(() => {});
 };
 
