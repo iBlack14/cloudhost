@@ -660,64 +660,67 @@ export default function FileManagerPage() {
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-10rem)] space-y-4 animate-in fade-in duration-700">
+    <div className="flex h-full bg-[#0d1117] text-slate-300 animate-in fade-in duration-300">
 
-      {/* ── Header ─────────────────────────────────────────────────────────────── */}
-      <header className="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-4 border-b border-slate-200 pb-4">
-        <div className="space-y-1">
-          <span className="px-2 py-0.5 bg-[#00A3FF]/10 text-[#00A3FF] text-[9px] font-bold uppercase rounded-full tracking-wider">Almacenamiento Cloud</span>
-          <h1 className="text-2xl font-black text-slate-900 uppercase mt-1">Gestor de <span className="text-[#00A3FF]">Archivos</span></h1>
-          <p className="text-slate-500 text-xs font-medium">Administra los ficheros de tu servidor — mover, copiar, editar y más.</p>
-        </div>
-        <div className="grid grid-cols-3 gap-2 w-full lg:w-auto lg:flex lg:flex-row">
-          <button onClick={()=>setNewFileOpen(true)} className="px-2.5 sm:px-4 py-2 bg-white border border-slate-200 rounded-xl text-slate-500 font-bold text-[10px] sm:text-xs uppercase hover:border-[#00A3FF]/30 hover:text-[#00A3FF] transition-all shadow-sm flex items-center justify-center gap-1">
-            <span className="material-symbols-outlined text-[14px] sm:text-[16px]">note_add</span>Nuevo
+      {/* ── Left sidebar ──────────────────────────────────────────────────────── */}
+      <aside className="hidden md:flex w-52 flex-col bg-[#161b22] border-r border-white/[0.06] shrink-0 overflow-hidden">
+        {/* Actions */}
+        <div className="p-3 border-b border-white/[0.06] space-y-1">
+          <button onClick={()=>setNewFileOpen(true)}
+            className="w-full flex items-center gap-2 px-3 py-2 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white text-xs font-semibold transition-all">
+            <span className="material-symbols-outlined text-[15px] text-slate-400">note_add</span>Nuevo archivo
           </button>
-          <button onClick={handleCreateFolder} className="px-2.5 sm:px-4 py-2 bg-white border border-slate-200 rounded-xl text-slate-500 font-bold text-[10px] sm:text-xs uppercase hover:border-[#00A3FF]/30 hover:text-[#00A3FF] transition-all shadow-sm flex items-center justify-center gap-1">
-            <span className="material-symbols-outlined text-[14px] sm:text-[16px]">create_new_folder</span>Carpeta
+          <button onClick={handleCreateFolder}
+            className="w-full flex items-center gap-2 px-3 py-2 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white text-xs font-semibold transition-all">
+            <span className="material-symbols-outlined text-[15px] text-amber-400">create_new_folder</span>Nueva carpeta
           </button>
           <input type="file" ref={fileInputRef} onChange={(e)=>handleUpload(e.target.files)} className="hidden" multiple/>
           <button onClick={()=>fileInputRef.current?.click()} disabled={uploadMutation.isPending}
-            className="bg-[#00A3FF] px-2.5 sm:px-4 py-2 rounded-xl text-white font-bold uppercase text-[10px] sm:text-xs shadow-md shadow-[#00A3FF]/20 hover:bg-[#008EE0] transition-all disabled:opacity-40 flex items-center justify-center gap-1 relative overflow-hidden">
-            {uploadMutation.isPending&&uploadProgress!==null&&<div className="absolute inset-y-0 left-0 bg-black/10 transition-all pointer-events-none" style={{width:`${uploadProgress}%`}}/>}
-            <span className="material-symbols-outlined text-[14px] sm:text-[16px] relative z-10">upload</span>
-            <span className="relative z-10 truncate">{uploadMutation.isPending?(uploadProgress!==null?`${uploadProgress}%`:"Subiendo..."):"Subir"}</span>
+            className="w-full flex items-center gap-2 px-3 py-2 rounded-lg bg-[#00A3FF]/10 hover:bg-[#00A3FF]/20 text-[#00A3FF] text-xs font-bold transition-all relative overflow-hidden disabled:opacity-50">
+            {uploadMutation.isPending&&uploadProgress!==null&&<div className="absolute inset-y-0 left-0 bg-[#00A3FF]/20 transition-all pointer-events-none" style={{width:`${uploadProgress}%`}}/>}
+            <span className="material-symbols-outlined text-[15px] relative z-10">upload</span>
+            <span className="relative z-10">{uploadMutation.isPending?(uploadProgress!==null?`${uploadProgress}%`:"Subiendo..."):"Subir archivos"}</span>
           </button>
         </div>
-      </header>
 
-      {/* ── Two-pane layout ─────────────────────────────────────────────────────── */}
-      <div className="flex-1 flex gap-4 min-h-0 overflow-hidden">
-
-        {/* Sidebar */}
-        <aside className="hidden md:flex w-56 flex-col bg-white border border-slate-200 rounded-2xl shadow-sm p-3 overflow-y-auto custom-scrollbar space-y-3 flex-shrink-0">
-          <div>
-            <span className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400 block px-1 mb-1.5">Acceso Rápido</span>
-            <div className="space-y-0.5">
-              {[{label:"Raíz (/)",path:"/",icon:"home"},{label:"public_html",path:"/public_html",icon:"folder"},{label:"logs",path:"/logs",icon:"folder"},{label:"tmp",path:"/tmp",icon:"folder"}].map((item)=>(
-                <button key={item.path} onClick={()=>setCurrentPath(item.path)}
-                  className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-left text-xs font-semibold transition-all ${currentPath===item.path?"bg-[#00A3FF]/10 text-[#00A3FF]":"text-slate-600 hover:bg-slate-50"}`}>
-                  <span className={`material-symbols-outlined text-[16px] ${currentPath===item.path?"text-[#00A3FF]":"text-slate-400"}`}>{item.icon}</span>{item.label}
-                </button>
-              ))}
-            </div>
+        {/* Quick access */}
+        <div className="p-3 border-b border-white/[0.06]">
+          <p className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-600 px-1 mb-2">Acceso rápido</p>
+          <div className="space-y-0.5">
+            {[{label:"Raíz (/)",path:"/",icon:"home"},{label:"public_html",path:"/public_html",icon:"language"},{label:"logs",path:"/logs",icon:"article"},{label:"tmp",path:"/tmp",icon:"hourglass_empty"}].map((item)=>(
+              <button key={item.path} onClick={()=>setCurrentPath(item.path)}
+                className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left text-xs font-medium transition-all ${currentPath===item.path?"bg-[#00A3FF]/15 text-[#00A3FF]":"text-slate-400 hover:bg-white/5 hover:text-slate-200"}`}>
+                <span className={`material-symbols-outlined text-[15px] ${currentPath===item.path?"text-[#00A3FF]":"text-slate-600"}`}>{item.icon}</span>
+                <span className="font-mono">{item.label}</span>
+              </button>
+            ))}
           </div>
-          <div className="pt-2 border-t border-slate-100">
-            <span className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400 block px-1 mb-1.5">Ruta Actual</span>
-            <div className="space-y-0.5 pl-1">
-              <div onClick={()=>setCurrentPath("/")} className={`flex items-center gap-1.5 py-1 px-2 cursor-pointer hover:text-[#00A3FF] transition-colors text-xs font-medium rounded-lg hover:bg-slate-50 ${currentPath==="/"?"text-[#00A3FF] font-bold":"text-slate-600"}`}>
-                <span className="material-symbols-outlined text-[14px] text-slate-400">dns</span><span>/</span>
-              </div>
-              {breadcrumbs.map((crumb,idx)=>{
-                const cp="/"+breadcrumbs.slice(0,idx+1).join("/");
-                return <div key={idx} onClick={()=>setCurrentPath(cp)} className="flex items-center gap-1.5 py-1 cursor-pointer hover:text-[#00A3FF] transition-colors text-xs rounded-lg hover:bg-slate-50" style={{paddingLeft:`${(idx+1)*12+8}px`}}>
-                  <span className="material-symbols-outlined text-[14px] text-amber-500">folder_open</span>
-                  <span className={currentPath===cp?"text-[#00A3FF] font-bold":"text-slate-500 font-medium"}>{crumb}</span>
-                </div>;
-              })}
-              {files&&files.filter(f=>f.isDirectory).slice(0,8).map(folder=>(
-                <div key={folder.path} onClick={()=>navigateTo(folder.name)} className="flex items-center gap-1.5 py-1 cursor-pointer text-slate-500 hover:text-[#00A3FF] transition-colors text-xs rounded-lg hover:bg-slate-50" style={{paddingLeft:`${(breadcrumbs.length+1)*12+8}px`}}>
-                  <span className="material-symbols-outlined text-[14px] text-amber-400">folder</span><span className="truncate">{folder.name}</span>
+        </div>
+
+        {/* Tree */}
+        <div className="flex-1 overflow-y-auto custom-scrollbar p-3">
+          <p className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-600 px-1 mb-2">Árbol</p>
+          <div className="space-y-0.5">
+            <div onClick={()=>setCurrentPath("/")}
+              className={`flex items-center gap-1.5 py-1 px-2 cursor-pointer rounded-lg text-xs transition-all ${currentPath==="/"?"text-[#00A3FF] bg-[#00A3FF]/10":"text-slate-500 hover:bg-white/5 hover:text-slate-300"}`}>
+              <span className="material-symbols-outlined text-[13px] text-slate-600">dns</span>
+              <span className="font-mono font-bold">/</span>
+            </div>
+            {breadcrumbs.map((crumb,idx)=>{
+              const cp="/"+breadcrumbs.slice(0,idx+1).join("/");
+              return <div key={idx} onClick={()=>setCurrentPath(cp)}
+                className="flex items-center gap-1.5 py-1 cursor-pointer rounded-lg text-xs transition-all text-slate-500 hover:bg-white/5 hover:text-slate-300"
+                style={{paddingLeft:`${(idx+1)*10+8}px`}}>
+                <span className="material-symbols-outlined text-[13px] text-amber-500">folder_open</span>
+                <span className={`font-mono ${currentPath===cp?"text-[#00A3FF] font-bold":"font-medium"}`}>{crumb}</span>
+              </div>;
+            })}
+            {files&&files.filter(f=>f.isDirectory).slice(0,10).map(folder=>(
+              <div key={folder.path} onClick={()=>navigateTo(folder.name)}
+                className="flex items-center gap-1.5 py-1 cursor-pointer rounded-lg text-xs text-slate-600 hover:bg-white/5 hover:text-slate-300 transition-all"
+                style={{paddingLeft:`${(breadcrumbs.length+1)*10+8}px`}}>
+                <span className="material-symbols-outlined text-[13px] text-amber-400">folder</span>
+                <span className="font-mono truncate">{folder.name}</span>
                 </div>
               ))}
             </div>
@@ -801,47 +804,6 @@ export default function FileManagerPage() {
           {/* File listing */}
           <div className="flex-1 overflow-auto custom-scrollbar p-4 space-y-4">
             
-            {/* Node.js Configuration Banner */}
-            {hasPackageJson && !isLoading && (
-              <div className="bg-gradient-to-r from-slate-900 to-slate-800 text-white rounded-2xl p-5 border border-slate-700 shadow-lg flex flex-col md:flex-row md:items-center justify-between gap-4 animate-in slide-in-from-top duration-300">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-green-500/10 border border-green-500/30 flex items-center justify-center text-green-400 shrink-0">
-                    <span className="material-symbols-outlined text-lg">javascript</span>
-                  </div>
-                  <div>
-                    <h4 className="text-xs font-black uppercase tracking-wider text-green-400">Entorno Node.js Detectado</h4>
-                    <p className="text-[11px] text-slate-300 mt-0.5">Se encontró package.json. Ejecuta npm install o corre un script en esta ruta.</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2 flex-wrap">
-                  <button
-                    onClick={handleNpmInstall}
-                    disabled={runningNpm}
-                    className="bg-green-600 hover:bg-green-500 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 disabled:opacity-50 flex items-center gap-1.5 shadow-sm"
-                  >
-                    {runningNpm ? (
-                      <>
-                        <span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                        Instalando...
-                      </>
-                    ) : (
-                      <>
-                        <span className="material-symbols-outlined text-xs">download</span>
-                        Run NPM Install
-                      </>
-                    )}
-                  </button>
-                  <button
-                    onClick={() => setScriptModalOpen(true)}
-                    className="bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 flex items-center gap-1.5 shadow-sm"
-                  >
-                    <span className="material-symbols-outlined text-xs">terminal</span>
-                    Run JS Script
-                  </button>
-                </div>
-              </div>
-            )}
-
             {isLoading&&<div className="py-20 text-center"><div className="flex flex-col items-center gap-3"><div className="w-8 h-8 border-[3px] border-[#00A3FF]/20 border-t-[#00A3FF] rounded-full animate-spin"/><p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Escaneando archivos...</p></div></div>}
             {!isLoading&&displayFiles.length===0&&(
               <div className="py-20 text-center"><div className="flex flex-col items-center opacity-40">
