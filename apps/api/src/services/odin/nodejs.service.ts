@@ -97,13 +97,19 @@ const validateAppFilesystem = async (app: { path: string; script: string; start_
    return { appRoot, entryFile, start };
 };
 
-const buildPm2Env = (app: { port: number; env_vars?: Record<string, string> | null }) => ({
-   ...(app.env_vars ?? {}),
-   // Panel port always wins over .env / env_vars duplicates
-   PORT: String(app.port),
-   HOST: String((app.env_vars as Record<string, string> | undefined)?.HOST || "0.0.0.0"),
-   NODE_ENV: String((app.env_vars as Record<string, string> | undefined)?.NODE_ENV || "production"),
-});
+const buildPm2Env = (app: { port: number; env_vars?: Record<string, string> | null }) => {
+   const userVars = (app.env_vars ?? {}) as Record<string, string>;
+   return {
+      // User-defined vars first
+      ...userVars,
+      // PORT is always the panel-assigned port (nginx proxy target)
+      PORT: String(app.port),
+      // Only set HOST/NODE_ENV if user hasn't defined them
+      HOST: userVars.HOST || "0.0.0.0",
+      NODE_ENV: userVars.NODE_ENV || "production",
+      // DB_PORT and other DB vars are preserved as-is from userVars above
+   };
+};
 
 /** Sync panel env vars into app .env so dotenv-based apps pick them up */
 const syncAppEnvFile = async (appRoot: string, env: Record<string, string>) => {
