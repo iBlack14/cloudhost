@@ -606,9 +606,29 @@ export const createAppQuery = async (userId: string, data: CreateAppData) => {
       const pkg = await readPackageJson(appRoot);
       if ((!data.script || data.script === "index.js") && !data.startCmd && pkg) {
          if (pkg.scripts?.start) {
-            data.startCmd = "npm start";
-         } else if (typeof pkg.main === "string") {
-            data.script = pkg.main;
+            // Resolve what file `npm start` actually runs, then check if it
+            // calls app.listen(). If not, skip npm start and use the wrapper.
+            const startScript = pkg.scripts.start as string;
+            const nodeFileMatch = startScript.match(/(?:node|tsx|ts-node)\s+([\w./\\-]+\.(?:js|ts|mjs|cjs))/);
+            const entryFromScript = nodeFileMatch?.[1] ?? (pkg.main as string | undefined) ?? null;
+            let needsWrapper = false;
+            if (entryFromScript) {
+               const resolvedEntry = path.resolve(appRoot, entryFromScript);
+               try {
+                  const src = await fs.readFile(resolvedEntry, "utf8");
+                  needsWrapper = !/\.listen\s*\(/.test(src);
+               } catch { /* file not readable, assume it's fine */ }
+            }
+            if (!needsWrapper) {
+               data.startCmd = "npm start";
+            }
+            // If needsWrapper, leave startCmd empty so PM2 uses node + wrapper below
+         }
+         if (!data.startCmd) {
+            // Use main or fallback to index.js for direct node execution
+            if (typeof pkg?.main === "string") {
+               data.script = pkg.main;
+            }
          }
       }
 
