@@ -34,31 +34,31 @@ export default function FileManagerLayout({ children }: { children: React.ReactN
   }
 
   return (
-    <div className="h-[100dvh] w-full flex flex-col bg-[#0d1117] overflow-hidden">
+    <div className="h-[100dvh] w-full flex flex-col bg-[#f5faff] overflow-hidden">
       {/* Top chrome bar */}
-      <header className="h-11 flex items-center px-3 sm:px-4 gap-3 bg-[#161b22] border-b border-white/[0.06] shrink-0 z-50 shadow-sm shadow-black/20">
+      <header className="h-12 flex items-center px-3 sm:px-4 gap-3 bg-white border-b border-sky-100 shrink-0 z-50 shadow-sm shadow-sky-100/70">
         {/* Back to panel */}
         <Link
           href="/"
-          className="flex items-center gap-1.5 text-slate-500 hover:text-slate-300 transition-colors text-[11px] font-semibold"
+          className="flex items-center gap-1.5 text-slate-500 hover:text-sky-600 transition-colors text-[11px] font-semibold"
         >
           <span className="material-symbols-outlined text-[14px]">arrow_back</span>
           Panel
         </Link>
 
-        <span className="w-px h-4 bg-white/10" />
+        <span className="w-px h-4 bg-slate-200" />
 
         {/* Breadcrumb placeholder — filled by page via data attribute on body or context */}
         <div className="flex items-center gap-1.5 min-w-0">
           <span className="material-symbols-outlined text-[14px] text-[#00A3FF]">folder_open</span>
-          <span className="text-[10px] sm:text-[11px] font-black text-slate-300 uppercase tracking-widest truncate">
+          <span className="text-[10px] sm:text-[11px] font-black text-slate-700 uppercase tracking-widest truncate">
             Administrador de Archivos
           </span>
         </div>
 
         {/* Right side — branding pill */}
         <div className="ml-auto hidden sm:flex items-center gap-2">
-          <span className="px-2.5 py-0.5 rounded-full bg-[#00A3FF]/10 border border-[#00A3FF]/20 text-[#00A3FF] text-[10px] font-black uppercase tracking-widest">
+          <span className="px-2.5 py-0.5 rounded-full bg-sky-50 border border-sky-200 text-sky-600 text-[10px] font-black uppercase tracking-widest">
             Files
           </span>
         </div>
