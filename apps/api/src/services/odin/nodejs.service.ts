@@ -145,18 +145,20 @@ const writePm2Ecosystem = async (
    const startScriptPath = path.join(appRoot, ".odin-start.sh");
 
    // Shell wrapper: most reliable way to pass env to npm/node child processes
+   // NOTE: no set -e here — npm/node print to stderr normally and set -e would
+   // kill the wrapper on any non-zero intermediate command (like export with
+   // special chars), causing PM2 to mark the process as errored silently.
    const exportLines = Object.entries(env)
       .map(([k, v]) => `export ${k}=${quoteShellArg(v)}`)
       .join("\n");
 
    const runCmd = start.mode === "shell"
       ? start.command
-      : `${quoteShellArg(interpreter || "node")} ${quoteShellArg(start.entry)}`;
+      : `${quoteShellArg(interpreter || "node")} ${quoteShellArg(start.entry!)}`;
    const nodeBin = interpreter ? path.dirname(interpreter) : "";
    const pathPrefix = nodeBin ? `export PATH=${quoteShellArg(nodeBin + ":" + (process.env.PATH || "/usr/local/bin:/usr/bin:/bin"))}\n` : "";
 
    const shellScript = `#!/bin/bash
-set -e
 cd ${quoteShellArg(appRoot)}
 ${pathPrefix}${exportLines}
 exec ${runCmd}
@@ -182,16 +184,17 @@ const isPortListening = async (port: number): Promise<boolean> => {
    // Try HTTP probe first (most reliable)
    try {
       const { stdout } = await execAsync(
-         `curl -s -o /dev/null -w '%{http_code}' --connect-timeout 2 http://127.0.0.1:${port}/ 2>/dev/null || echo fail`
+         `curl -s -o /dev/null -w '%{http_code}' --connect-timeout 2 http://127.0.0.1:${port}/ 2>/dev/null || echo "fail"`
       );
       const code = stdout.trim();
-      if (code !== "fail" && code !== "000" && code.length > 0) return true;
+      // Accept any real HTTP response code (1xx–5xx) — even 502/404 means the port is open
+      if (/^[1-5]\d{2}$/.test(code)) return true;
    } catch {}
 
-   // Fallback: socket check (IPv4 + IPv6)
+   // Fallback: socket/port check (IPv4 + IPv6)
    try {
       const { stdout } = await execAsync(
-         `ss -tlnH 2>/dev/null | awk '{print $4}' | grep -E ':${port}$' || netstat -tln 2>/dev/null | grep -E ':${port}\\s'`
+         `ss -tlnH 2>/dev/null | awk '{print $4}' | grep -E ':${port}$' || netstat -tln 2>/dev/null | grep -E ':${port}[[:space:]]'`
       );
       return stdout.trim().length > 0;
    } catch {
@@ -352,6 +355,35 @@ export const resyncProxyForDomain = async (userId: string, domainName: string): 
    if (result.rowCount === 0) return false;
    await configureNginxProxy(userId, domainName, result.rows[0].port as number);
    return true;
+};
+
+/**
+ * Lightweight nginx refresh: rewrites the proxy config for an already-registered
+ * domain without triggering certbot again. Used when restarting/starting a PM2
+ * process so we never accidentally re-run SSL provisioning mid-restart.
+ */
+const refreshNginxProxy = async (domain: string, port: number) => {
+   if (!domain || os.platform() === "win32") return;
+
+   const targetDomain = domain.trim().toLowerCase();
+
+   let hasSslCert = false;
+   let hasSslParams = false;
+   let hasDhParams = false;
+   try { await fs.access(`/etc/letsencrypt/live/${targetDomain}/fullchain.pem`); hasSslCert = true; } catch {}
+   try { await fs.access(`/etc/letsencrypt/options-ssl-nginx.conf`); hasSslParams = true; } catch {}
+   try { await fs.access(`/etc/letsencrypt/ssl-dhparams.pem`); hasDhParams = true; } catch {}
+
+   const finalConfig = buildNginxConfig(targetDomain, port, hasSslCert, hasSslParams, hasDhParams);
+   await fs.mkdir("/etc/nginx/sites-available", { recursive: true }).catch(() => {});
+   await fs.mkdir("/etc/nginx/sites-enabled", { recursive: true }).catch(() => {});
+   await fs.writeFile(`/etc/nginx/sites-available/${targetDomain}`, finalConfig, "utf8");
+   await execAsync(`ln -sf /etc/nginx/sites-available/${targetDomain} /etc/nginx/sites-enabled/`).catch(() => {});
+   const testResult = await execAsync("nginx -t 2>&1").catch((e) => ({ stdout: "", stderr: e.message }));
+   // Only reload if config test passes
+   if (!String((testResult as any).stderr || (testResult as any).stdout).includes("failed")) {
+      await execAsync("systemctl reload nginx").catch(() => {});
+   }
 };
 
 const removeNginxProxy = async (domain: string | null | undefined) => {
@@ -577,12 +609,7 @@ export const createAppQuery = async (userId: string, data: CreateAppData) => {
       appRow = await insertApp(userId, data, appRoot);
    }
 
-   // Nginx reverse proxy so https://domain reaches the PM2 port
-   if (data.domain) {
-      await configureNginxProxy(userId, data.domain, data.port);
-   }
-
-   // Auto-start by default so deploy is complete out of the box
+   // Auto-start FIRST so the process is running before nginx is pointed at the port
    if (data.autoStart !== false) {
       try {
          await manageAppQuery(userId, appRow.id, "start");
@@ -591,6 +618,11 @@ export const createAppQuery = async (userId: string, data: CreateAppData) => {
          appRow.status = "offline";
          appRow._startError = startErr?.message || String(startErr);
       }
+   }
+
+   // Configure nginx AFTER PM2 is up so there's no window where nginx proxies to a dead port
+   if (data.domain) {
+      await configureNginxProxy(userId, data.domain, data.port);
    }
 
    return appRow;
@@ -611,25 +643,27 @@ const startPm2Process = async (app: any, userId: string): Promise<{ portWarning?
    const interpreter = await findNodeInterpreter(app.version);
    const env = buildPm2Env(app);
 
-   // Write .env so dotenv-based apps (like mesa-partes-virtual) get panel vars
+   // Write .env so dotenv-based apps get panel vars
    await syncAppEnvFile(appRoot, env);
 
    const ecosystemPath = await writePm2Ecosystem(appRoot, pm2Name, start, env, interpreter);
    await execAsync(`pm2 start ${quoteShellArg(ecosystemPath)} --update-env`);
    await execAsync("pm2 save");
 
+   // Re-sync nginx proxy to ensure the port is always correct.
+   // Only refresh (no certbot re-run) — pass a flag to skip SSL provisioning.
    if (app.domain) {
-      await configureNginxProxy(userId, app.domain, app.port);
+      await refreshNginxProxy(app.domain, app.port);
    }
 
-   // Wait up to 25s — apps with DB/SMTP init need more than 3s
-   const listening = await waitForPort(app.port, 25_000);
+   // Wait up to 30s — apps with DB/SMTP init need time
+   const listening = await waitForPort(app.port, 30_000);
    if (!listening) {
       return {
          portWarning:
-            `Advertencia: no se detectó HTTP en el puerto ${app.port} tras 25s. ` +
+            `Advertencia: no se detectó actividad en el puerto ${app.port} tras 30s. ` +
             `El proceso PM2 está corriendo — revisa Logs. ` +
-            `Si tu app usa otro puerto, cámbialo en Env y en el panel.`,
+            `Si tu app usa otro puerto, actualízalo en Env y reinicia.`,
       };
    }
    return {};
