@@ -954,7 +954,6 @@ export default function FileManagerPage() {
             </div>
           </div>
         </div>
-      </div>
 
       {/* ── Editor Modal ──────────────────────────────────────────────────────── */}
       {editorOpen&&(
