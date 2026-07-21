@@ -102,6 +102,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     );
   }
 
+  // The file manager has its own application chrome and needs the complete
+  // viewport. Rendering it inside the dashboard shell would add the sidebar,
+  // page padding and decorative background around a second full-screen layout.
+  if (pathname === "/files" || pathname.startsWith("/files/")) {
+    return <>{children}</>;
+  }
+
   return (
     <div className="flex flex-col lg:flex-row min-h-screen bg-white">
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />

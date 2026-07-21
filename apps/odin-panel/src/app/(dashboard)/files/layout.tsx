@@ -34,9 +34,9 @@ export default function FileManagerLayout({ children }: { children: React.ReactN
   }
 
   return (
-    <div className="h-screen w-screen flex flex-col bg-[#0d1117] overflow-hidden">
+    <div className="h-[100dvh] w-full flex flex-col bg-[#0d1117] overflow-hidden">
       {/* Top chrome bar */}
-      <div className="h-10 flex items-center px-4 gap-3 bg-[#161b22] border-b border-white/[0.06] shrink-0 z-50">
+      <header className="h-11 flex items-center px-3 sm:px-4 gap-3 bg-[#161b22] border-b border-white/[0.06] shrink-0 z-50 shadow-sm shadow-black/20">
         {/* Back to panel */}
         <Link
           href="/"
@@ -49,20 +49,20 @@ export default function FileManagerLayout({ children }: { children: React.ReactN
         <span className="w-px h-4 bg-white/10" />
 
         {/* Breadcrumb placeholder — filled by page via data attribute on body or context */}
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1.5 min-w-0">
           <span className="material-symbols-outlined text-[14px] text-[#00A3FF]">folder_open</span>
-          <span className="text-[11px] font-black text-slate-300 uppercase tracking-widest">
+          <span className="text-[10px] sm:text-[11px] font-black text-slate-300 uppercase tracking-widest truncate">
             Administrador de Archivos
           </span>
         </div>
 
         {/* Right side — branding pill */}
-        <div className="ml-auto flex items-center gap-2">
+        <div className="ml-auto hidden sm:flex items-center gap-2">
           <span className="px-2.5 py-0.5 rounded-full bg-[#00A3FF]/10 border border-[#00A3FF]/20 text-[#00A3FF] text-[10px] font-black uppercase tracking-widest">
             Files
           </span>
         </div>
-      </div>
+      </header>
 
       {/* Content fills remaining height */}
       <div className="flex-1 overflow-hidden">
