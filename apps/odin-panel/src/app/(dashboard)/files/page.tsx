@@ -80,7 +80,7 @@ const getFileIconColor = (name: string, isDir: boolean) => {
   if (name.endsWith(".json")) return "text-emerald-400";
   if (isArchive(name)) return "text-rose-400";
   if ([".jpg",".jpeg",".png",".gif",".svg",".webp"].some(e => name.toLowerCase().endsWith(e))) return "text-pink-400";
-  return "text-slate-400";
+  return "text-slate-600";
 };
 
 const getFileBadge = (name: string) => {
@@ -716,8 +716,8 @@ export default function FileManagerPage() {
           <div className="space-y-0.5">
             {[{label:"Raíz (/)",path:"/",icon:"home"},{label:"public_html",path:"/public_html",icon:"language"},{label:"logs",path:"/logs",icon:"article"},{label:"tmp",path:"/tmp",icon:"hourglass_empty"}].map((item)=>(
               <button key={item.path} onClick={()=>setCurrentPath(item.path)}
-                className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left text-xs font-medium transition-all ${currentPath===item.path?"bg-sky-50 text-sky-600":"text-slate-500 hover:bg-slate-50 hover:text-slate-800"}`}>
-                <span className={`material-symbols-outlined text-[15px] ${currentPath===item.path?"text-[#00A3FF]":"text-slate-600"}`}>{item.icon}</span>
+                className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left text-xs font-semibold transition-all ${currentPath===item.path?"bg-sky-50 text-sky-700":"text-slate-700 hover:bg-slate-50 hover:text-slate-950"}`}>
+                <span className={`material-symbols-outlined text-[15px] ${currentPath===item.path?"text-[#0086d8]":"text-slate-700"}`}>{item.icon}</span>
                 <span className="font-mono">{item.label}</span>
               </button>
             ))}
@@ -729,14 +729,14 @@ export default function FileManagerPage() {
           <p className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-600 px-1 mb-2">Árbol</p>
           <div className="space-y-0.5">
             <div onClick={()=>setCurrentPath("/")}
-              className={`flex items-center gap-1.5 py-1 px-2 cursor-pointer rounded-lg text-xs transition-all ${currentPath==="/"?"text-sky-600 bg-sky-50":"text-slate-500 hover:bg-slate-50 hover:text-slate-800"}`}>
-              <span className="material-symbols-outlined text-[13px] text-slate-600">dns</span>
+              className={`flex items-center gap-1.5 py-1 px-2 cursor-pointer rounded-lg text-xs font-semibold transition-all ${currentPath==="/"?"text-sky-700 bg-sky-50":"text-slate-700 hover:bg-slate-50 hover:text-slate-950"}`}>
+              <span className="material-symbols-outlined text-[13px] text-slate-700">dns</span>
               <span className="font-mono font-bold">/</span>
             </div>
             {breadcrumbs.map((crumb,idx)=>{
               const cp="/"+breadcrumbs.slice(0,idx+1).join("/");
               return <div key={idx} onClick={()=>setCurrentPath(cp)}
-                className="flex items-center gap-1.5 py-1 cursor-pointer rounded-lg text-xs transition-all text-slate-500 hover:bg-slate-50 hover:text-slate-800"
+                className="flex items-center gap-1.5 py-1 cursor-pointer rounded-lg text-xs font-semibold transition-all text-slate-700 hover:bg-slate-50 hover:text-slate-950"
                 style={{paddingLeft:`${(idx+1)*10+8}px`}}>
                 <span className="material-symbols-outlined text-[13px] text-sky-500">folder_open</span>
                 <span className={`font-mono ${currentPath===cp?"text-[#00A3FF] font-bold":"font-medium"}`}>{crumb}</span>
@@ -744,7 +744,7 @@ export default function FileManagerPage() {
             })}
             {files&&files.filter(f=>f.isDirectory).slice(0,10).map(folder=>(
               <div key={folder.path} onClick={()=>navigateTo(folder.name)}
-                className="flex items-center gap-1.5 py-1 cursor-pointer rounded-lg text-xs text-slate-500 hover:bg-slate-50 hover:text-slate-800 transition-all"
+                className="flex items-center gap-1.5 py-1 cursor-pointer rounded-lg text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:text-slate-950 transition-all"
                 style={{paddingLeft:`${(breadcrumbs.length+1)*10+8}px`}}>
                 <span className="material-symbols-outlined text-[13px] text-sky-400">folder</span>
                 <span className="font-mono truncate">{folder.name}</span>
@@ -939,14 +939,14 @@ export default function FileManagerPage() {
                           ):(
                             <div className="flex items-center gap-2 cursor-pointer" onClick={()=>file.isDirectory&&navigateTo(file.name)}>
                               <span className={`material-symbols-outlined text-[16px] ${getFileIconColor(file.name,file.isDirectory)}`}>{getFileIcon(file.name,file.isDirectory)}</span>
-                              <span className={`text-xs font-medium transition-colors ${file.isDirectory?"text-slate-300 group-hover:text-white":"text-slate-400 group-hover:text-slate-300"}`}>{file.name}</span>
+                              <span className={`text-xs transition-colors ${file.isDirectory?"font-semibold text-slate-900 group-hover:text-sky-800":"font-medium text-slate-800 group-hover:text-slate-950"}`}>{file.name}</span>
                               <Badge name={file.name}/>
                             </div>
                           )}
                         </td>
-                        <td className="px-3 py-1.5 text-slate-600 text-xs font-mono hidden md:table-cell">{file.isDirectory?"—":formatSize(file.size)}</td>
-                        <td className="px-3 py-1.5 text-slate-600 text-xs font-mono hidden md:table-cell">{formatDate(file.lastModified)}</td>
-                        <td className="px-3 py-1.5 hidden md:table-cell"><span className="text-slate-700 text-xs font-mono">{file.permissions}</span></td>
+                        <td className="px-3 py-1.5 text-slate-700 text-xs font-mono hidden md:table-cell">{file.isDirectory?"—":formatSize(file.size)}</td>
+                        <td className="px-3 py-1.5 text-slate-700 text-xs font-mono hidden md:table-cell">{formatDate(file.lastModified)}</td>
+                        <td className="px-3 py-1.5 hidden md:table-cell"><span className="text-slate-800 text-xs font-mono">{file.permissions}</span></td>
                         <td className="px-3 py-1.5 text-right" onClick={(e)=>e.stopPropagation()}>
                           <div className="hidden md:flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                             {!file.isDirectory&&isTextFile(file.name)&&<button onClick={()=>openEditor(file.path,file.name)} className="h-7 px-2 rounded-md bg-sky-50 text-sky-600 hover:bg-sky-100 transition-all flex items-center gap-1" title="Editar contenido"><span className="material-symbols-outlined text-[14px]">code</span><span className="text-[9px] font-bold">Editar</span></button>}
