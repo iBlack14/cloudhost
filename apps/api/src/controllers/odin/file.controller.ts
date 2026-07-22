@@ -232,17 +232,37 @@ export const chmodHandler = async (req: Request, res: Response): Promise<Respons
   }
 };
 
-export const downloadFileHandler = async (req: Request, res: Response) => {
+export const downloadFileHandler = async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = await getUserId(req);
     const basePath = await getBaseUserPath(userId);
-    const p = req.query.path as string;
-    
+    const p = typeof req.query.path === "string" ? req.query.path : "";
+    if (!p) {
+      res.status(422).json({ success: false, error: { message: "Ruta de descarga requerida" } });
+      return;
+    }
+
     const targetFile = fileService.resolveSafePath(basePath, p);
-    
-    res.download(targetFile);
+    const stats = await fs.stat(targetFile);
+    if (!stats.isFile()) {
+      res.status(400).json({ success: false, error: { message: "La ruta seleccionada no es un archivo" } });
+      return;
+    }
+
+    await new Promise<void>((resolve, reject) => {
+      res.download(targetFile, path.basename(targetFile), (error) => {
+        if (error) reject(error);
+        else resolve();
+      });
+    });
   } catch (error) {
-    res.status(500).send("Error al descargar");
+    console.error("[files/download]", error);
+    if (!res.headersSent) {
+      const message = error instanceof Error && "code" in error && error.code === "ENOENT"
+        ? "El archivo ya no existe"
+        : error instanceof Error ? error.message : "Error al descargar";
+      res.status(500).json({ success: false, error: { message } });
+    }
   }
 };
 
