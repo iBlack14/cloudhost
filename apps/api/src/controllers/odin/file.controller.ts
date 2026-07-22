@@ -188,7 +188,7 @@ export const compressHandler = async (req: Request, res: Response): Promise<Resp
       success: false,
       error: {
         message: error instanceof Error
-          ? `Error al comprimir: ${error.message}`
+          ? error.message
           : "Error al comprimir",
       },
     });
@@ -489,4 +489,3 @@ export const runFilesJsScriptHandler = async (req: Request, res: Response): Prom
     return res.status(500).json({ success: false, error: { message: error.message || "Error al ejecutar script de JS" } });
   }
 };
-

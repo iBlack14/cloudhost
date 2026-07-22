@@ -12,10 +12,14 @@ const execAsync = promisify(exec);
 const require = createRequire(import.meta.url);
 // archiver is CommonJS. Loading it with require avoids NodeNext/ESM interop
 // differences that can otherwise make the imported namespace non-callable.
-const archiverFactory = require("archiver") as (
+type ArchiverFactory = (
   format: string,
   options?: Record<string, unknown>
 ) => Archiver;
+const archiverModule = require("archiver") as ArchiverFactory | { default: ArchiverFactory };
+const archiverFactory: ArchiverFactory = typeof archiverModule === "function"
+  ? archiverModule
+  : archiverModule.default;
 
 export interface FileItem {
   name: string;

@@ -12,7 +12,11 @@ import { createWriteStream } from "node:fs";
 const require = createRequire(import.meta.url);
 // archiver is a CJS module — use require() to avoid ESM interop issues
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const archiverFactory = require("archiver") as (format: string, opts?: Record<string, unknown>) => any;
+type ArchiverFactory = (format: string, opts?: Record<string, unknown>) => any;
+const archiverModule = require("archiver") as ArchiverFactory | { default: ArchiverFactory };
+const archiverFactory: ArchiverFactory = typeof archiverModule === "function"
+  ? archiverModule
+  : archiverModule.default;
 
 const execAsync = promisify(exec);
 
