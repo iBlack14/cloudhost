@@ -183,7 +183,15 @@ export const compressHandler = async (req: Request, res: Response): Promise<Resp
     await fileService.compressPath(basePath, targetPath, zipName);
     return res.status(200).json({ success: true });
   } catch (error) {
-    return res.status(500).json({ success: false, error: { message: "Error al comprimir" }});
+    console.error("[files/compress]", error);
+    return res.status(500).json({
+      success: false,
+      error: {
+        message: error instanceof Error
+          ? `Error al comprimir: ${error.message}`
+          : "Error al comprimir",
+      },
+    });
   }
 };
 
@@ -481,5 +489,4 @@ export const runFilesJsScriptHandler = async (req: Request, res: Response): Prom
     return res.status(500).json({ success: false, error: { message: error.message || "Error al ejecutar script de JS" } });
   }
 };
-
 

@@ -1,13 +1,21 @@
 import fs from "node:fs/promises";
-import { createWriteStream, createReadStream, statSync } from "node:fs";
+import { createWriteStream, createReadStream } from "node:fs";
 import path from "node:path";
 import mime from "mime-types";
-import * as archiver from "archiver";
+import { createRequire } from "node:module";
+import type { Archiver } from "archiver";
 import { exec } from "node:child_process";
 import { promisify } from "node:util";
 import { pipeline } from "node:stream/promises";
 
 const execAsync = promisify(exec);
+const require = createRequire(import.meta.url);
+// archiver is CommonJS. Loading it with require avoids NodeNext/ESM interop
+// differences that can otherwise make the imported namespace non-callable.
+const archiverFactory = require("archiver") as (
+  format: string,
+  options?: Record<string, unknown>
+) => Archiver;
 
 export interface FileItem {
   name: string;
@@ -140,22 +148,33 @@ export const compressPath = async (
   const targetPath = resolveSafePath(basePath, userPath);
   const destZipPath = resolveSafePath(basePath, destZipName);
 
-  await new Promise<void>((resolve, reject) => {
-    const output  = createWriteStream(destZipPath);
-    const archive = ((archiver as any).default || archiver)("zip", { zlib: { level: 6 } });
+  const stats = await fs.stat(targetPath);
+  if (targetPath === destZipPath) {
+    throw new Error("El archivo de destino no puede ser el mismo que el origen");
+  }
 
-    output.on("close", resolve);
-    archive.on("error", reject);
-    archive.pipe(output);
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const output  = createWriteStream(destZipPath);
+      const archive = archiverFactory("zip", { zlib: { level: 6 } });
 
-    const stats = statSync(targetPath);
-    if (stats.isDirectory()) {
-      archive.directory(targetPath, path.basename(targetPath));
-    } else {
-      archive.file(targetPath, { name: path.basename(targetPath) });
-    }
-    archive.finalize();
-  });
+      output.on("close", resolve);
+      output.on("error", reject);
+      archive.on("error", reject);
+      archive.pipe(output);
+
+      if (stats.isDirectory()) {
+        archive.directory(targetPath, path.basename(targetPath));
+      } else {
+        archive.file(targetPath, { name: path.basename(targetPath) });
+      }
+      void archive.finalize().catch(reject);
+    });
+  } catch (error) {
+    // Do not leave a corrupt/partial ZIP after a stream or archive failure.
+    await fs.unlink(destZipPath).catch(() => undefined);
+    throw error;
+  }
 };
 
 /**
