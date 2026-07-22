@@ -178,9 +178,10 @@ export const compressHandler = async (req: Request, res: Response): Promise<Resp
   try {
     const userId = await getUserId(req);
     const basePath = await getBaseUserPath(userId);
-    const { targetPath, zipName } = req.body;
-    
-    await fileService.compressPath(basePath, targetPath, zipName);
+    const { targetPath, targetPaths, zipName } = req.body;
+    const paths = Array.isArray(targetPaths) ? targetPaths : [targetPath];
+
+    await fileService.compressPaths(basePath, paths, zipName);
     return res.status(200).json({ success: true });
   } catch (error) {
     console.error("[files/compress]", error);

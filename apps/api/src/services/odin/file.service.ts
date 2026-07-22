@@ -136,14 +136,27 @@ export const compressPath = async (
   basePath: string,
   userPath: string,
   destZipName: string
+): Promise<void> => compressPaths(basePath, [userPath], destZipName);
+
+export const compressPaths = async (
+  basePath: string,
+  userPaths: string[],
+  destZipName: string
 ): Promise<void> => {
-  const targetPath = resolveSafePath(basePath, userPath);
+  if (userPaths.length === 0) {
+    throw new Error("Selecciona al menos un archivo o carpeta");
+  }
+
+  const targetPaths = userPaths.map((userPath) => resolveSafePath(basePath, userPath));
   const destZipPath = resolveSafePath(basePath, destZipName);
 
-  const stats = await fs.stat(targetPath);
-  if (targetPath === destZipPath) {
+  if (targetPaths.includes(destZipPath)) {
     throw new Error("El archivo de destino no puede ser el mismo que el origen");
   }
+
+  const entries = await Promise.all(
+    targetPaths.map(async (targetPath) => ({ targetPath, stats: await fs.stat(targetPath) }))
+  );
 
   try {
     await new Promise<void>((resolve, reject) => {
@@ -155,10 +168,12 @@ export const compressPath = async (
       archive.on("error", reject);
       archive.pipe(output);
 
-      if (stats.isDirectory()) {
-        archive.directory(targetPath, path.basename(targetPath));
-      } else {
-        archive.file(targetPath, { name: path.basename(targetPath) });
+      for (const { targetPath, stats } of entries) {
+        if (stats.isDirectory()) {
+          archive.directory(targetPath, path.basename(targetPath));
+        } else {
+          archive.file(targetPath, { name: path.basename(targetPath) });
+        }
       }
       void archive.finalize().catch(reject);
     });

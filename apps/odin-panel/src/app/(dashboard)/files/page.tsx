@@ -586,6 +586,29 @@ export default function FileManagerPage() {
     finally { setCompressing(null); }
   };
 
+  const handleCompressSelected = async () => {
+    if (selectedItems.length === 0) return;
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
+    const dest = `${currentPath === "/" ? "/" : currentPath + "/"}seleccionados-${timestamp}.zip`;
+    setCompressing("__selection__");
+    try {
+      const res = await fetch(`${API_BASE}/odin-panel/files/compress`, {
+        method: "POST",
+        headers: authHeaders({ "Content-Type": "application/json" }),
+        body: JSON.stringify({ targetPaths: selectedItems.map((file) => file.path), zipName: dest }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data?.error?.message ?? "Error al comprimir");
+      clearSel();
+      addToast(`${selectedItems.length} elementos comprimidos correctamente`, "success");
+      refetch();
+    } catch (err: any) {
+      addToast("Error al comprimir: " + err.message, "error");
+    } finally {
+      setCompressing(null);
+    }
+  };
+
   // Upload
   const handleUpload = (fileList: FileList|null) => {
     if (!fileList||fileList.length===0) return;
@@ -809,6 +832,9 @@ export default function FileManagerPage() {
             <div className="px-3 py-2 bg-[#00A3FF]/10 border-b border-[#00A3FF]/20 flex items-center gap-3 animate-in slide-in-from-top-1 duration-150 shrink-0">
               <span className="text-xs font-black text-[#00A3FF] uppercase tracking-wide">{selectedFiles.size} seleccionado(s)</span>
               <div className="flex gap-1.5 ml-auto">
+                <button onClick={handleCompressSelected} disabled={compressing!==null} className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-violet-50 border border-violet-200 text-xs font-bold text-violet-700 hover:bg-violet-100 transition-all disabled:opacity-50">
+                  <span className={`material-symbols-outlined text-[12px] ${compressing==="__selection__"?"animate-spin":""}`}>{compressing==="__selection__"?"progress_activity":"folder_zip"}</span>Comprimir
+                </button>
                 <button onClick={()=>openMove(selectedItems)} className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-white/5 border border-white/10 text-xs font-bold text-slate-400 hover:text-white hover:bg-white/10 transition-all">
                   <span className="material-symbols-outlined text-[12px]">drive_file_move</span>Mover
                 </button>
