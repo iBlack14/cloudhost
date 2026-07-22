@@ -544,6 +544,33 @@ export default function FileManagerPage() {
     finally { setExtracting(null); }
   };
 
+  // Download through fetch so the protected endpoint receives the Bearer token.
+  const handleDownload = async (filePath: string, fileName: string) => {
+    setContextMenu(null);
+    try {
+      const res = await fetch(
+        `${API_BASE}/odin-panel/files/download?path=${encodeURIComponent(filePath)}`,
+        { headers: authHeaders() },
+      );
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        throw new Error(data?.error?.message ?? "Error al descargar");
+      }
+
+      const blob = await res.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = objectUrl;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(objectUrl);
+    } catch (err: any) {
+      addToast("Error al descargar: " + err.message, "error");
+    }
+  };
+
   // Compress (create ZIP)
   const handleCompress = async (filePath: string, fileName: string) => {
     const dir   = filePath.substring(0, filePath.lastIndexOf("/")+1) || "/";
@@ -854,7 +881,7 @@ export default function FileManagerPage() {
                         <button onClick={()=>startRename(file)} className="w-6 h-6 rounded-md bg-slate-100 text-slate-600 hover:bg-slate-200 flex items-center justify-center" title="Cambiar nombre"><span className="material-symbols-outlined text-[14px]">text_fields</span></button>
                         <button onClick={()=>openMove([file])} className="w-4 h-4 rounded text-slate-500 hover:text-[#00A3FF] flex items-center justify-center"><span className="material-symbols-outlined text-[11px]">drive_file_move</span></button>
                         {!file.isDirectory&&isArchive(file.name)&&<button onClick={()=>handleExtract(file.path)} disabled={extracting===file.path} className="w-4 h-4 rounded text-emerald-600 hover:text-emerald-400 flex items-center justify-center"><span className={`material-symbols-outlined text-[11px] ${extracting===file.path?"animate-spin":""}`}>{extracting===file.path?"refresh":"folder_zip"}</span></button>}
-                        {!file.isDirectory&&<a href={`${API_BASE}/odin-panel/files/download?path=${encodeURIComponent(file.path)}`} target="_blank" className="w-4 h-4 rounded text-slate-500 hover:text-[#00A3FF] flex items-center justify-center"><span className="material-symbols-outlined text-[11px]">download</span></a>}
+                        {!file.isDirectory&&<button onClick={()=>handleDownload(file.path,file.name)} className="w-4 h-4 rounded text-slate-500 hover:text-[#00A3FF] flex items-center justify-center"><span className="material-symbols-outlined text-[11px]">download</span></button>}
                         <button onClick={()=>handleDelete([file])} className="w-4 h-4 rounded text-slate-600 hover:text-red-400 flex items-center justify-center"><span className="material-symbols-outlined text-[11px]">delete</span></button>
                       </div>
                     )}
@@ -927,7 +954,7 @@ export default function FileManagerPage() {
                             <button onClick={()=>openMove([file])} className="w-6 h-6 rounded bg-white/5 text-slate-500 hover:text-[#00A3FF] transition-all flex items-center justify-center"><span className="material-symbols-outlined text-[13px]">drive_file_move</span></button>
                             <button onClick={()=>openCopy([file])} className="w-6 h-6 rounded bg-white/5 text-slate-500 hover:text-[#00A3FF] transition-all flex items-center justify-center"><span className="material-symbols-outlined text-[13px]">content_copy</span></button>
                             {!file.isDirectory&&isArchive(file.name)&&<button onClick={()=>handleExtract(file.path)} disabled={extracting===file.path} className="w-6 h-6 rounded bg-white/5 text-emerald-600 hover:text-emerald-400 transition-all flex items-center justify-center"><span className={`material-symbols-outlined text-[13px] ${extracting===file.path?"animate-spin":""}`}>{extracting===file.path?"refresh":"folder_zip"}</span></button>}
-                            {!file.isDirectory&&<a href={`${API_BASE}/odin-panel/files/download?path=${encodeURIComponent(file.path)}`} target="_blank" className="w-6 h-6 rounded bg-white/5 text-slate-500 hover:text-[#00A3FF] transition-all flex items-center justify-center"><span className="material-symbols-outlined text-[13px]">download</span></a>}
+                            {!file.isDirectory&&<button onClick={()=>handleDownload(file.path,file.name)} className="w-6 h-6 rounded bg-white/5 text-slate-500 hover:text-[#00A3FF] transition-all flex items-center justify-center"><span className="material-symbols-outlined text-[13px]">download</span></button>}
                             <button onClick={()=>handleDelete([file])} className="w-6 h-6 rounded bg-white/5 text-slate-600 hover:text-red-400 transition-all flex items-center justify-center"><span className="material-symbols-outlined text-[13px]">delete</span></button>
                           </div>
                           <div className="flex md:hidden justify-end">
@@ -1079,7 +1106,7 @@ export default function FileManagerPage() {
       {contextMenu&&<ContextMenu menu={contextMenu} onClose={()=>setContextMenu(null)}
         onEdit={!contextMenu.file.isDirectory&&isTextFile(contextMenu.file.name)?()=>openEditor(contextMenu.file.path,contextMenu.file.name):undefined}
         onRename={()=>startRename(contextMenu.file)} onMove={()=>openMove([contextMenu.file])} onCopy={()=>openCopy([contextMenu.file])}
-        onDownload={!contextMenu.file.isDirectory?()=>window.open(`${API_BASE}/odin-panel/files/download?path=${encodeURIComponent(contextMenu.file.path)}`,"_blank"):undefined}
+        onDownload={!contextMenu.file.isDirectory?()=>handleDownload(contextMenu.file.path,contextMenu.file.name):undefined}
         onCompress={()=>handleCompress(contextMenu.file.path,contextMenu.file.name)}
         onExtract={isArchive(contextMenu.file.name)?()=>handleExtract(contextMenu.file.path):undefined}
         onDelete={()=>handleDelete([contextMenu.file])}

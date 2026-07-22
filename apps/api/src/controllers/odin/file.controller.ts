@@ -238,10 +238,7 @@ export const downloadFileHandler = async (req: Request, res: Response) => {
     const basePath = await getBaseUserPath(userId);
     const p = req.query.path as string;
     
-    const targetFile = path.resolve(basePath, p.replace(/^\//, ""));
-    if (!targetFile.startsWith(basePath)) {
-      return res.status(403).send("Acceso denegado");
-    }
+    const targetFile = fileService.resolveSafePath(basePath, p);
     
     res.download(targetFile);
   } catch (error) {
