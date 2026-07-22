@@ -2,24 +2,12 @@ import fs from "node:fs/promises";
 import { createWriteStream, createReadStream } from "node:fs";
 import path from "node:path";
 import mime from "mime-types";
-import { createRequire } from "node:module";
-import type { Archiver } from "archiver";
+import { ZipArchive } from "archiver";
 import { exec } from "node:child_process";
 import { promisify } from "node:util";
 import { pipeline } from "node:stream/promises";
 
 const execAsync = promisify(exec);
-const require = createRequire(import.meta.url);
-// archiver is CommonJS. Loading it with require avoids NodeNext/ESM interop
-// differences that can otherwise make the imported namespace non-callable.
-type ArchiverFactory = (
-  format: string,
-  options?: Record<string, unknown>
-) => Archiver;
-const archiverModule = require("archiver") as ArchiverFactory | { default: ArchiverFactory };
-const archiverFactory: ArchiverFactory = typeof archiverModule === "function"
-  ? archiverModule
-  : archiverModule.default;
 
 export interface FileItem {
   name: string;
@@ -160,7 +148,7 @@ export const compressPath = async (
   try {
     await new Promise<void>((resolve, reject) => {
       const output  = createWriteStream(destZipPath);
-      const archive = archiverFactory("zip", { zlib: { level: 6 } });
+      const archive = new ZipArchive({ zlib: { level: 6 } });
 
       output.on("close", resolve);
       output.on("error", reject);

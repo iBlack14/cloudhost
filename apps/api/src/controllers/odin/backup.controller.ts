@@ -6,17 +6,8 @@ import fs from "node:fs/promises";
 import { createReadStream, existsSync } from "node:fs";
 import { exec } from "node:child_process";
 import { promisify } from "node:util";
-import { createRequire } from "node:module";
 import { createWriteStream } from "node:fs";
-
-const require = createRequire(import.meta.url);
-// archiver is a CJS module — use require() to avoid ESM interop issues
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type ArchiverFactory = (format: string, opts?: Record<string, unknown>) => any;
-const archiverModule = require("archiver") as ArchiverFactory | { default: ArchiverFactory };
-const archiverFactory: ArchiverFactory = typeof archiverModule === "function"
-  ? archiverModule
-  : archiverModule.default;
+import { TarArchive } from "archiver";
 
 const execAsync = promisify(exec);
 
@@ -68,7 +59,7 @@ const createTarGz = async (sourceDir: string, destFile: string): Promise<void> =
   // Fallback: Node.js archiver
   await new Promise<void>((resolve, reject) => {
     const output  = createWriteStream(destFile);
-    const archive = archiverFactory("tar", { gzip: true });
+    const archive = new TarArchive({ gzip: true });
 
     output.on("close", resolve);
     archive.on("error", reject);
