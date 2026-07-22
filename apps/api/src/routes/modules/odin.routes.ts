@@ -97,7 +97,7 @@ import {
 import { issueSystemSsl } from "../../services/odin/ssl.service.js";
 import { ftpRouter } from "./ftp.routes.js";
 
-import rateLimit from "express-rate-limit";
+import rateLimit, { ipKeyGenerator } from "express-rate-limit";
 import { getSysStats } from "../../services/sys-stats.service.js";
 
 
@@ -105,7 +105,7 @@ import { getSysStats } from "../../services/sys-stats.service.js";
 const heavyOpLimiter = rateLimit({
   windowMs: 60_000,
   max: 5,
-  keyGenerator: (req) => (req as any).auth?.userId ?? req.ip ?? "anon",
+  keyGenerator: (req) => req.auth?.userId ?? ipKeyGenerator(req.ip ?? "0.0.0.0"),
   standardHeaders: true,
   legacyHeaders: false,
   validate: { trustProxy: false },
