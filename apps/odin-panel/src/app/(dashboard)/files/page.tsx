@@ -558,14 +558,28 @@ export default function FileManagerPage() {
       }
 
       const blob = await res.blob();
+      if (blob.size === 0) throw new Error("El servidor devolvió un archivo vacío");
+
+      const disposition = res.headers.get("content-disposition") ?? "";
+      const encodedName = disposition.match(/filename\*=UTF-8''([^;]+)/i)?.[1];
+      const plainName = disposition.match(/filename="?([^";]+)"?/i)?.[1];
+      const downloadName = encodedName
+        ? decodeURIComponent(encodedName)
+        : plainName ?? fileName;
       const objectUrl = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = objectUrl;
-      link.download = fileName;
+      link.download = downloadName;
+      link.style.display = "none";
       document.body.appendChild(link);
       link.click();
-      link.remove();
-      URL.revokeObjectURL(objectUrl);
+      // Chrome may not start a large download before the current task finishes.
+      // Keep the object URL alive briefly instead of revoking it immediately.
+      window.setTimeout(() => {
+        link.remove();
+        URL.revokeObjectURL(objectUrl);
+      }, 60_000);
+      addToast(`Descarga iniciada: ${downloadName}`, "success");
     } catch (err: any) {
       addToast("Error al descargar: " + err.message, "error");
     }
