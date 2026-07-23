@@ -2,7 +2,7 @@
 
 import React from "react";
 import { useQuery } from "@tanstack/react-query";
-import { fetchDomains, fetchOdinDashboard } from "../../lib/api";
+import { fetchOdinDashboard } from "../../lib/api";
 import Link from "next/link";
 
 export default function UserDashboardPage() {
@@ -10,54 +10,20 @@ export default function UserDashboardPage() {
     queryKey: ["user_dashboard_stats"],
     queryFn: fetchOdinDashboard
   });
-  const { data: domains = [] } = useQuery({
-    queryKey: ["odin", "domains"],
-    queryFn: fetchDomains,
-    staleTime: 1000 * 60 * 5
-  });
-
-  const registeredWebsites = domains.length
-    ? domains.map((domain) => `• https://${domain.domain_name}`).join("\n")
-    : "• No hay dominios registrados en la cuenta";
-
-  const panelUrl = typeof window !== "undefined" ? window.location.href : "https://panel.odiseacloud.com";
   const whatsappUrl = (message: string) => `https://wa.me/51953576234?text=${encodeURIComponent(message)}`;
 
   const supportMessage = [
-    "Hola, equipo de soporte de Odisea Cloud.",
+    "Hola, necesito soporte técnico de Odisea Cloud.",
     "",
-    "Solicito asistencia técnica con mi servicio de hosting.",
+    `Cuenta: ${stats?.account.username || "No disponible"} · Plan: ${stats?.account.plan || "No disponible"}`,
     "",
-    `Cuenta: ${stats?.account.username || "No disponible"}`,
-    `Plan actual: ${stats?.account.plan || "No disponible"}`,
-    "",
-    "Sitios web asociados:",
-    registeredWebsites,
-    "",
-    "Detalle del inconveniente:",
-    "[Por favor, describa aquí el problema y cuándo comenzó]",
-    "",
-    `Página del panel: ${panelUrl}`,
-    "",
-    "Agradezco su ayuda para revisar y resolver el inconveniente."
+    "Mi consulta es:"
   ].join("\n");
 
   const upgradeMessage = [
-    "Hola, equipo comercial de Odisea Cloud.",
+    "Hola, quiero mejorar mi plan de Odisea Cloud.",
     "",
-    "Deseo recibir asesoría para mejorar mi plan de hosting.",
-    "",
-    `Cuenta: ${stats?.account.username || "No disponible"}`,
-    `Plan actual: ${stats?.account.plan || "No disponible"}`,
-    "",
-    "Sitios web asociados:",
-    registeredWebsites,
-    "",
-    "Necesito información sobre el plan más adecuado, recursos disponibles, precio, proceso de migración y tiempo de activación.",
-    "",
-    `Solicitud enviada desde: ${panelUrl}`,
-    "",
-    "Quedo atento a su recomendación."
+    `Cuenta: ${stats?.account.username || "No disponible"} · Plan actual: ${stats?.account.plan || "No disponible"}`
   ].join("\n");
 
   const getExpiryText = () => {
