@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { getOdinAccessToken } from "../../../lib/api";
 import { runtimeAppsPollInterval } from "../../../lib/hooks/use-runtime-poll-interval";
 
@@ -52,6 +52,23 @@ type SourceMode = "manual" | "github";
 type AppPanel = "none" | "logs" | "env" | "scripts";
 
 interface EnvVar { key: string; value: string; }
+type LogLevel = "error" | "warn" | "info";
+
+const getLogLevel = (line: string): LogLevel => {
+  if (/\b(error|fatal|exception|unhandled|rejection|failed|failure|denied|econnrefused|eaddrinuse)\b/i.test(line)) {
+    return "error";
+  }
+  if (/\b(warn|warning|deprecated|timeout|retry|notice)\b/i.test(line)) {
+    return "warn";
+  }
+  return "info";
+};
+
+const logLevelStyle: Record<LogLevel, string> = {
+  error: "text-red-300 bg-red-500/10",
+  warn: "text-amber-300 bg-amber-500/10",
+  info: "text-emerald-300",
+};
 
 const EMPTY_APP = {
   name: "",
@@ -91,17 +108,75 @@ function AppDetailPanel({
   const [showBulk, setShowBulk] = useState(false);
   const [scriptOutput, setScriptOutput] = useState("");
   const [runningScript, setRunningScript] = useState<string | null>(null);
+  const [logSearch, setLogSearch] = useState("");
+  const [logLevel, setLogLevel] = useState<"all" | LogLevel>("all");
+  const [autoRefreshLogs, setAutoRefreshLogs] = useState(true);
+  const [wrapLogs, setWrapLogs] = useState(true);
+  const [followLogs, setFollowLogs] = useState(true);
+  const logsViewportRef = useRef<HTMLDivElement | null>(null);
 
-  const { data: logs = [], isFetching: logsLoading, refetch: refetchLogs } = useQuery({
+  const {
+    data: logs = [],
+    isFetching: logsLoading,
+    isError: logsFailed,
+    error: logsError,
+    dataUpdatedAt: logsUpdatedAt,
+    refetch: refetchLogs,
+  } = useQuery({
     queryKey: ["odin_nodejs_logs", app.id],
     queryFn: async () => {
       const res = await fetch(`${API_BASE}/odin-panel/nodejs/${app.id}/logs`, { headers: authHeaders() });
-      if (!res.ok) throw new Error("No se pudieron cargar los logs");
-      return (await res.json()).data as string[];
+      const data = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(data?.error?.message ?? `No se pudieron cargar los logs (HTTP ${res.status})`);
+      return (data?.data ?? []) as string[];
     },
     enabled: panel === "logs",
-    refetchInterval: panel === "logs" ? 8000 : false,
+    refetchInterval: panel === "logs" && autoRefreshLogs ? 5000 : false,
   });
+
+  const parsedLogs = useMemo(
+    () => logs.flatMap((entry) => String(entry).split(/\r?\n/)).filter(Boolean).map((line, index) => ({
+      id: `${index}-${line}`,
+      line,
+      level: getLogLevel(line),
+    })),
+    [logs]
+  );
+
+  const logCounts = useMemo(() => ({
+    all: parsedLogs.length,
+    error: parsedLogs.filter((item) => item.level === "error").length,
+    warn: parsedLogs.filter((item) => item.level === "warn").length,
+    info: parsedLogs.filter((item) => item.level === "info").length,
+  }), [parsedLogs]);
+
+  const visibleLogs = useMemo(() => {
+    const search = logSearch.trim().toLowerCase();
+    return parsedLogs.filter((item) =>
+      (logLevel === "all" || item.level === logLevel) &&
+      (!search || item.line.toLowerCase().includes(search))
+    );
+  }, [parsedLogs, logLevel, logSearch]);
+
+  useEffect(() => {
+    if (panel !== "logs" || !followLogs || !logsViewportRef.current) return;
+    logsViewportRef.current.scrollTop = logsViewportRef.current.scrollHeight;
+  }, [panel, followLogs, visibleLogs]);
+
+  const copyVisibleLogs = async () => {
+    await navigator.clipboard.writeText(visibleLogs.map((item) => item.line).join("\n"));
+  };
+
+  const downloadLogs = () => {
+    const content = parsedLogs.map((item) => item.line).join("\n");
+    const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${app.name || "node-app"}-logs-${new Date().toISOString().replace(/[:.]/g, "-")}.txt`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
 
   const { data: pkgInfo, isLoading: scriptsLoading } = useQuery({
     queryKey: ["odin_nodejs_scripts", app.id],
@@ -207,18 +282,117 @@ function AppDetailPanel({
       </div>
 
       {panel === "logs" && (
-        <div className="space-y-3">
-          <div className="flex gap-2">
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+            {([
+              ["all", "Total", logCounts.all, "text-slate-700"],
+              ["error", "Errores", logCounts.error, "text-red-600"],
+              ["warn", "Alertas", logCounts.warn, "text-amber-600"],
+              ["info", "Información", logCounts.info, "text-emerald-600"],
+            ] as const).map(([level, label, count, color]) => (
+              <button
+                key={level}
+                onClick={() => setLogLevel(level)}
+                className={`text-left rounded-2xl border px-4 py-3 transition-all ${
+                  logLevel === level ? "border-[#00A3FF] bg-sky-50 shadow-sm" : "border-slate-100 bg-slate-50 hover:border-slate-200"
+                }`}
+              >
+                <span className="block text-[9px] font-black uppercase tracking-widest text-slate-400">{label}</span>
+                <span className={`block mt-1 text-xl font-black ${color}`}>{count}</span>
+              </button>
+            ))}
+          </div>
+
+          <div className="flex flex-col xl:flex-row xl:items-center gap-2">
+            <div className="relative flex-1">
+              <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[17px] text-slate-400">search</span>
+              <input
+                value={logSearch}
+                onChange={(e) => setLogSearch(e.target.value)}
+                placeholder="Buscar texto, ruta, error, IP..."
+                className="w-full h-10 pl-10 pr-4 rounded-xl bg-slate-50 border border-slate-200 text-xs font-mono outline-none focus:border-[#00A3FF]"
+              />
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => setAutoRefreshLogs((value) => !value)}
+                className={`px-3 py-2 rounded-xl border text-[10px] font-black uppercase tracking-wide ${
+                  autoRefreshLogs ? "bg-emerald-50 border-emerald-200 text-emerald-700" : "bg-slate-50 border-slate-200 text-slate-500"
+                }`}
+              >
+                {autoRefreshLogs ? "● En vivo · 5s" : "Ⅱ Pausado"}
+              </button>
+              <button
+                onClick={() => setFollowLogs((value) => !value)}
+                className={`px-3 py-2 rounded-xl border text-[10px] font-black uppercase tracking-wide ${
+                  followLogs ? "bg-sky-50 border-sky-200 text-sky-700" : "bg-slate-50 border-slate-200 text-slate-500"
+                }`}
+              >
+                Seguir final
+              </button>
+              <button
+                onClick={() => setWrapLogs((value) => !value)}
+                className="px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-600 text-[10px] font-black uppercase tracking-wide"
+              >
+                {wrapLogs ? "No ajustar" : "Ajustar líneas"}
+              </button>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
             <button
               onClick={() => refetchLogs()}
-              className="px-4 py-2 rounded-xl bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest"
+              disabled={logsLoading}
+              className="px-4 py-2 rounded-xl bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest disabled:opacity-50"
             >
               {logsLoading ? "Actualizando..." : "Refrescar"}
             </button>
+            <button onClick={copyVisibleLogs} disabled={!visibleLogs.length} className="px-4 py-2 rounded-xl bg-slate-100 text-slate-600 text-[10px] font-black uppercase tracking-widest disabled:opacity-40">
+              Copiar visibles
+            </button>
+            <button onClick={downloadLogs} disabled={!parsedLogs.length} className="px-4 py-2 rounded-xl bg-slate-100 text-slate-600 text-[10px] font-black uppercase tracking-widest disabled:opacity-40">
+              Descargar .txt
+            </button>
+            <span className="ml-auto text-[10px] font-mono text-slate-400">
+              {logsUpdatedAt ? `Última lectura: ${new Date(logsUpdatedAt).toLocaleTimeString()}` : "Esperando primera lectura"}
+            </span>
           </div>
-          <pre className="bg-slate-950 text-emerald-400 text-[11px] font-mono p-5 rounded-2xl max-h-72 overflow-auto whitespace-pre-wrap leading-relaxed">
-            {logs.length ? logs.join("\n") : "Sin logs todavía."}
-          </pre>
+
+          {logsFailed ? (
+            <div className="rounded-2xl border border-red-200 bg-red-50 p-4">
+              <p className="text-xs font-black uppercase tracking-widest text-red-700">No se pudieron obtener los logs</p>
+              <p className="mt-1 text-xs font-mono text-red-600">{logsError instanceof Error ? logsError.message : "Error desconocido"}</p>
+            </div>
+          ) : (
+            <div className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-950 shadow-inner">
+              <div className="flex items-center gap-2 border-b border-slate-800 bg-slate-900 px-4 py-2.5">
+                <span className={`h-2 w-2 rounded-full ${autoRefreshLogs ? "bg-emerald-400 animate-pulse" : "bg-slate-500"}`} />
+                <span className="text-[10px] font-black uppercase tracking-widest text-slate-300">{app.name}</span>
+                <span className="text-[10px] font-mono text-slate-500">PM2 · últimas 200 líneas</span>
+                <span className="ml-auto text-[10px] font-mono text-slate-500">{visibleLogs.length} visibles</span>
+              </div>
+              <div ref={logsViewportRef} className="max-h-[430px] overflow-auto py-2 font-mono text-[11px] leading-5">
+                {visibleLogs.length ? visibleLogs.map((item, index) => (
+                  <div
+                    key={item.id}
+                    className={`group flex min-w-max border-l-2 border-transparent px-3 hover:border-sky-400 hover:bg-white/5 ${logLevelStyle[item.level]}`}
+                  >
+                    <span className="w-10 shrink-0 select-none pr-3 text-right text-slate-600">{index + 1}</span>
+                    <span className={`mr-3 w-12 shrink-0 text-[9px] font-black uppercase ${
+                      item.level === "error" ? "text-red-400" : item.level === "warn" ? "text-amber-400" : "text-slate-500"
+                    }`}>
+                      {item.level}
+                    </span>
+                    <span className={wrapLogs ? "min-w-0 whitespace-pre-wrap break-all" : "whitespace-pre"}>{item.line}</span>
+                  </div>
+                )) : (
+                  <div className="px-5 py-10 text-center text-xs text-slate-500">
+                    {parsedLogs.length ? "Ninguna línea coincide con los filtros." : logsLoading ? "Cargando logs de PM2..." : "La aplicación todavía no ha generado logs."}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -347,8 +521,6 @@ export default function NodejsAppsPage() {
   const [showEnvEditor, setShowEnvEditor] = useState(false);
   const [bulkInput, setBulkInput] = useState("");
   const [showBulk, setShowBulk] = useState(false);
-  const [installingId, setInstallingId] = useState<string | null>(null);
-  const [redeployingId, setRedeployingId] = useState<string | null>(null);
   const [actionLog, setActionLog] = useState<Record<string, string>>({});
   const [openPanel, setOpenPanel] = useState<Record<string, AppPanel>>({});
 
@@ -507,45 +679,6 @@ export default function NodejsAppsPage() {
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["odin_nodejs_apps"] }),
     onError: (e: Error) => alert(e.message),
-  });
-
-  const npmInstallMutation = useMutation({
-    mutationFn: async (id: string) => {
-      setInstallingId(id);
-      const res = await fetch(`${API_BASE}/odin-panel/nodejs/${id}/npm-install`, { method: "POST", headers: authHeaders() });
-      const data = await res.json().catch(() => null);
-      if (!res.ok) throw new Error(data?.error?.message ?? "npm install failed");
-      return data;
-    },
-    onSuccess: (data, id) => {
-      setActionLog((prev) => ({ ...prev, [id]: data?.data?.output ?? data?.message ?? "✅ npm install completado" }));
-      setInstallingId(null);
-      queryClient.invalidateQueries({ queryKey: ["odin_nodejs_apps"] });
-    },
-    onError: (e: Error, id) => {
-      setActionLog((prev) => ({ ...prev, [id]: `❌ Error: ${e.message}` }));
-      setInstallingId(null);
-    },
-  });
-
-  const redeployMutation = useMutation({
-    mutationFn: async (id: string) => {
-      setRedeployingId(id);
-      const res = await fetch(`${API_BASE}/odin-panel/nodejs/${id}/redeploy`, { method: "POST", headers: authHeaders() });
-      const data = await res.json().catch(() => null);
-      if (!res.ok) throw new Error(data?.error?.message ?? "Redeploy failed");
-      return data;
-    },
-    onSuccess: (data, id) => {
-      const logs = (data?.data?.logs as string[] | undefined)?.join("\n");
-      setActionLog((prev) => ({ ...prev, [id]: logs || data?.message || "✅ Redeploy completado" }));
-      setRedeployingId(null);
-      queryClient.invalidateQueries({ queryKey: ["odin_nodejs_apps"] });
-    },
-    onError: (e: Error, id) => {
-      setActionLog((prev) => ({ ...prev, [id]: `❌ Redeploy: ${e.message}` }));
-      setRedeployingId(null);
-    },
   });
 
   const togglePanel = (appId: string, panel: AppPanel) => {
@@ -1046,26 +1179,6 @@ export default function NodejsAppsPage() {
                       {/* Tools */}
                       <div className="flex flex-wrap gap-1.5">
                         <button
-                          onClick={() => npmInstallMutation.mutate(app.id)}
-                          disabled={installingId === app.id}
-                          className="flex items-center gap-1.5 px-3 py-2 text-[10px] font-black uppercase tracking-wide bg-violet-50 text-violet-600 hover:bg-violet-100 border border-violet-100 rounded-xl transition-all disabled:opacity-50"
-                        >
-                          {installingId === app.id
-                            ? <span className="w-3 h-3 border-2 border-violet-300 border-t-violet-600 rounded-full animate-spin" />
-                            : <span className="material-symbols-outlined text-[14px]">package_2</span>}
-                          Install
-                        </button>
-                        <button
-                          onClick={() => redeployMutation.mutate(app.id)}
-                          disabled={redeployingId === app.id}
-                          className="flex items-center gap-1.5 px-3 py-2 text-[10px] font-black uppercase tracking-wide bg-sky-50 text-[#00A3FF] hover:bg-sky-100 border border-sky-100 rounded-xl transition-all disabled:opacity-50"
-                        >
-                          {redeployingId === app.id
-                            ? <span className="w-3 h-3 border-2 border-sky-300 border-t-[#00A3FF] rounded-full animate-spin" />
-                            : <span className="material-symbols-outlined text-[14px]">cloud_sync</span>}
-                          Redeploy
-                        </button>
-                        <button
                           onClick={() => togglePanel(app.id, "logs")}
                           className={`flex items-center gap-1.5 px-3 py-2 text-[10px] font-black uppercase tracking-wide rounded-xl border transition-all ${panel === "logs" ? "bg-slate-900 text-white border-slate-900" : "bg-slate-50 text-slate-500 border-slate-100 hover:bg-slate-100"}`}
                         >
@@ -1078,13 +1191,6 @@ export default function NodejsAppsPage() {
                         >
                           <span className="material-symbols-outlined text-[14px]">tune</span>
                           Env
-                        </button>
-                        <button
-                          onClick={() => togglePanel(app.id, "scripts")}
-                          className={`flex items-center gap-1.5 px-3 py-2 text-[10px] font-black uppercase tracking-wide rounded-xl border transition-all ${panel === "scripts" ? "bg-slate-900 text-white border-slate-900" : "bg-slate-50 text-slate-500 border-slate-100 hover:bg-slate-100"}`}
-                        >
-                          <span className="material-symbols-outlined text-[14px]">code</span>
-                          Scripts
                         </button>
                       </div>
                     </div>
