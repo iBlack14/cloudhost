@@ -176,6 +176,8 @@ exec ${runCmd}
       cwd: appRoot,
       script: startScriptPath,
       interpreter: "/bin/bash",
+      time: true,
+      log_date_format: "YYYY-MM-DD HH:mm:ss Z",
       env,
    };
 
@@ -764,8 +766,9 @@ export const getAppLogs = async (userId: string, appId: string) => {
    const pm2Name = `odin_app_${appId}`;
 
    try {
-     const { stdout } = await execAsync(`pm2 logs ${quoteShellArg(pm2Name)} --lines 200 --nostream --raw`);
-     return stdout.trim().split("\n");
+     const { stdout } = await execAsync(`pm2 logs ${quoteShellArg(pm2Name)} --lines 200 --nostream --raw --time`);
+     const cleanOutput = stdout.replace(/\u001b\[[0-9;]*m/g, "");
+     return cleanOutput.trim().split("\n");
    } catch {
      return ["Logs no disponibles o aplicación fuera de línea."];
    }
