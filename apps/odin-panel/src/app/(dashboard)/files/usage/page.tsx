@@ -44,6 +44,12 @@ export default function DiskUsagePage() {
 
   const percent = data?.diskPercent ?? 0;
   const barColor = percent >= 90 ? "#EF4444" : percent >= 70 ? "#F59E0B" : "#00A3FF";
+  const capacityStatus = percent >= 90
+    ? { label: "Capacidad crítica", detail: "Libera espacio o amplía tu plan", color: "text-red-600", bg: "bg-red-50 border-red-200", dot: "bg-red-500" }
+    : percent >= 70
+      ? { label: "Capacidad moderada", detail: "Conviene revisar archivos grandes", color: "text-amber-600", bg: "bg-amber-50 border-amber-200", dot: "bg-amber-500" }
+      : { label: "Capacidad saludable", detail: "Tu almacenamiento opera con normalidad", color: "text-emerald-600", bg: "bg-emerald-50 border-emerald-200", dot: "bg-emerald-500" };
+  const largestFolder = data?.breakdown?.reduce((largest, item) => item.mb > largest.mb ? item : largest, data.breakdown[0]) ?? null;
 
   return (
     <div className="space-y-8 animate-in fade-in duration-700">
@@ -92,77 +98,97 @@ export default function DiskUsagePage() {
       ) : data ? (
         <>
           {/* Main usage card */}
-          <div className="bg-white border border-slate-200 rounded-2xl p-8 shadow-sm">
-            <div className="flex flex-col md:flex-row md:items-center gap-6 mb-8">
-              <div className="flex-1">
-                <div className="flex items-baseline gap-3 mb-1">
-                  <span className="text-5xl font-black text-slate-900 tracking-tight">{fmt(data.totalMb)}</span>
-                  <span className="text-base font-bold text-slate-400">
-                    de {data.diskLimit >= 999000 ? "Ilimitado" : fmt(data.diskLimit)}
+          <section className="relative overflow-hidden bg-gradient-to-br from-white via-white to-sky-50/70 border border-slate-200 rounded-[2rem] shadow-sm">
+            <div className="absolute -right-24 -top-24 w-72 h-72 rounded-full bg-sky-100/50 blur-3xl pointer-events-none" />
+            <div className="relative grid lg:grid-cols-[1fr_280px]">
+              <div className="p-7 md:p-9 lg:border-r border-slate-200/70">
+                <div className="flex flex-wrap items-center gap-3 mb-8">
+                  <span className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border text-[10px] font-black uppercase tracking-widest ${capacityStatus.bg} ${capacityStatus.color}`}>
+                    <span className={`w-2 h-2 rounded-full ${capacityStatus.dot}`} />
+                    {capacityStatus.label}
+                  </span>
+                  <span className="text-xs text-slate-400">{capacityStatus.detail}</span>
+                </div>
+
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2">Almacenamiento utilizado</p>
+                <div className="flex flex-wrap items-end gap-x-4 gap-y-1">
+                  <span className="text-5xl md:text-6xl font-black text-slate-900 tracking-[-0.06em]">{fmt(data.totalMb)}</span>
+                  <span className="pb-1.5 text-sm font-bold text-slate-400">
+                    de {data.diskLimit >= 999000 ? "capacidad ilimitada" : fmt(data.diskLimit)}
                   </span>
                 </div>
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Espacio utilizado</p>
-              </div>
-              {/* Donut-style percent */}
-              <div className="flex flex-col items-center">
-                <div
-                  className="w-24 h-24 rounded-full flex items-center justify-center text-xl font-black"
-                  style={{
-                    background: `conic-gradient(${barColor} ${percent}%, #f1f5f9 0%)`,
-                  }}
-                >
-                  <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center">
-                    <span className="text-sm font-black" style={{ color: barColor }}>{percent}%</span>
+
+                <div className="mt-8">
+                  <div className="h-4 p-1 bg-slate-100 rounded-full overflow-hidden shadow-inner">
+                    <div
+                      className="h-full rounded-full transition-all duration-700"
+                      style={{ width: `${Math.max(Math.min(percent, 100), percent > 0 ? 1 : 0)}%`, backgroundColor: barColor }}
+                    />
+                  </div>
+                  <div className="flex justify-between mt-2 text-[10px] font-bold text-slate-400">
+                    <span>{percent}% utilizado</span>
+                    <span>{data.diskLimit >= 999000 ? "Sin límite establecido" : `${fmt(Math.max(data.diskLimit - data.totalMb, 0))} disponibles`}</span>
                   </div>
                 </div>
-                <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-2">Ocupado</span>
-              </div>
-            </div>
 
-            {/* Progress bar */}
-            <div className="space-y-2">
-              <div className="flex justify-between text-[9px] font-black text-slate-400 uppercase tracking-widest">
-                <span>Usado</span>
-                <span>Disponible: {data.diskLimit >= 999000 ? "Ilimitado" : fmt(data.diskLimit - data.totalMb)}</span>
+                <div className="mt-7 inline-flex max-w-full items-center gap-2.5 px-3.5 py-2 bg-white/80 rounded-xl border border-slate-200 shadow-sm">
+                  <span className="material-symbols-outlined text-[17px] text-[#00A3FF]">folder_open</span>
+                  <span className="truncate text-[10px] font-mono font-bold text-slate-500">{data.basePath}</span>
+                </div>
               </div>
-              <div className="h-3 bg-slate-100 rounded-full overflow-hidden">
-                <div
-                  className="h-full rounded-full transition-all duration-700"
-                  style={{ width: `${Math.min(percent, 100)}%`, backgroundColor: barColor }}
-                />
-              </div>
-            </div>
 
-            {/* Path */}
-            <div className="mt-5 flex items-center gap-2 px-4 py-2.5 bg-slate-50 rounded-xl border border-slate-100">
-              <span className="material-symbols-outlined text-[14px] text-slate-400">folder_open</span>
-              <span className="text-[10px] font-mono font-bold text-slate-500">{data.basePath}</span>
+              <div className="relative p-7 md:p-9 flex flex-col items-center justify-center bg-white/45">
+                <div className="relative">
+                  <div
+                    className="w-40 h-40 rounded-full flex items-center justify-center shadow-xl shadow-slate-200/60"
+                    style={{ background: `conic-gradient(${barColor} ${percent}%, #eaf0f6 0%)` }}
+                  >
+                    <div className="w-[118px] h-[118px] bg-white rounded-full flex flex-col items-center justify-center shadow-inner">
+                      <span className="text-3xl font-black tracking-tight" style={{ color: barColor }}>{percent}%</span>
+                      <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">ocupado</span>
+                    </div>
+                  </div>
+                  <span className={`absolute right-1 top-2 w-4 h-4 rounded-full border-4 border-white ${capacityStatus.dot}`} />
+                </div>
+                <p className="mt-5 text-xs font-black text-slate-700 uppercase tracking-widest">Estado de capacidad</p>
+                <p className="mt-1 text-[10px] text-slate-400 text-center">Cuota actual de almacenamiento</p>
+              </div>
             </div>
-          </div>
+          </section>
 
           {/* Stats row */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
             {[
-              { label: "Total Archivos", value: fmt(data.totalMb), icon: "storage", color: "#00A3FF" },
-              { label: "% Ocupado", value: `${percent}%`, icon: "pie_chart", color: percent >= 90 ? "#EF4444" : percent >= 70 ? "#F59E0B" : "#10B981" },
-              { label: "Cuota", value: data.diskLimit >= 999000 ? "Ilimitada" : fmt(data.diskLimit), icon: "database", color: "#8B5CF6" },
-              { label: "Carpetas", value: String(data.breakdown.length), icon: "folder", color: "#F59E0B" },
+              { label: "Almacenamiento usado", value: fmt(data.totalMb), detail: `${percent}% de la cuota`, icon: "hard_drive", color: "#00A3FF" },
+              { label: "Espacio disponible", value: data.diskLimit >= 999000 ? "Ilimitado" : fmt(Math.max(data.diskLimit - data.totalMb, 0)), detail: "Capacidad restante", icon: "inventory_2", color: "#10B981" },
+              { label: "Carpeta principal", value: largestFolder?.name || "—", detail: largestFolder ? fmtBytes(largestFolder.bytes) : "Sin información", icon: "folder_special", color: "#8B5CF6" },
+              { label: "Directorios analizados", value: String(data.breakdown.length), detail: "Dentro del home", icon: "account_tree", color: "#F59E0B" },
             ].map((s, i) => (
-              <div key={i} className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="material-symbols-outlined text-[18px]" style={{ color: s.color }}>{s.icon}</span>
-                  <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{s.label}</span>
+              <div key={i} className="relative overflow-hidden bg-white border border-slate-200 rounded-2xl p-5 shadow-sm hover:-translate-y-0.5 hover:shadow-md transition-all">
+                <div className="absolute inset-x-0 top-0 h-1" style={{ backgroundColor: s.color }} />
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{s.label}</span>
+                    <p className="mt-2 text-xl font-black text-slate-900 truncate" title={s.value}>{s.value}</p>
+                    <p className="mt-1 text-[10px] font-medium text-slate-400">{s.detail}</p>
+                  </div>
+                  <span className="material-symbols-outlined text-[25px] shrink-0" style={{ color: s.color }}>{s.icon}</span>
                 </div>
-                <p className="text-xl font-black text-slate-900">{s.value}</p>
               </div>
             ))}
           </div>
 
           {/* Breakdown table */}
-          <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
-            <div className="flex items-center gap-3 px-6 py-4 bg-slate-50 border-b border-slate-200">
-              <span className="material-symbols-outlined text-[18px] text-slate-400">bar_chart</span>
-              <h2 className="text-sm font-black text-slate-800 uppercase tracking-widest">Desglose por Carpeta</h2>
+          <div className="bg-white border border-slate-200 rounded-[2rem] overflow-hidden shadow-sm">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3 px-6 py-5 bg-slate-50/80 border-b border-slate-200">
+              <span className="material-symbols-outlined text-[22px] text-[#00A3FF]">analytics</span>
+              <div>
+                <h2 className="text-sm font-black text-slate-800 uppercase tracking-widest">Distribución por directorio</h2>
+                <p className="text-[10px] text-slate-400 mt-0.5">Ordenado por consumo de almacenamiento</p>
+              </div>
+              <span className="sm:ml-auto px-3 py-1 rounded-full bg-white border border-slate-200 text-[9px] font-black uppercase tracking-widest text-slate-500">
+                {data.breakdown.length} directorios
+              </span>
             </div>
             {data.breakdown.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12 text-slate-400 gap-2">
@@ -171,18 +197,19 @@ export default function DiskUsagePage() {
               </div>
             ) : (
               <div className="divide-y divide-slate-50">
-                {data.breakdown.map((item, i) => {
+                {[...data.breakdown].sort((a, b) => b.bytes - a.bytes).map((item, i) => {
                   const pct = data.totalMb > 0 ? (item.mb / data.totalMb) * 100 : 0;
                   const color = FOLDER_COLORS[item.name] ?? "#6B7280";
                   const icon = FOLDER_ICONS[item.name] ?? "folder";
                   return (
-                    <div key={i} className="px-6 py-4 hover:bg-slate-50/70 transition-colors">
+                    <div key={i} className="px-5 sm:px-6 py-4 hover:bg-sky-50/40 transition-colors">
                       <div className="flex items-center gap-4">
+                        <span className="w-6 text-center text-[10px] font-black text-slate-300">#{i + 1}</span>
                         <span
-                          className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0"
-                          style={{ backgroundColor: `${color}18` }}
+                          className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border"
+                          style={{ backgroundColor: `${color}10`, borderColor: `${color}25` }}
                         >
-                          <span className="material-symbols-outlined text-[16px]" style={{ color }}>{icon}</span>
+                          <span className="material-symbols-outlined text-[19px]" style={{ color }}>{icon}</span>
                         </span>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between mb-1.5">
@@ -192,7 +219,7 @@ export default function DiskUsagePage() {
                               <span className="text-xs font-bold text-slate-800 w-20 text-right">{fmtBytes(item.bytes)}</span>
                             </div>
                           </div>
-                          <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                          <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
                             <div
                               className="h-full rounded-full transition-all duration-700"
                               style={{ width: `${Math.min(pct, 100)}%`, backgroundColor: color }}
