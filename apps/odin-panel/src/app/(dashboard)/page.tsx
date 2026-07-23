@@ -2,7 +2,7 @@
 
 import React from "react";
 import { useQuery } from "@tanstack/react-query";
-import { fetchOdinDashboard } from "../../lib/api";
+import { fetchDomains, fetchOdinDashboard } from "../../lib/api";
 import Link from "next/link";
 
 export default function UserDashboardPage() {
@@ -10,6 +10,55 @@ export default function UserDashboardPage() {
     queryKey: ["user_dashboard_stats"],
     queryFn: fetchOdinDashboard
   });
+  const { data: domains = [] } = useQuery({
+    queryKey: ["odin", "domains"],
+    queryFn: fetchDomains,
+    staleTime: 1000 * 60 * 5
+  });
+
+  const registeredWebsites = domains.length
+    ? domains.map((domain) => `• https://${domain.domain_name}`).join("\n")
+    : "• No hay dominios registrados en la cuenta";
+
+  const panelUrl = typeof window !== "undefined" ? window.location.href : "https://panel.odiseacloud.com";
+  const whatsappUrl = (message: string) => `https://wa.me/51953576234?text=${encodeURIComponent(message)}`;
+
+  const supportMessage = [
+    "Hola, equipo de soporte de Odisea Cloud.",
+    "",
+    "Solicito asistencia técnica con mi servicio de hosting.",
+    "",
+    `Cuenta: ${stats?.account.username || "No disponible"}`,
+    `Plan actual: ${stats?.account.plan || "No disponible"}`,
+    "",
+    "Sitios web asociados:",
+    registeredWebsites,
+    "",
+    "Detalle del inconveniente:",
+    "[Por favor, describa aquí el problema y cuándo comenzó]",
+    "",
+    `Página del panel: ${panelUrl}`,
+    "",
+    "Agradezco su ayuda para revisar y resolver el inconveniente."
+  ].join("\n");
+
+  const upgradeMessage = [
+    "Hola, equipo comercial de Odisea Cloud.",
+    "",
+    "Deseo recibir asesoría para mejorar mi plan de hosting.",
+    "",
+    `Cuenta: ${stats?.account.username || "No disponible"}`,
+    `Plan actual: ${stats?.account.plan || "No disponible"}`,
+    "",
+    "Sitios web asociados:",
+    registeredWebsites,
+    "",
+    "Necesito información sobre el plan más adecuado, recursos disponibles, precio, proceso de migración y tiempo de activación.",
+    "",
+    `Solicitud enviada desde: ${panelUrl}`,
+    "",
+    "Quedo atento a su recomendación."
+  ].join("\n");
 
   const getExpiryText = () => {
     if (!stats?.account.expiresAt) return "Sin Expiración";
@@ -184,12 +233,26 @@ export default function UserDashboardPage() {
                   </div>
 
                   <div className="space-y-2.5 pt-2">
-                      <button className="w-full py-2.5 bg-[#00A3FF] text-white font-black uppercase text-[9px] tracking-widest rounded-xl shadow-xl shadow-[#00A3FF]/20 hover:bg-[#008EE0] active:scale-[0.98] transition-all">
+                      <a
+                        href={whatsappUrl(upgradeMessage)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center justify-center gap-2 w-full py-2.5 bg-[#00A3FF] text-white font-black uppercase text-[9px] tracking-widest rounded-xl shadow-xl shadow-[#00A3FF]/20 hover:bg-[#008EE0] active:scale-[0.98] transition-all"
+                        title="Solicitar asesoría comercial por WhatsApp"
+                      >
+                        <span className="material-symbols-outlined text-[14px]">upgrade</span>
                         Mejorar Plan
-                      </button>
-                      <button className="w-full py-2.5 bg-white/5 border border-white/10 text-slate-400 font-black uppercase text-[9px] tracking-widest rounded-xl hover:bg-white/10 hover:text-white transition-all">
+                      </a>
+                      <a
+                        href={whatsappUrl(supportMessage)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center justify-center gap-2 w-full py-2.5 bg-white/5 border border-white/10 text-slate-400 font-black uppercase text-[9px] tracking-widest rounded-xl hover:bg-white/10 hover:text-white transition-all"
+                        title="Contactar al soporte técnico por WhatsApp"
+                      >
+                        <span className="material-symbols-outlined text-[14px]">support_agent</span>
                         Soporte VIP 24/7
-                      </button>
+                      </a>
                   </div>
                 </div>
                 <div className="absolute top-0 right-0 w-full h-full bg-[radial-gradient(circle_at_top_right,rgba(0,163,255,0.1),transparent)] pointer-events-none"></div>

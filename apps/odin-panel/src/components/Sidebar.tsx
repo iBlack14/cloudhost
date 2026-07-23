@@ -70,9 +70,6 @@ export function Sidebar({ isOpen = false, onClose }: { isOpen?: boolean; onClose
         </nav>
 
         <div className="mt-auto pt-6 border-t border-slate-100 space-y-2">
-          <button className="w-full py-2.5 rounded-xl bg-[#00A3FF] text-white font-black tracking-widest uppercase text-[9px] shadow-md shadow-[#00A3FF]/10 hover:bg-[#008EE0] active:scale-[0.98] transition-all">
-            Provisionar Cluster
-          </button>
           <button
             onClick={handleLogout}
             className="flex items-center justify-center gap-2.5 w-full px-4 py-2.5 rounded-xl text-slate-400 hover:text-red-500 hover:bg-red-50 transition-all cursor-pointer text-[9px] font-black uppercase tracking-widest group"

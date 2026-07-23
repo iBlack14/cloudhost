@@ -904,7 +904,7 @@ export default function FileManagerPage() {
               <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 2xl:grid-cols-10 gap-2">
                 {currentPath!=="/"&&(
                   <div onClick={()=>navigateTo("..")} className="flex flex-col items-center justify-center p-2.5 rounded-xl border border-dashed border-white/10 hover:border-[#00A3FF]/40 hover:bg-[#00A3FF]/5 cursor-pointer group transition-all text-center aspect-square">
-                    <div className="w-14 h-14 rounded-xl bg-slate-50 flex items-center justify-center mb-1.5 transition-all group-hover:scale-105 group-hover:bg-sky-50">
+                    <div className="w-14 h-14 flex items-center justify-center mb-1.5 transition-all group-hover:scale-110">
                       <span className="material-symbols-outlined text-[32px] text-slate-500 group-hover:text-[#00A3FF] transition-colors">keyboard_backspace</span>
                     </div>
                     <span className="text-[10px] font-bold text-slate-600 group-hover:text-[#00A3FF] uppercase tracking-wider">Atrás</span>
@@ -922,7 +922,7 @@ export default function FileManagerPage() {
                       className="absolute top-1 right-1 z-10 w-5 h-5 rounded bg-white/5 text-slate-600 hover:text-slate-300 flex items-center justify-center md:opacity-0 md:group-hover:opacity-100 transition-opacity">
                       <span className="material-symbols-outlined text-[13px]">more_vert</span>
                     </button>
-                    <div className={`w-14 h-14 rounded-xl flex items-center justify-center mb-1.5 transition-all group-hover:scale-105 ${file.isDirectory?"bg-sky-50 ring-1 ring-sky-100":"bg-slate-50 ring-1 ring-slate-100"}`}>
+                    <div className="w-14 h-14 flex items-center justify-center mb-1.5 transition-all group-hover:scale-110">
                       <span className={`material-symbols-outlined text-[32px] ${getFileIconColor(file.name,file.isDirectory)}`}>{getFileIcon(file.name,file.isDirectory)}</span>
                     </div>
                     {renameTarget===file.path?(
@@ -1055,9 +1055,7 @@ export default function FileManagerPage() {
           <div className="relative z-10 w-full h-full sm:h-[92vh] sm:max-w-7xl flex flex-col bg-white border border-sky-100 sm:rounded-2xl shadow-2xl shadow-slate-900/20 overflow-hidden animate-in zoom-in-95 duration-300">
             <div className="flex items-center justify-between px-3 sm:px-5 py-2.5 sm:py-3 border-b border-sky-100 bg-white">
               <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-                <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-[#00A3FF]/10 flex items-center justify-center shrink-0">
-                  <span className="material-symbols-outlined text-sky-500 text-base sm:text-lg">code</span>
-                </div>
+                <span className="material-symbols-outlined text-sky-500 text-[26px] sm:text-[28px] shrink-0">code</span>
                 <div className="min-w-0">
                   <div className="flex items-center gap-1.5 sm:gap-2">
                     <h3 className="text-xs sm:text-sm font-bold text-slate-800 leading-tight truncate" title={editorFile?.name}>{editorFile?.name}</h3>
@@ -1079,20 +1077,20 @@ export default function FileManagerPage() {
               </div>
             </div>
             {editorError&&<div className="px-5 py-2 bg-red-500/10 border-b border-red-500/20 flex items-center gap-2"><span className="material-symbols-outlined text-red-400 text-[16px]">error</span><p className="text-xs font-bold text-red-400">{editorError}</p></div>}
-            <div className="flex-1 overflow-hidden relative bg-slate-950">
+            <div className="flex-1 overflow-hidden relative bg-[#fbfdff]">
               {editorLoading?(
-                <div className="flex items-center justify-center h-full"><div className="text-center"><div className="w-8 h-8 border-2 border-white/10 border-t-[#00A3FF] rounded-full animate-spin mx-auto mb-2"/><p className="text-slate-600 text-[10px] font-bold uppercase tracking-widest">Cargando código...</p></div></div>
+                <div className="flex items-center justify-center h-full"><div className="text-center"><div className="w-8 h-8 border-2 border-sky-100 border-t-[#00A3FF] rounded-full animate-spin mx-auto mb-2"/><p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest">Cargando código...</p></div></div>
               ):(
                 <div className="flex h-full min-w-0">
                   <div
                     ref={editorGutterRef}
                     aria-hidden="true"
-                    className="w-14 shrink-0 overflow-hidden border-r border-slate-800 bg-slate-900/80 py-4 font-mono text-[13px] leading-6 select-none"
+                    className="w-14 shrink-0 overflow-hidden border-r border-slate-200 bg-slate-50 py-4 font-mono text-[13px] leading-6 select-none"
                   >
                     {editorLines.map((_, index) => (
                       <div
                         key={index}
-                        className={`h-6 pr-3 text-right transition-colors ${editorLine===index+1?"bg-sky-500/10 text-sky-400 font-bold":"text-slate-600"}`}
+                        className={`h-6 pr-3 text-right transition-colors ${editorLine===index+1?"bg-sky-100 text-sky-600 font-bold":"text-slate-400"}`}
                       >
                         {index+1}
                       </div>
@@ -1101,7 +1099,7 @@ export default function FileManagerPage() {
                   <div className="relative min-w-0 flex-1">
                     <div
                       aria-hidden="true"
-                      className="pointer-events-none absolute inset-x-0 h-6 border-y border-sky-400/5 bg-sky-400/[0.035]"
+                      className="pointer-events-none absolute inset-x-0 h-6 border-y border-sky-100 bg-sky-50/70"
                       style={{top:`${16+(editorLine-1)*24-editorScrollTop}px`}}
                     />
                     <textarea
@@ -1115,7 +1113,7 @@ export default function FileManagerPage() {
                       onScroll={(e)=>syncEditorScroll(e.currentTarget)}
                       spellCheck={false}
                       aria-label="Contenido del archivo"
-                      className="relative z-10 w-full h-full bg-transparent text-slate-200 caret-sky-400 font-mono text-[13px] resize-none focus:outline-none px-4 py-4 leading-6 custom-scrollbar selection:bg-sky-500/30 whitespace-pre"
+                      className="relative z-10 w-full h-full bg-transparent text-slate-800 caret-sky-500 font-mono text-[13px] resize-none focus:outline-none px-4 py-4 leading-6 custom-scrollbar selection:bg-sky-200 whitespace-pre"
                       style={{tabSize:2}}
                     />
                   </div>
