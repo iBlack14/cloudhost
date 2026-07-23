@@ -15,7 +15,10 @@ import {
   deleteDomainHandler, 
   verifyDomainHandler 
 } from "../../controllers/odin/domain.controller.js";
-import { listDatabasesHandler, createDatabaseHandler, issueDatabaseSsoHandler } from "../../controllers/odin/database.controller.js";
+import {
+  listDatabasesHandler, createDatabaseHandler, issueDatabaseSsoHandler,
+  listRemoteHostsHandler, createRemoteHostHandler, updateRemoteHostHandler, deleteRemoteHostHandler
+} from "../../controllers/odin/database.controller.js";
 import { requireAuth } from "../../middleware/auth.js";
 import { db } from "../../config/db.js";
 import multer from "multer";
@@ -232,6 +235,10 @@ odinRouter.patch("/mail/accounts/:accountId/password", changeMailPasswordHandler
 odinRouter.get("/databases", listDatabasesHandler);
 odinRouter.post("/databases", createDatabaseHandler);
 odinRouter.post("/databases/:dbName/sso", issueDatabaseSsoHandler);
+odinRouter.get("/databases/remote/hosts", listRemoteHostsHandler);
+odinRouter.post("/databases/remote/hosts", createRemoteHostHandler);
+odinRouter.patch("/databases/remote/hosts/:id", updateRemoteHostHandler);
+odinRouter.delete("/databases/remote/hosts/:id", deleteRemoteHostHandler);
 
 // ── File upload: disk storage, no size hard-cap (quota enforced by uploadFileHandler) ────
 const upload = multer({

@@ -6,6 +6,7 @@ import { randomBytes } from "node:crypto";
 import fs from "node:fs/promises";
 import { probeDomainRuntime } from "./runtime-probe.service.js";
 import { encryptSecret } from "../../utils/secret.js";
+import { provisionRemoteHostsForDatabase } from "./database.service.js";
 
 const execAsync = promisify(exec);
 
@@ -66,11 +67,16 @@ export const ensureWordPressTable = async () => {
 };
 
 const createMysqlResources = async (dbName: string, dbUser: string, dbPassword: string) => {
+  const escapedPassword = dbPassword.replace(/\\/g, "\\\\").replace(/'/g, "''");
+  const internalHosts = ["localhost", "127.0.0.1", "172.%", "10.%", "192.168.%"];
   const sql = [
-    `CREATE DATABASE IF NOT EXISTS ${dbName};`,
-    `CREATE USER IF NOT EXISTS '${dbUser}'@'%' IDENTIFIED BY '${dbPassword}';`,
-    `ALTER USER '${dbUser}'@'%' IDENTIFIED BY '${dbPassword}';`,
-    `GRANT ALL PRIVILEGES ON ${dbName}.* TO '${dbUser}'@'%';`,
+    `CREATE DATABASE IF NOT EXISTS \`${dbName}\`;`,
+    ...internalHosts.flatMap((host) => [
+      `CREATE USER IF NOT EXISTS '${dbUser}'@'${host}' IDENTIFIED BY '${escapedPassword}';`,
+      `ALTER USER '${dbUser}'@'${host}' IDENTIFIED BY '${escapedPassword}';`,
+      `GRANT ALL PRIVILEGES ON \`${dbName}\`.* TO '${dbUser}'@'${host}';`
+    ]),
+    `DROP USER IF EXISTS '${dbUser}'@'%';`,
     "FLUSH PRIVILEGES;"
   ].join(" ");
 
@@ -246,6 +252,7 @@ export const installWordPress = async (input: InstallWpInput) => {
 
       // 3. MySQL Database
       await createMysqlResources(dbName, dbUser, dbPassword);
+      await provisionRemoteHostsForDatabase(userId, dbName, dbUser, dbPassword);
       
       // Wait a moment for DB availability
       await new Promise(r => setTimeout(r, 2000));

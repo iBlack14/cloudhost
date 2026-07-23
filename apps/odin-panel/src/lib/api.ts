@@ -319,6 +319,19 @@ export interface UserDatabase {
   type: "wordpress" | "custom";
 }
 
+export interface RemoteDatabaseHost {
+  id: string;
+  name: string;
+  host: string;
+  enabled: boolean;
+  createdAt: string;
+}
+
+export interface RemoteDatabaseAccess {
+  hosts: RemoteDatabaseHost[];
+  connection: { host: string; port: number };
+}
+
 export interface OdinDashboardStats {
   account: {
     plan: string;
@@ -533,6 +546,34 @@ export const issueDatabaseSsoLink = async (dbName: string): Promise<DatabaseSsoL
     headers: withOdinAuth()
   });
   return parsePayload<DatabaseSsoLink>(response);
+};
+
+export const fetchRemoteDatabaseAccess = async (): Promise<RemoteDatabaseAccess> => {
+  const response = await fetch(`${API_BASE}/odin-panel/databases/remote/hosts`, {
+    headers: withOdinAuth(), cache: "no-store"
+  });
+  return parsePayload<RemoteDatabaseAccess>(response);
+};
+
+export const createRemoteDatabaseHost = async (input: { name: string; host: string }): Promise<RemoteDatabaseHost> => {
+  const response = await fetch(`${API_BASE}/odin-panel/databases/remote/hosts`, {
+    method: "POST", headers: withOdinAuth({ "Content-Type": "application/json" }), body: JSON.stringify(input)
+  });
+  return parsePayload<RemoteDatabaseHost>(response);
+};
+
+export const updateRemoteDatabaseHost = async (id: string, enabled: boolean): Promise<RemoteDatabaseHost> => {
+  const response = await fetch(`${API_BASE}/odin-panel/databases/remote/hosts/${encodeURIComponent(id)}`, {
+    method: "PATCH", headers: withOdinAuth({ "Content-Type": "application/json" }), body: JSON.stringify({ enabled })
+  });
+  return parsePayload<RemoteDatabaseHost>(response);
+};
+
+export const deleteRemoteDatabaseHost = async (id: string): Promise<void> => {
+  const response = await fetch(`${API_BASE}/odin-panel/databases/remote/hosts/${encodeURIComponent(id)}`, {
+    method: "DELETE", headers: withOdinAuth()
+  });
+  await parsePayload(response);
 };
 
 // --- FILE MANAGER API ---

@@ -29,6 +29,22 @@ const ensureUserDatabasesTable = async () => {
   `);
 };
 
+const ensureRemoteDatabaseHostsTable = async () => {
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS remote_database_hosts (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      name VARCHAR(120) NOT NULL DEFAULT '',
+      host VARCHAR(43) NOT NULL,
+      enabled BOOLEAN NOT NULL DEFAULT TRUE,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+      UNIQUE (user_id, host)
+    );
+    CREATE INDEX IF NOT EXISTS idx_remote_database_hosts_user_id
+      ON remote_database_hosts(user_id);
+  `);
+};
+
 const ensureServerSettings = async () => {
   await db.query(`
     CREATE TABLE IF NOT EXISTS server_settings (
@@ -69,6 +85,7 @@ export const runStartupInit = async (): Promise<void> => {
       ensureNodejsTables(),
       ensurePythonTables(),
       ensureUserDatabasesTable(),
+      ensureRemoteDatabaseHostsTable(),
       ensureServerSettings(),
       ensureMailSchema(),
       ensureDockerAppsTable(),

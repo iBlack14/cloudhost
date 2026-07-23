@@ -17,6 +17,7 @@ const envSchema = z.object({
   MYSQL_CONTAINER_NAME: z.string().default("odisea-mysql"),
   MYSQL_ROOT_PASSWORD: z.string().default("root"),
   MYSQL_HOST_PORT: z.coerce.number().int().positive().default(3307),
+  MYSQL_PUBLIC_HOST: z.string().optional().default(""),
   CORS_ORIGIN: z.string().default("*"),
   SMTP_HOST: z.string().default("127.0.0.1"),
   SMTP_PORT: z.coerce.number().int().positive().default(25),
