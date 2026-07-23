@@ -119,14 +119,6 @@ export const writeFileContent = async (
   content: string
 ): Promise<void> => {
   const targetPath = resolveSafePath(basePath, userPath);
-
-  // Auto-backup before overwriting (keep .bak next to file)
-  try {
-    await fs.copyFile(targetPath, `${targetPath}.bak`);
-  } catch {
-    // If file doesn't exist yet, no backup needed
-  }
-
   await fs.writeFile(targetPath, content, "utf8");
 };
 
