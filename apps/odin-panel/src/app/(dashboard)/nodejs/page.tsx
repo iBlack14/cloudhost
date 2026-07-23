@@ -671,6 +671,29 @@ export default function NodejsAppsPage() {
     onError: (e: Error) => alert(e.message),
   });
 
+  const installDependenciesMutation = useMutation({
+    mutationFn: async (app: any) => {
+      setActionLog((prev) => ({ ...prev, [app.id]: "Instalando dependencias..." }));
+      const res = await fetch(`${API_BASE}/odin-panel/nodejs/${app.id}/npm-install`, {
+        method: "POST",
+        headers: authHeaders(),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(data?.error?.message ?? "No se pudieron instalar las dependencias");
+      return { app, data };
+    },
+    onSuccess: ({ app, data }) => {
+      setActionLog((prev) => ({
+        ...prev,
+        [app.id]: data?.data?.output ?? data?.message ?? "Dependencias instaladas correctamente.",
+      }));
+      queryClient.invalidateQueries({ queryKey: ["odin_nodejs_apps"] });
+    },
+    onError: (error: Error, app) => {
+      setActionLog((prev) => ({ ...prev, [app.id]: `❌ ${error.message}` }));
+    },
+  });
+
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
       const res = await fetch(`${API_BASE}/odin-panel/nodejs/${id}`, { method: "DELETE", headers: authHeaders() });
@@ -1054,6 +1077,7 @@ export default function NodejsAppsPage() {
             const panel = openPanel[app.id] || "none";
             const isOnline = app.status === "online";
             const isStopped = app.status === "stopped";
+            const hasFilesystemIssue = app.filesystem_ok === false;
             const statusColor = isOnline
               ? "bg-emerald-500 shadow-[0_0_10px_#10b981]"
               : isStopped
@@ -1072,7 +1096,32 @@ export default function NodejsAppsPage() {
                 className="bg-white border border-slate-200 rounded-3xl shadow-sm hover:shadow-md hover:border-slate-300 transition-all duration-300 overflow-hidden"
               >
                 {/* Card top bar — colored accent */}
-                <div className={`h-1 w-full ${isOnline ? "bg-gradient-to-r from-emerald-400 to-[#00A3FF]" : isStopped ? "bg-amber-400" : "bg-red-400"}`} />
+                <div className={`h-1 w-full ${hasFilesystemIssue ? "bg-red-500" : isOnline ? "bg-gradient-to-r from-emerald-400 to-[#00A3FF]" : isStopped ? "bg-amber-400" : "bg-red-400"}`} />
+
+                {hasFilesystemIssue && (
+                  <div className="flex flex-col gap-3 border-b border-red-200 bg-red-50 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex min-w-0 items-start gap-3">
+                      <span className="material-symbols-outlined mt-0.5 text-red-500">error</span>
+                      <div className="min-w-0">
+                        <p className="text-xs font-black uppercase tracking-wide text-red-700">Archivos incompletos</p>
+                        <p className="mt-0.5 text-[11px] font-semibold text-red-600">
+                          {(app.filesystem_issues ?? ["La aplicación requiere atención"]).join(" · ")}
+                        </p>
+                      </div>
+                    </div>
+                    {app.package_json_exists && app.dependencies_required && !app.node_modules_exists && (
+                      <button
+                        type="button"
+                        disabled={installDependenciesMutation.isPending}
+                        onClick={() => installDependenciesMutation.mutate(app)}
+                        className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 text-[10px] font-black uppercase tracking-wider text-white transition-all hover:bg-red-700 disabled:opacity-50"
+                      >
+                        <span className="material-symbols-outlined text-[15px]">download</span>
+                        {installDependenciesMutation.isPending ? "Instalando..." : "Instalar dependencias"}
+                      </button>
+                    )}
+                  </div>
+                )}
 
                 <div className="p-6 flex flex-col xl:flex-row gap-6">
                   {/* ── Left: identity ─────────────────────────────────────── */}

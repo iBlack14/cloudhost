@@ -1,5 +1,7 @@
-/** Poll fast while apps are busy; slow down when everything is stable. */
-export const runtimeAppsPollInterval = (data: unknown): number | false => {
+/** Poll fast while apps are busy; keep checking the filesystem when stable. */
+export const runtimeAppsPollInterval = (queryOrData: unknown): number | false => {
+  const candidate = queryOrData as { state?: { data?: unknown } } | undefined;
+  const data = candidate?.state ? candidate.state.data : queryOrData;
   const apps = Array.isArray(data) ? data : [];
   if (apps.length === 0) return false;
 
@@ -8,5 +10,5 @@ export const runtimeAppsPollInterval = (data: unknown): number | false => {
     return ["building", "starting", "restarting", "launching", "stopping", "errored"].includes(status);
   });
 
-  return busy ? 5000 : 30000;
+  return busy ? 5000 : 15000;
 };

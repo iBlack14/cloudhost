@@ -482,6 +482,46 @@ export const getAppsQuery = async (userId: string) => {
    const result = await db.query("SELECT * FROM nodejs_apps WHERE user_id = $1 ORDER BY created_at DESC", [userId]);
 
    const apps = result.rows;
+   const filesystemStates = await Promise.all(apps.map(async (app) => {
+      const appRoot = path.resolve(app.path);
+      const rootStat = await fs.stat(appRoot).catch(() => null);
+      if (!rootStat?.isDirectory()) {
+         return {
+            filesystem_ok: false,
+            root_exists: false,
+            package_json_exists: false,
+            node_modules_exists: false,
+            dependencies_required: false,
+            filesystem_issues: ["La carpeta de la aplicación no existe"],
+         };
+      }
+
+      const packageJsonPath = path.join(appRoot, "package.json");
+      const packageJsonStat = await fs.stat(packageJsonPath).catch(() => null);
+      const nodeModulesStat = await fs.stat(path.join(appRoot, "node_modules")).catch(() => null);
+      const pkg = packageJsonStat?.isFile() ? await readPackageJson(appRoot) : null;
+      const dependenciesRequired = Boolean(
+         pkg && (
+            Object.keys(pkg.dependencies ?? {}).length > 0 ||
+            Object.keys(pkg.devDependencies ?? {}).length > 0 ||
+            Object.keys(pkg.optionalDependencies ?? {}).length > 0
+         )
+      );
+      const nodeModulesExists = Boolean(nodeModulesStat?.isDirectory());
+      const issues: string[] = [];
+
+      if (!packageJsonStat?.isFile()) issues.push("Falta package.json");
+      if (dependenciesRequired && !nodeModulesExists) issues.push("Falta node_modules: instala las dependencias");
+
+      return {
+         filesystem_ok: issues.length === 0,
+         root_exists: true,
+         package_json_exists: Boolean(packageJsonStat?.isFile()),
+         node_modules_exists: nodeModulesExists,
+         dependencies_required: dependenciesRequired,
+         filesystem_issues: issues,
+      };
+   }));
 
    try {
      const pm2List = await cachedShell("pm2:jlist", 3000, async () => {
@@ -489,10 +529,11 @@ export const getAppsQuery = async (userId: string) => {
         return JSON.parse(stdout) as Array<Record<string, unknown>>;
      });
 
-     return apps.map(app => {
+     return apps.map((app, index) => {
         const pm2proc = pm2List.find((p: any) => p.name === `odin_app_${app.id}`);
         return {
            ...app,
+           ...filesystemStates[index],
            status: pm2proc ? (pm2proc as any).pm2_env.status : "offline",
            memory: pm2proc ? (pm2proc as any).monit.memory : 0,
            cpu: pm2proc ? (pm2proc as any).monit.cpu : 0,
@@ -500,7 +541,13 @@ export const getAppsQuery = async (userId: string) => {
         };
      });
    } catch {
-     return apps.map(app => ({...app, status: "offline", memory: 0, cpu: 0}));
+     return apps.map((app, index) => ({
+        ...app,
+        ...filesystemStates[index],
+        status: "offline",
+        memory: 0,
+        cpu: 0
+     }));
    }
 };
 
