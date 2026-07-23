@@ -22,37 +22,37 @@ export default function WhmDashboardPage() {
   const peakLoad = Math.max(...loadBars, 0);
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-1000 max-w-7xl mx-auto">
-      <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-5 relative z-10 border-b border-slate-200 pb-4">
-        <div className="flex items-center gap-4">
+    <div className="mx-auto max-w-7xl space-y-5 animate-in fade-in duration-1000 sm:space-y-6">
+      <header className="relative z-10 flex flex-col items-start justify-between gap-4 border-b border-slate-200 pb-4 sm:gap-5 lg:flex-row lg:items-end">
+        <div className="flex min-w-0 items-center gap-3 sm:gap-4">
           <div className="relative flex-shrink-0 group transition-transform duration-500 hover:scale-105">
              <div className="absolute inset-0 bg-[#00A3FF]/10 rounded-full blur-2xl group-hover:bg-[#00A3FF]/20 transition-all duration-700 opacity-40"></div>
-             <img 
+             <img
                src="/logo.png" 
                alt="Odisea Cloud Logo" 
-               className="w-11 h-11 object-contain relative z-10 drop-shadow-md" 
+               className="relative z-10 h-10 w-10 object-contain drop-shadow-md sm:h-11 sm:w-11"
              />
           </div>
-          <div className="space-y-0.5">
-            <div className="flex items-center gap-2">
+          <div className="min-w-0 space-y-0.5">
+            <div className="flex flex-wrap items-center gap-2">
                 <span className="px-2 py-0.5 bg-[#00A3FF]/10 text-[#00A3FF] text-[8px] font-bold uppercase rounded-full tracking-wider">Administrador</span>
                 <div className="h-1 w-1 rounded-full bg-slate-300"></div>
                 <span className="text-slate-500 text-[8px] font-mono tracking-widest uppercase font-bold">X-ROOT-CORE</span>
             </div>
-            <h1 className="text-2xl font-black text-slate-900 uppercase tracking-tight">
+            <h1 className="text-xl font-black uppercase tracking-tight text-slate-900 sm:text-2xl">
               Panel de <span className="text-[#00A3FF]">Control</span>
             </h1>
-            <p className="text-slate-500 text-[11px] font-medium">Resumen del estado y gestión de su infraestructura.</p>
+            <p className="text-[10px] font-medium text-slate-500 sm:text-[11px]">Resumen del estado y gestión de su infraestructura.</p>
           </div>
         </div>
-        <div className="flex gap-2">
-           <Link href="/whm/accounts/create">
-              <button className="px-4 py-2.5 bg-[#00A3FF] text-white rounded-xl font-bold text-[9px] tracking-widest uppercase hover:bg-[#008EE0] transition-all shadow-md shadow-[#00A3FF]/20 active:scale-95">
+        <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto">
+           <Link href="/whm/accounts/create" className="min-w-0">
+              <button className="w-full px-3 py-2.5 bg-[#00A3FF] text-white rounded-xl font-bold text-[9px] tracking-wider sm:px-4 sm:tracking-widest uppercase hover:bg-[#008EE0] transition-all shadow-md shadow-[#00A3FF]/20 active:scale-95">
                  Crear Cuenta
               </button>
            </Link>
-           <Link href="/whm/accounts">
-              <button className="px-4 py-2.5 bg-white text-slate-700 rounded-xl font-bold text-[9px] tracking-widest uppercase border border-slate-200 hover:bg-slate-50 hover:text-slate-900 transition-all shadow-sm active:scale-95">
+           <Link href="/whm/accounts" className="min-w-0">
+              <button className="w-full px-3 py-2.5 bg-white text-slate-700 rounded-xl font-bold text-[9px] tracking-wider sm:px-4 sm:tracking-widest uppercase border border-slate-200 hover:bg-slate-50 hover:text-slate-900 transition-all shadow-sm active:scale-95">
                  Ver Cuentas
               </button>
            </Link>
@@ -62,7 +62,7 @@ export default function WhmDashboardPage() {
       <UpdateWidget />
 
       {/* Real-time Stats Refined */}
-      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 relative z-10">
+      <section className="relative z-10 grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
         <StatCard
           label="USO DE CPU"
           value={`${server?.cpu ?? 0}%`}
@@ -90,8 +90,8 @@ export default function WhmDashboardPage() {
       </section>
 
       {/* Operations Focus Refined */}
-      <section className="grid grid-cols-1 lg:grid-cols-2 gap-5 relative z-10">
-         <div className="bg-white border border-slate-200 rounded-2xl p-5 group relative overflow-hidden transition-all hover:border-[#00A3FF]/20 shadow-sm">
+      <section className="relative z-10 grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-5">
+         <div className="group relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition-all hover:border-[#00A3FF]/20 sm:p-5">
             <div className="flex items-center gap-3.5 mb-4 relative z-10">
                <div className="w-9 h-9 rounded-xl bg-[#00A3FF]/5 flex items-center justify-center text-[#00A3FF] border border-[#00A3FF]/10 transition-all group-hover:scale-110 group-hover:border-[#00A3FF]/30">
                   <span className="material-symbols-outlined text-lg">add_circle</span>
@@ -115,7 +115,7 @@ export default function WhmDashboardPage() {
             </div>
          </div>
 
-         <div className="bg-white border border-slate-200 rounded-2xl p-5 relative overflow-hidden group transition-all hover:border-[#00A3FF]/20 shadow-sm">
+         <div className="group relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition-all hover:border-[#00A3FF]/20 sm:p-5">
             <div className="flex items-center gap-3.5 mb-4 relative z-10">
                <div className="w-9 h-9 rounded-xl bg-[#00A3FF]/5 flex items-center justify-center text-[#00A3FF] border border-[#00A3FF]/10 transition-all group-hover:scale-110 group-hover:border-[#00A3FF]/30">
                   <span className="material-symbols-outlined text-lg">insights</span>
@@ -155,18 +155,18 @@ export default function WhmDashboardPage() {
 
 function StatCard({ label, value, desc, icon }: { label: string; value: string; desc: string; icon: string }) {
   return (
-    <div className="bg-white p-4 rounded-2xl border border-slate-200 group hover:border-[#00A3FF]/40 transition-all duration-500 relative overflow-hidden shadow-sm hover:shadow-md">
+    <div className="group relative min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white p-3 shadow-sm transition-all duration-500 hover:border-[#00A3FF]/40 hover:shadow-md sm:p-4">
       <div className="flex justify-between items-start mb-3 relative z-10">
-        <span className="text-[8px] font-bold text-slate-500 uppercase tracking-widest">{label}</span>
+        <span className="pr-1 text-[7px] font-bold uppercase tracking-wider text-slate-500 sm:text-[8px] sm:tracking-widest">{label}</span>
         <div className="w-7 h-7 rounded-lg bg-slate-50 flex items-center justify-center text-slate-500 group-hover:text-[#00A3FF] group-hover:bg-[#00A3FF]/10 transition-all duration-500 border border-slate-100 group-hover:border-[#00A3FF]/20">
           <span className="material-symbols-outlined text-[16px]">{icon}</span>
         </div>
       </div>
       <div className="relative z-10">
-        <div className="text-2xl font-black text-slate-900 tracking-tight leading-none mb-1.5">{value}</div>
-        <div className="text-[9px] text-slate-600 font-bold tracking-tight uppercase flex items-center gap-1.5">
-          <div className="w-1 h-1 rounded-full bg-[#00A3FF]"></div>
-          {desc}
+        <div className="mb-1.5 text-xl font-black leading-none tracking-tight text-slate-900 sm:text-2xl">{value}</div>
+        <div className="flex min-w-0 items-start gap-1.5 text-[7px] font-bold uppercase tracking-tight text-slate-600 sm:text-[9px]">
+          <div className="mt-1 h-1 w-1 shrink-0 rounded-full bg-[#00A3FF]"></div>
+          <span className="break-words">{desc}</span>
         </div>
       </div>
       {/* Subtle brand tint */}

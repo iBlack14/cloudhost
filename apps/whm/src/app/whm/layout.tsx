@@ -16,11 +16,11 @@ export default function WhmLayout({ children }: { children: React.ReactNode }) {
   }, [router]);
 
   return (
-    <div className="flex min-h-screen overflow-hidden bg-[#F8FAFC]">
+    <div className="flex min-h-screen overflow-x-hidden bg-[#F8FAFC]">
       <WhmSidebar />
 
       {/* Main Content WHM - Light Corporate Theme */}
-      <main className="flex-1 ml-64 p-6 relative overflow-hidden min-h-screen">
+      <main className="relative min-h-screen min-w-0 flex-1 overflow-hidden px-4 pb-6 pt-20 sm:px-6 md:ml-64 md:p-6">
         <div className="relative z-10">
           {children}
         </div>

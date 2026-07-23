@@ -10,10 +10,24 @@ export function WhmSidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const [mounted, setMounted] = React.useState(false);
+  const [mobileOpen, setMobileOpen] = React.useState(false);
 
   React.useEffect(() => {
     setMounted(true);
   }, []);
+
+  React.useEffect(() => {
+    setMobileOpen(false);
+  }, [pathname]);
+
+  React.useEffect(() => {
+    if (!mobileOpen) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setMobileOpen(false);
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [mobileOpen]);
 
   const { data: dashboard } = useWhmDashboard();
   const role = mounted ? getWhmRole() : null;
@@ -43,7 +57,53 @@ export function WhmSidebar() {
   };
 
   return (
-    <aside className="w-64 fixed inset-y-0 left-0 z-50 p-5 flex flex-col bg-white border-r border-slate-200 shadow-[4px_0_24px_rgba(0,0,0,0.02)]">
+    <>
+      <div className="fixed inset-x-0 top-0 z-40 flex h-16 items-center justify-between border-b border-slate-200 bg-white/95 px-4 shadow-sm backdrop-blur md:hidden">
+        <Link href="/whm" className="flex min-w-0 items-center gap-2.5">
+          <img src="/logo.png" alt="" className="h-9 w-9 shrink-0 object-contain" />
+          <div className="min-w-0">
+            <div className="truncate text-sm font-black uppercase tracking-tight text-slate-900">
+              Odisea <span className="font-light text-[#00A3FF]">Cloud</span>
+            </div>
+            <div className="text-[8px] font-bold uppercase tracking-[0.18em] text-slate-400">Panel WHM</div>
+          </div>
+        </Link>
+        <button
+          type="button"
+          onClick={() => setMobileOpen(true)}
+          className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-slate-700 active:scale-95"
+          aria-label="Abrir menú de navegación"
+          aria-expanded={mobileOpen}
+        >
+          <span className="material-symbols-outlined">menu</span>
+        </button>
+      </div>
+
+      <button
+        type="button"
+        aria-label="Cerrar menú de navegación"
+        onClick={() => setMobileOpen(false)}
+        className={`fixed inset-0 z-40 bg-slate-950/40 backdrop-blur-[2px] transition-opacity md:hidden ${
+          mobileOpen ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0"
+        }`}
+      />
+
+      <aside
+        className={`fixed inset-y-0 left-0 z-50 flex w-[min(18rem,86vw)] flex-col border-r border-slate-200 bg-white p-5 shadow-2xl transition-transform duration-300 ease-out md:w-64 md:translate-x-0 md:shadow-[4px_0_24px_rgba(0,0,0,0.02)] ${
+          mobileOpen ? "translate-x-0" : "-translate-x-full"
+        }`}
+        aria-label="Navegación principal"
+      >
+      <div className="mb-3 flex justify-end md:hidden">
+        <button
+          type="button"
+          onClick={() => setMobileOpen(false)}
+          className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100 text-slate-600"
+          aria-label="Cerrar menú"
+        >
+          <span className="material-symbols-outlined text-xl">close</span>
+        </button>
+      </div>
       <div className="mb-6">
         <Link href="/whm" className="flex flex-col items-center gap-2 group text-center">
           <div className="relative flex-shrink-0 transition-transform duration-500 group-hover:scale-105">
@@ -156,7 +216,8 @@ export function WhmSidebar() {
           Cerrar Sesión
         </button>
       </div>
-    </aside>
+      </aside>
+    </>
   );
 }
 
