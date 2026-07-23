@@ -328,6 +328,11 @@ export default function FileManagerPage() {
   const [editorSaving,  setEditorSaving]  = useState(false);
   const [editorError,   setEditorError]   = useState<string|null>(null);
   const [editorLine,    setEditorLine]    = useState(1);
+  const [editorColumn,  setEditorColumn]  = useState(1);
+  const [editorScrollTop, setEditorScrollTop] = useState(0);
+  const [editorOriginalContent, setEditorOriginalContent] = useState("");
+  const editorTextareaRef = useRef<HTMLTextAreaElement>(null);
+  const editorGutterRef = useRef<HTMLDivElement>(null);
   // Rename
   const [renameTarget, setRenameTarget] = useState<string|null>(null);
   const [renameValue,  setRenameValue]  = useState("");
@@ -436,12 +441,14 @@ export default function FileManagerPage() {
 
   // Editor
   const openEditor = async (filePath: string, fileName: string) => {
-    setEditorFile({path:filePath,name:fileName}); setEditorContent(""); setEditorError(null); setEditorLoading(true); setEditorOpen(true); setContextMenu(null);
+    setEditorFile({path:filePath,name:fileName}); setEditorContent(""); setEditorOriginalContent(""); setEditorLine(1); setEditorColumn(1); setEditorScrollTop(0); setEditorError(null); setEditorLoading(true); setEditorOpen(true); setContextMenu(null);
     try {
       const res  = await fetch(`${API_BASE}/odin-panel/files/content?path=${encodeURIComponent(filePath)}`, { headers:authHeaders() });
       const data = await res.json();
       if (!res.ok||!data.success) throw new Error(data?.error?.message??"Error al leer archivo");
-      setEditorContent(data.data??"");
+      const content = data.data??"";
+      setEditorContent(content);
+      setEditorOriginalContent(content);
     } catch (err:any) { setEditorError(err.message??"No se pudo cargar"); }
     finally { setEditorLoading(false); }
   };
@@ -452,6 +459,7 @@ export default function FileManagerPage() {
       const res  = await fetch(`${API_BASE}/odin-panel/files/content`, { method:"PUT", headers:authHeaders({"Content-Type":"application/json"}), body:JSON.stringify({path:editorFile.path,content:editorContent}) });
       const data = await res.json();
       if (!res.ok||!data.success) throw new Error(data?.error?.message??"Error al guardar");
+      setEditorOriginalContent(editorContent);
       addToast(`"${editorFile.name}" guardado`, "success"); setEditorOpen(false); refetch();
     } catch (err:any) { setEditorError(err.message??"No se pudo guardar"); }
     finally { setEditorSaving(false); }
@@ -466,6 +474,22 @@ export default function FileManagerPage() {
       requestAnimationFrame(()=>{ ta.selectionStart=ta.selectionEnd=s+2; });
     }
   };
+  const updateEditorCursor = (textarea: HTMLTextAreaElement) => {
+    const beforeCursor = editorContent.substring(0, textarea.selectionStart);
+    const lines = beforeCursor.split("\n");
+    setEditorLine(lines.length);
+    setEditorColumn((lines.at(-1)?.length ?? 0) + 1);
+  };
+  const syncEditorScroll = (textarea: HTMLTextAreaElement) => {
+    if (editorGutterRef.current) editorGutterRef.current.scrollTop = textarea.scrollTop;
+    setEditorScrollTop(textarea.scrollTop);
+  };
+  const editorLanguage = (() => {
+    const extension = editorFile?.name.split(".").pop()?.toLowerCase() ?? "";
+    return ({ js:"JavaScript", jsx:"JavaScript React", ts:"TypeScript", tsx:"TypeScript React", json:"JSON", html:"HTML", css:"CSS", scss:"SCSS", php:"PHP", py:"Python", sh:"Shell", yml:"YAML", yaml:"YAML", md:"Markdown", env:"Environment" } as Record<string,string>)[extension] ?? "Texto";
+  })();
+  const editorLines = editorContent.split("\n");
+  const editorDirty = editorContent !== editorOriginalContent;
 
   // Rename
   const startRename = (file: FileItem) => { setRenameTarget(file.path); setRenameValue(file.name); setContextMenu(null); };
@@ -880,8 +904,10 @@ export default function FileManagerPage() {
               <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 2xl:grid-cols-10 gap-2">
                 {currentPath!=="/"&&(
                   <div onClick={()=>navigateTo("..")} className="flex flex-col items-center justify-center p-2.5 rounded-xl border border-dashed border-white/10 hover:border-[#00A3FF]/40 hover:bg-[#00A3FF]/5 cursor-pointer group transition-all text-center aspect-square">
-                    <span className="material-symbols-outlined text-xl text-slate-600 group-hover:text-[#00A3FF] transition-colors">keyboard_backspace</span>
-                    <span className="text-[9px] font-bold text-slate-600 group-hover:text-[#00A3FF] uppercase tracking-wider mt-1">Atrás</span>
+                    <div className="w-14 h-14 rounded-xl bg-slate-50 flex items-center justify-center mb-1.5 transition-all group-hover:scale-105 group-hover:bg-sky-50">
+                      <span className="material-symbols-outlined text-[32px] text-slate-500 group-hover:text-[#00A3FF] transition-colors">keyboard_backspace</span>
+                    </div>
+                    <span className="text-[10px] font-bold text-slate-600 group-hover:text-[#00A3FF] uppercase tracking-wider">Atrás</span>
                   </div>
                 )}
                 {displayFiles.map((file)=>(
@@ -896,8 +922,8 @@ export default function FileManagerPage() {
                       className="absolute top-1 right-1 z-10 w-5 h-5 rounded bg-white/5 text-slate-600 hover:text-slate-300 flex items-center justify-center md:opacity-0 md:group-hover:opacity-100 transition-opacity">
                       <span className="material-symbols-outlined text-[13px]">more_vert</span>
                     </button>
-                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center mb-1 transition-all group-hover:scale-105 ${file.isDirectory?"bg-sky-50":"bg-slate-50"}`}>
-                      <span className={`material-symbols-outlined text-xl ${getFileIconColor(file.name,file.isDirectory)}`}>{getFileIcon(file.name,file.isDirectory)}</span>
+                    <div className={`w-14 h-14 rounded-xl flex items-center justify-center mb-1.5 transition-all group-hover:scale-105 ${file.isDirectory?"bg-sky-50 ring-1 ring-sky-100":"bg-slate-50 ring-1 ring-slate-100"}`}>
+                      <span className={`material-symbols-outlined text-[32px] ${getFileIconColor(file.name,file.isDirectory)}`}>{getFileIcon(file.name,file.isDirectory)}</span>
                     </div>
                     {renameTarget===file.path?(
                       <div className="w-full px-0.5" onClick={(e)=>e.stopPropagation()}>
@@ -911,7 +937,7 @@ export default function FileManagerPage() {
                       </div>
                     ):(
                       <>
-                        <span className="text-[10px] font-semibold text-slate-700 group-hover:text-sky-700 truncate w-full px-0.5 transition-colors leading-tight" title={file.name}>{file.name}</span>
+                        <span className="text-[11px] font-semibold text-slate-700 group-hover:text-sky-700 truncate w-full px-0.5 transition-colors leading-tight" title={file.name}>{file.name}</span>
                         <span className="text-[9px] text-slate-400 font-mono mt-0.5">{file.isDirectory?"Carpeta":formatSize(file.size)}</span>
                       </>
                     )}
@@ -1036,6 +1062,7 @@ export default function FileManagerPage() {
                   <div className="flex items-center gap-1.5 sm:gap-2">
                     <h3 className="text-xs sm:text-sm font-bold text-slate-800 leading-tight truncate" title={editorFile?.name}>{editorFile?.name}</h3>
                     {editorFile&&<Badge name={editorFile.name}/>}
+                    {editorDirty&&<span className="w-2 h-2 rounded-full bg-amber-400" title="Cambios sin guardar"/>}
                   </div>
                   <p className="text-[8px] sm:text-[9px] text-slate-400 font-semibold mt-0.5 truncate">{editorFile?.path}</p>
                 </div>
@@ -1052,18 +1079,61 @@ export default function FileManagerPage() {
               </div>
             </div>
             {editorError&&<div className="px-5 py-2 bg-red-500/10 border-b border-red-500/20 flex items-center gap-2"><span className="material-symbols-outlined text-red-400 text-[16px]">error</span><p className="text-xs font-bold text-red-400">{editorError}</p></div>}
-            <div className="flex-1 overflow-hidden relative bg-[#f8fbff]">
+            <div className="flex-1 overflow-hidden relative bg-slate-950">
               {editorLoading?(
                 <div className="flex items-center justify-center h-full"><div className="text-center"><div className="w-8 h-8 border-2 border-white/10 border-t-[#00A3FF] rounded-full animate-spin mx-auto mb-2"/><p className="text-slate-600 text-[10px] font-bold uppercase tracking-widest">Cargando código...</p></div></div>
               ):(
-                <textarea value={editorContent} onChange={(e)=>setEditorContent(e.target.value)} onKeyDown={handleEditorKey}
-                  onSelect={(e)=>{ const ta=e.currentTarget; setEditorLine(editorContent.substring(0,ta.selectionStart).split("\n").length); }}
-                  spellCheck={false} aria-label="Contenido del archivo" className="w-full h-full bg-[#f8fbff] text-slate-800 caret-sky-500 font-mono text-[13px] resize-none focus:outline-none p-4 sm:p-6 leading-6 custom-scrollbar selection:bg-sky-200" style={{tabSize:2}}/>
+                <div className="flex h-full min-w-0">
+                  <div
+                    ref={editorGutterRef}
+                    aria-hidden="true"
+                    className="w-14 shrink-0 overflow-hidden border-r border-slate-800 bg-slate-900/80 py-4 font-mono text-[13px] leading-6 select-none"
+                  >
+                    {editorLines.map((_, index) => (
+                      <div
+                        key={index}
+                        className={`h-6 pr-3 text-right transition-colors ${editorLine===index+1?"bg-sky-500/10 text-sky-400 font-bold":"text-slate-600"}`}
+                      >
+                        {index+1}
+                      </div>
+                    ))}
+                  </div>
+                  <div className="relative min-w-0 flex-1">
+                    <div
+                      aria-hidden="true"
+                      className="pointer-events-none absolute inset-x-0 h-6 border-y border-sky-400/5 bg-sky-400/[0.035]"
+                      style={{top:`${16+(editorLine-1)*24-editorScrollTop}px`}}
+                    />
+                    <textarea
+                      ref={editorTextareaRef}
+                      value={editorContent}
+                      onChange={(e)=>setEditorContent(e.target.value)}
+                      onKeyDown={handleEditorKey}
+                      onSelect={(e)=>updateEditorCursor(e.currentTarget)}
+                      onClick={(e)=>updateEditorCursor(e.currentTarget)}
+                      onKeyUp={(e)=>updateEditorCursor(e.currentTarget)}
+                      onScroll={(e)=>syncEditorScroll(e.currentTarget)}
+                      spellCheck={false}
+                      aria-label="Contenido del archivo"
+                      className="relative z-10 w-full h-full bg-transparent text-slate-200 caret-sky-400 font-mono text-[13px] resize-none focus:outline-none px-4 py-4 leading-6 custom-scrollbar selection:bg-sky-500/30 whitespace-pre"
+                      style={{tabSize:2}}
+                    />
+                  </div>
+                </div>
               )}
             </div>
             <div className="px-5 py-2 border-t border-sky-100 bg-white flex items-center justify-between">
-              <span className="text-[9px] font-semibold text-slate-500">Línea {editorLine} · {editorContent.split("\n").length} líneas · UTF-8</span>
-              <span className="text-[9px] font-bold uppercase tracking-widest text-sky-500 hidden sm:inline-block">Editor Odisea Cloud</span>
+              <div className="flex items-center gap-3 text-[9px] font-semibold text-slate-500">
+                <span>Ln {editorLine}, Col {editorColumn}</span>
+                <span>{editorLines.length} líneas</span>
+                <span>{editorContent.length.toLocaleString()} caracteres</span>
+                <span>UTF-8</span>
+                <span>Espacios: 2</span>
+              </div>
+              <div className="flex items-center gap-3">
+                {editorDirty&&<span className="text-[9px] font-bold uppercase tracking-widest text-amber-500">Sin guardar</span>}
+                <span className="text-[9px] font-bold uppercase tracking-widest text-sky-500 hidden sm:inline-block">{editorLanguage} · Odisea Editor</span>
+              </div>
             </div>
           </div>
         </div>
