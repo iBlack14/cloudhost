@@ -901,10 +901,10 @@ export default function FileManagerPage() {
 
             {/* ── Grid View ── */}
             {!isLoading&&displayFiles.length>0&&viewMode==="grid"&&(
-              <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 2xl:grid-cols-10 gap-2">
+              <div className="grid [grid-template-columns:repeat(auto-fill,minmax(118px,1fr))] gap-2">
                 {currentPath!=="/"&&(
-                  <div onClick={()=>navigateTo("..")} className="flex flex-col items-center justify-center p-2.5 rounded-xl border border-dashed border-white/10 hover:border-[#00A3FF]/40 hover:bg-[#00A3FF]/5 cursor-pointer group transition-all text-center aspect-square">
-                    <div className="w-14 h-14 flex items-center justify-center mb-1.5 transition-all group-hover:scale-110">
+                  <div onClick={()=>navigateTo("..")} className="h-[104px] flex flex-col items-center justify-center p-2 rounded-xl border border-dashed border-slate-200 hover:border-[#00A3FF]/40 hover:bg-[#00A3FF]/5 cursor-pointer group transition-all text-center">
+                    <div className="w-10 h-10 flex items-center justify-center mb-1 transition-all group-hover:scale-110">
                       <span className="material-symbols-outlined text-[32px] text-slate-500 group-hover:text-[#00A3FF] transition-colors">keyboard_backspace</span>
                     </div>
                     <span className="text-[10px] font-bold text-slate-600 group-hover:text-[#00A3FF] uppercase tracking-wider">Atrás</span>
@@ -912,7 +912,7 @@ export default function FileManagerPage() {
                 )}
                 {displayFiles.map((file)=>(
                   <div key={file.path} onClick={()=>file.isDirectory&&navigateTo(file.name)} onContextMenu={(e)=>openCtx(e,file)}
-                    className={`flex flex-col items-center justify-center p-2.5 border rounded-xl cursor-pointer group transition-all text-center relative aspect-square select-none shadow-sm ${selectedFiles.has(file.path)?"border-sky-300 bg-sky-50":"border-slate-200 bg-white hover:border-sky-200 hover:bg-sky-50/50 hover:shadow-md"}`}>
+                    className={`h-[104px] flex flex-col items-center justify-center p-2 border rounded-xl cursor-pointer group transition-all text-center relative select-none shadow-sm ${selectedFiles.has(file.path)?"border-sky-300 bg-sky-50":"border-slate-200 bg-white hover:border-sky-200 hover:bg-sky-50/50 hover:shadow-md"}`}>
                     <div className={`absolute top-1.5 left-1.5 z-10 transition-opacity ${selectedFiles.has(file.path)?"opacity-100":"opacity-0 group-hover:opacity-100"}`} onClick={(e)=>toggleSelect(file.path,e)}>
                       <div className={`w-3.5 h-3.5 rounded border-2 flex items-center justify-center transition-all ${selectedFiles.has(file.path)?"bg-[#00A3FF] border-[#00A3FF]":"border-white/20 bg-black/40"}`}>
                         {selectedFiles.has(file.path)&&<span className="material-symbols-outlined text-[9px] text-white">check</span>}
@@ -922,7 +922,7 @@ export default function FileManagerPage() {
                       className="absolute top-1 right-1 z-10 w-5 h-5 rounded bg-white/5 text-slate-600 hover:text-slate-300 flex items-center justify-center md:opacity-0 md:group-hover:opacity-100 transition-opacity">
                       <span className="material-symbols-outlined text-[13px]">more_vert</span>
                     </button>
-                    <div className="w-14 h-14 flex items-center justify-center mb-1.5 transition-all group-hover:scale-110">
+                    <div className="w-10 h-10 flex items-center justify-center mb-1 transition-all group-hover:scale-110">
                       <span className={`material-symbols-outlined text-[32px] ${getFileIconColor(file.name,file.isDirectory)}`}>{getFileIcon(file.name,file.isDirectory)}</span>
                     </div>
                     {renameTarget===file.path?(
